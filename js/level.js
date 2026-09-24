@@ -1,8 +1,14 @@
 // Level 1 gameplay. Everything is drawn in a 1920x1080 coordinate space.
 (function () {
   const W = 1920, H = 1080;
-  const GOAL = 10;
-  const TYPES = ['nebula', 'prism', 'solara', 'glide', 'vexa'];
+  let GOAL = 10;                                     // goal of the level being played
+  // Levels: background, which monsters appear, and how many of each to catch
+  const LEVELS = {
+    1: { name: 'Crystal Shores',  bg: 'assets/level1.jpg', types: ['nebula', 'prism', 'solara', 'glide', 'vexa'], goal: 10 },
+    2: { name: 'Glowwood Forest', bg: 'assets/level2.jpg', types: ['pulsar', 'ember'], goal: 15 },
+  };
+  const ALL_TYPES = ['nebula', 'prism', 'solara', 'glide', 'vexa', 'pulsar', 'ember'];
+  let TYPES = LEVELS[1].types;                       // types of the level being played
   const DWELL_TIME = 0.45;       // seconds the circle must rest on a target to fire the blaster
   const SHOT_COOLDOWN = 0.28;
   const DAMAGE = 5;              // % health lost per hit
@@ -35,6 +41,9 @@
     solara: { src: 'assets/solara.png', fw: 274, fh: 242, front: [0, 4, 12, 4],   side: [6, 9, 14], color: '#ffd27a', name: 'Solara', speed: [6.5, 8.5] },
     glide:  { src: 'assets/glide.png',  fw: 262, fh: 212, front: [0, 11, 0, 11],  side: [2, 10, 14, 12], color: '#8ff0c8', name: 'Glide', speed: [6, 7.5] },
     vexa:   { src: 'assets/vexa.png',   fw: 245, fh: 234, front: [0, 1, 11, 1],   side: [3, 9, 10, 14], color: '#ffa45c', name: 'Vexa',  speed: [9, 11], thrower: true },
+    // pulse = moves toward you in bursts, to the rhythm of its glowing bubbles
+    pulsar: { src: 'assets/pulsar.png', fw: 244, fh: 229, front: [0, 10, 11, 10], side: [3, 8, 9], color: '#b8f06a', name: 'Pulsar', speed: [7, 9], pulse: true },
+    ember:  { src: 'assets/ember.png',  fw: 244, fh: 260, front: [0, 5, 0, 7],    side: [3, 6, 11, 12], color: '#ff9a6a', name: 'Ember', speed: [6.5, 8], thrower: true },
   };
   // Gun frames ordered from pointing far left to pointing far right
   const GUN_ORDER = [0, 1, 2, 3, 4, 12, 14, 13, 11, 10];
@@ -49,7 +58,7 @@
   const Assets = {
     images: {},
     load(onProgress) {
-      const list = [['bg', 'assets/level1.jpg'], ...['gun', ...TYPES].map((k) => [k, SPR[k].src])];
+      const list = [...Object.entries(LEVELS).map(([id, l]) => ['bg' + id, l.bg]), ...['gun', ...ALL_TYPES].map((k) => [k, SPR[k].src])];
       let done = 0;
       return Promise.all(list.map(([key, src]) => new Promise((resolve, reject) => {
         const img = new Image();
@@ -93,11 +102,24 @@
     tSign: false,                   // time-out T made with both forearms
     mouseFire: false,
     mouseReload: false,
-    fx: new OneEuro(), fy: new OneEuro(),
+    smoothing: 'normal',
+    // Separate filters: the wrist moves fast (adaptive filter), the shoulder and body size barely move (heavy filter).
+    // This removes most of the jitter that the shoulder used to add to the aim.
+    fw: [new OneEuro(), new OneEuro()],
+    fs: [new OneEuro(0.3, 0.2), new OneEuro(0.3, 0.2)],
+    fsw: new OneEuro(0.2, 0.1),
+    lastWrist: null,
+
+    setSmoothing(level) {
+      this.smoothing = level;
+      const [mc, beta] = { low: [1.6, 4], normal: [1.0, 3], high: [0.55, 2] }[level] || [1.0, 3];
+      this.fw.forEach((f) => { f.minCutoff = mc; f.beta = beta; });
+    },
 
     reset() {
       this.hasAim = false; this.lastPose = 0; this.offsetNow = null; this.freeHandUp = false; this.tSign = false;
-      this.fx.reset(); this.fy.reset();
+      [...this.fw, ...this.fs, this.fsw].forEach((f) => f.reset());
+      this.lastWrist = null;
     },
 
     // Message from the phone: { t, a: aspect ratio, p: [x,y,visibility] x 7 }
@@ -105,13 +127,16 @@
     onPose(d) {
       if (this.mode !== 'phone' || !d || !d.p) return;
       const now = performance.now();
+      // Use the phone's own clock for filtering, so network hiccups don't affect the smoothing
+      const t = typeof d.t === 'number' ? d.t : now;
       // Mirror x because the camera faces the player: their right hand should move the aim right
       const L = (i) => ({ x: (1 - d.p[i * 3]) * d.a, y: d.p[i * 3 + 1], v: d.p[i * 3 + 2] });
       const nose = L(0), ls = L(1), rs = L(2), le = L(3), re = L(4), lw = L(5), rw = L(6);
       if (ls.v < 0.4 || rs.v < 0.4) return;
-      const sw = Math.max(0.05, Math.hypot(ls.x - rs.x, ls.y - rs.y));   // shoulder width = body scale
+      const swRaw = Math.max(0.05, Math.hypot(ls.x - rs.x, ls.y - rs.y));   // shoulder width = body scale
+      const sw = this.fsw.filter(swRaw, t);
       const right = this.hand === 'right';
-      const wrist = right ? rw : lw, shoulder = right ? rs : ls, free = right ? lw : rw;
+      const wristRaw = right ? rw : lw, shoulderRaw = right ? rs : ls, free = right ? lw : rw;
 
       // Reload gesture: free hand raised above the head
       this.freeHandUp = free.v > 0.4 && free.y < nose.y - 0.25 * sw;
@@ -130,17 +155,21 @@
         this.tSign = near && chest && long && ((horiz(a) && vert(b)) || (vert(a) && horiz(b)));
       }
 
-      if (wrist.v < 0.35) return;
-      const dx = (wrist.x - shoulder.x) / sw;
-      const dy = (wrist.y - shoulder.y) / sw;
+      // Ignore frames where the wrist is poorly seen, and single-frame jumps (tracking glitches)
+      if (wristRaw.v < 0.5) return;
+      if (this.lastWrist && wristRaw.v < 0.8 && Math.hypot(wristRaw.x - this.lastWrist.x, wristRaw.y - this.lastWrist.y) > 1.2 * sw) return;
+      this.lastWrist = { x: wristRaw.x, y: wristRaw.y };
+
+      const wx = this.fw[0].filter(wristRaw.x, t), wy = this.fw[1].filter(wristRaw.y, t);
+      const sx = this.fs[0].filter(shoulderRaw.x, t), sy = this.fs[1].filter(shoulderRaw.y, t);
+      const dx = (wx - sx) / sw;
+      const dy = (wy - sy) / sw;
       this.offsetNow = { dx, dy, t: now };
       const side = right ? 1 : -1;
       const cx = this.calib ? this.calib.cx : 0.25 * side;
       const cy = this.calib ? this.calib.cy : 0.15;
-      const x = clamp(0.5 + (dx - cx) / (1.9 / this.sens), -0.02, 1.02);
-      const y = clamp(0.5 + (dy - cy) / (1.5 / this.sens), -0.02, 1.02);
-      this.aim.x = this.fx.filter(x, now);
-      this.aim.y = this.fy.filter(y, now);
+      this.aim.x = clamp(0.5 + (dx - cx) / (1.9 / this.sens), -0.02, 1.02);
+      this.aim.y = clamp(0.5 + (dy - cy) / (1.5 / this.sens), -0.02, 1.02);
       this.hasAim = true;
       this.lastPose = now;
     },
@@ -178,12 +207,19 @@
       this.scale = w / W;
     },
 
-    start({ mode, save, options, onEnd, onHud, getMenuButtons }) {
+    start({ level = 1, mode, save, options, onEnd, onHud, getMenuButtons }) {
       Object.assign(this, { save, options, onEnd, onHud, getMenuButtons });
+      this.levelId = level;
+      TYPES = LEVELS[level].types;
+      GOAL = LEVELS[level].goal;
+      this.types = TYPES; this.goal = GOAL;
+      this.menuSuspended = false;
       Input.mode = mode;
       Input.hand = options.hand;
       Input.sens = options.sens;
+      Input.setSmoothing(options.smoothing || 'normal');
       Input.reset();
+      TYPES.forEach((t) => { delete this['done_' + t]; });
       Input.calib = mode === 'phone' ? null : Input.calib;
       this.setQuality(options.quality);
 
@@ -235,7 +271,7 @@
         if (!this.running || id !== this.loopId) return;
         const dt = Math.min(0.05, (now - this.last) / 1000);
         this.last = now;
-        if (this.paused || this.state === 'done') this.updateMenuCursor(dt);
+        if (this.paused || this.state === 'done') { if (!this.menuSuspended) this.updateMenuCursor(dt); }
         else this.update(dt);
         this.draw();
         requestAnimationFrame(loop);
@@ -244,6 +280,17 @@
     },
 
     stop() { this.running = false; this.hud('cursor', null); },
+
+    // Options changed from the in-game menu
+    applyOptions(o) {
+      this.options = o;
+      Input.hand = o.hand;
+      Input.sens = o.sens;
+      Input.setSmoothing(o.smoothing || 'normal');
+      const up = this.save.owned || {};
+      this.assist = [0, 0.35, 0.6, 0.85][o.assist] + (up.steadyAim && o.assist > 0 ? 0.12 : 0);
+      this.closeBelt();
+    },
     pause(reason) {
       if (this.state !== 'play' || this.paused) return;
       this.paused = true; this.tHold = 0; this.tLatch = true; this.menuHold = 0;
@@ -261,7 +308,7 @@
 
     followAim(dt) {
       const target = Input.hasAim ? { x: Input.aim.x * W, y: Input.aim.y * H } : { x: W / 2, y: H / 2 };
-      const k = Input.mode === 'mouse' ? 1 : Math.min(1, dt * 16);
+      const k = Input.mode === 'mouse' ? 1 : Math.min(1, dt * 30);
       this.smoothAim.x = lerp(this.smoothAim.x, target.x, k);
       this.smoothAim.y = lerp(this.smoothAim.y, target.y, k);
     },
@@ -339,7 +386,6 @@
       this.hud('cal', span > 0.3 ? 'Almost there…' : 'Hold still…');
       if (span >= 1.0) {
         Input.calib = { cx: mx, cy: my };
-        Input.fx.reset(); Input.fy.reset();
         Sfx.lock();
         this.state = 'countdown'; this.stateT = 0;
         this.hud('countdown', 3);
@@ -420,6 +466,7 @@
     },
 
     updateMonster(m, dt, frozen) {
+      const s0 = SPR[m.type];
       m.age += dt;
       if (m.state === 'dying') { m.t += dt; if (m.t > 0.45) m.gone = true; return; }
       if (m.state === 'attacking') {
@@ -428,14 +475,14 @@
         if (m.t > 0.45) m.gone = true;
         return;
       }
-      if (!frozen) m.z += dt / m.dur;
+      if (!frozen) m.z += (dt / m.dur) * (s0.pulse ? 0.25 + 2.2 * Math.max(0, Math.sin(m.age * 3 + m.phase)) : 1);
       const e = Math.pow(Math.min(m.z, 1), 1.35);
       const wob = Math.sin(m.phase + m.age * m.freq) * m.amp * (0.35 + 0.65 * m.z);
       const px = lerp(m.x0, 0.5, m.z * 0.35) * W + wob;
       m.vx = dt > 0 ? (px - m.px) / dt : 0;
       m.px = px;
       m.py = lerp(0.4, 0.6, e) * H + Math.sin(m.age * 2.1 + m.phase) * 10 * (0.5 + m.z);
-      m.size = lerp(80, 360, e);
+      m.size = lerp(80, 360, e) * (s0.pulse ? 1 + 0.06 * Math.sin(m.age * 6 + m.phase) : 1);
       m.r = m.size * 0.38;
 
       // Face the player, or turn sideways while drifting quickly
@@ -762,11 +809,11 @@
     gunPose() {
       const t = clamp(this.reticle.x / W, 0, 1);
       const idx = GUN_ORDER[Math.round(t * (GUN_ORDER.length - 1))];
-      const gh = H * 0.5, gw = gh * SPR.gun.fw / SPR.gun.fh;
+      const gh = H * 0.4, gw = gh * SPR.gun.fw / SPR.gun.fh;
       const reloadP = this.reloading > 0 ? 1 - this.reloading / this.reloadTime : 0;
       const dip = Math.sin(reloadP * Math.PI);
-      const x = W / 2 + (t - 0.5) * 140;
-      const y = H + 12 + this.recoil * 26 + dip * 240 + this.gunDown * 330 + Math.sin(this.time * 2) * 4;
+      const x = W / 2 + (t - 0.5) * 115;
+      const y = H + 10 + this.recoil * 22 + dip * 200 + this.gunDown * 270 + Math.sin(this.time * 2) * 4;
       const rot = (t - 0.5) * 0.14;
       return { idx, gw, gh, x, y, rot };
     },
@@ -801,7 +848,7 @@
       // Background with a little parallax from the aim
       const px = (this.smoothAim.x / W - 0.5) * -36, py = (this.smoothAim.y / H - 0.5) * -20;
       const bw = W * 1.06, bh = H * 1.06;
-      c.drawImage(img.bg, (W - bw) / 2 + px, (H - bh) / 2 + py, bw, bh);
+      c.drawImage(img['bg' + this.levelId], (W - bw) / 2 + px, (H - bh) / 2 + py, bw, bh);
 
       // Monsters, far ones first
       const sorted = [...this.monsters].sort((a, b) => a.z - b.z);
@@ -1118,5 +1165,5 @@
     },
   };
 
-  window.SV = { Assets, Input, Level, SPR, TYPES, GOAL, GEAR, SHIELD_MAX };
+  window.SV = { Assets, Input, Level, SPR, LEVELS, ALL_TYPES, GEAR, SHIELD_MAX, get TYPES() { return TYPES; }, get GOAL() { return GOAL; } };
 })();

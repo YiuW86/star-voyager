@@ -8,7 +8,6 @@ window.Net = {
   status: 'off',            // off | starting | waiting | connected | lost | error
   onData: null,             // callback(data) for each pose message
   onStatus: null,           // callback(status, text)
-  _qrMade: false,
 
   makeCode() {
     const chars = 'abcdefghjkmnpqrstuvwxyz23456789';  // no look-alike characters
@@ -60,7 +59,6 @@ window.Net = {
         try { sessionStorage.removeItem('sv-room'); } catch (e) {}
         this.peer.destroy();
         this.peer = null;
-        this._qrMade = false;
         this.start();
       } else if (err.type === 'network' || err.type === 'server-error' || err.type === 'socket-error') {
         this.setStatus('error', 'Can\'t reach the connection server. Check your internet connection.');
@@ -70,22 +68,21 @@ window.Net = {
     });
   },
 
+  // Fills every QR code box and room code on the page (start screen and pairing screen)
   renderQr() {
     if (!this.roomCode) return;
     const url = this.controllerUrl();
-    const codeEl = document.getElementById('room-code');
+    document.querySelectorAll('[data-room-code]').forEach((el) => { el.textContent = this.roomCode.toUpperCase(); });
     const urlEl = document.getElementById('room-url');
-    if (codeEl) codeEl.textContent = this.roomCode.toUpperCase();
     if (urlEl) urlEl.textContent = url;
-    const box = document.getElementById('qr');
-    if (!box || this._qrMade) return;
-    box.innerHTML = '';
-    if (typeof QRCode !== 'undefined') {
-      new QRCode(box, { text: url, width: 260, height: 260, colorDark: '#0a1440', colorLight: '#ffffff', correctLevel: QRCode.CorrectLevel.M });
-      this._qrMade = true;
-    } else {
-      box.textContent = 'QR code unavailable — use the link.';
-    }
+    document.querySelectorAll('[data-qr]').forEach((box) => {
+      if (box.dataset.made === this.roomCode) return;
+      box.innerHTML = '';
+      if (typeof QRCode === 'undefined') { box.textContent = 'Use the link'; return; }
+      const size = Number(box.dataset.size) || 260;
+      new QRCode(box, { text: url, width: size, height: size, colorDark: '#0a1440', colorLight: '#ffffff', correctLevel: QRCode.CorrectLevel.M });
+      box.dataset.made = this.roomCode;
+    });
   },
 
   isConnected() { return this.status === 'connected'; },

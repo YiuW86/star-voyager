@@ -26,6 +26,14 @@
     <button class="hotspot" id="hs-start" data-go="levels"><span class="sr">Start</span></button>
     <button class="hotspot" id="hs-options" data-go="options"><span class="sr">Options</span></button>
     <button class="hotspot" id="hs-quit" data-action="quit"><span class="sr">Quit</span></button>
+    <div class="start-connect" id="start-connect">
+      <div class="mini-qr" data-qr data-size="150"></div>
+      <div>
+        <b>Play with motion</b>
+        <p>Scan with your Android phone to control the menus and the game with your arm.</p>
+        <div class="code small-code" data-room-code>······</div>
+      </div>
+    </div>
   </section>
 
   <!-- Level select -->
@@ -34,15 +42,19 @@
     <div class="center-col">
       <h1 class="title">Choose a level</h1>
       <div class="levels">
-        <button class="level-card" id="level-1-card">
+        <button class="level-card" id="level-1-card" data-level="1">
           <div class="face">
             <img src="assets/level1.jpg" alt="">
             <span class="num">1</span>
             <div class="label"><b>Crystal Shores</b><small id="level-1-best">Catch 10 of each monster</small></div>
           </div>
         </button>
-        <button class="level-card locked" disabled>
-          <div class="face"><span class="num">2</span><div class="label"><b>Coming soon</b><small>Clear level 1 first</small></div></div>
+        <button class="level-card" id="level-2-card" data-level="2">
+          <div class="face">
+            <img src="assets/level2.jpg" alt="">
+            <span class="num">2</span>
+            <div class="label"><b>Glowwood Forest</b><small id="level-2-best">Catch 15 of each monster</small></div>
+          </div>
         </button>
         <button class="level-card locked" disabled>
           <div class="face"><span class="num">3</span><div class="label"><b>Coming soon</b><small>Clear level 2 first</small></div></div>
@@ -102,14 +114,16 @@
           <div class="seg" data-opt="assist"><button data-v="0">Off</button><button data-v="1">Low</button><button data-v="2">Normal</button><button data-v="3">Strong</button></div>
           <label>Aiming hand</label>
           <div class="seg" data-opt="hand"><button data-v="right">Right</button><button data-v="left">Left</button></div>
-          <label for="opt-sens">Aim sensitivity</label>
-          <input type="range" id="opt-sens" min="0.6" max="1.6" step="0.1">
+          <label>Aim sensitivity</label>
+          <div class="seg" data-opt="sens"><button data-v="0.8">Low</button><button data-v="1">Normal</button><button data-v="1.25">High</button><button data-v="1.5">Very high</button></div>
+          <label>Aim smoothing</label>
+          <div class="seg" data-opt="smoothing"><button data-v="low">Fast</button><button data-v="normal">Normal</button><button data-v="high">Extra smooth</button></div>
           <label>Graphics</label>
           <div class="seg" data-opt="quality"><button data-v="fast">Fast (TV)</button><button data-v="sharp">Sharp</button></div>
         </div>
       </div></div>
       <div class="row">
-        <button class="btn" data-go="start"><span>Back</span></button>
+        <button class="btn pink" data-action="options-back"><span>Back</span></button>
         <button class="btn" data-action="reset"><span>Reset progress</span></button>
       </div>
     </div>
@@ -121,11 +135,11 @@
     <div class="center-col">
       <div class="panel"><div class="inner">
         <div class="connect-wrap">
-          <div class="qr-box" id="qr"></div>
+          <div class="qr-box" id="qr" data-qr data-size="260"></div>
           <div class="steps">
             <h2>Connect your phone</h2>
             <p>Scan the code with your Android phone, or open the link below and enter this code:</p>
-            <div class="code" id="room-code">······</div>
+            <div class="code" id="room-code" data-room-code>······</div>
             <div class="url" id="room-url"></div>
             <p class="muted">Prop the phone up near the screen, facing you, about 2–3 metres away so your upper body is in view.</p>
             <div class="phone-status"><i class="dot" data-phone-dot></i><span data-phone-text>Waiting for phone…</span></div>
@@ -172,11 +186,12 @@
     <div class="overlay" id="ov-count"><div class="big-count" id="count-num">3</div></div>
     <div class="overlay" id="ov-pause">
       <div class="center-col">
-        <h1 class="title">Paused</h1>
+        <h1 class="title">Menu</h1>
         <p class="muted" id="pause-reason">Take a breather.</p>
         <p class="muted" id="pause-hint">Point at a button and hold to choose it.</p>
         <div class="row">
-          <button class="btn pink" data-action="resume"><span>Resume</span></button>
+          <button class="btn pink" data-action="resume"><span>Return to game</span></button>
+          <button class="btn" data-action="options-game"><span>Options</span></button>
           <button class="btn" data-action="restart"><span>Restart level</span></button>
           <button class="btn" data-action="abandon"><span>Main menu</span></button>
         </div>

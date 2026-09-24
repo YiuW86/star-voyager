@@ -46,13 +46,24 @@ Controls without the phone (for testing): mouse to aim, click to fire, right-cli
 
 Prism and Vexa throw rocks from a distance. Shoot them down or block them with the shield.
 
-Goal: catch 10 each of Nebula, Prism, Solara, Glide and Vexa. Each monster that reaches you costs 5% health.
+Levels:
+- **Level 1, Crystal Shores:** catch 10 each of Nebula, Prism, Solara, Glide and Vexa.
+- **Level 2, Glowwood Forest:** catch 15 each of Pulsar and Ember. Pulsar moves in bursts; Ember is quick and throws fire rocks.
+
+Menus with the phone: scan the QR code on the start screen, then point at any button and hold for 1 second. Once the phone is connected, choosing a level starts it straight away.
+
+In a level, the **Menu** button (or the time-out T) opens the in-game menu: Return to game, Options, Restart level, Main menu.
+
+Aiming: Options has **Aim sensitivity** and **Aim smoothing** (Fast, Normal, Extra smooth). On the phone, **Accuracy: high** uses a larger tracking model: more precise, but the phone gets warmer. Each monster that reaches you costs 5% health.
 
 ## Alien guide
 
 Open it from the level select screen. All 20 aliens are shown as silhouettes until you catch one for the first time; then the full card appears with a "New" badge. Select a card (click, or with the phone point at it and hold for 1 second) to read about the alien. Alien names, facts and which level they appear in are in `js/dex.js`. The card images are in `assets/dex/` (`<id>.png` and `<id>-locked.png` for the silhouette).
 
 ## Tuning
+
+Levels (background, monsters, goal) are defined in `LEVELS` at the top of `js/level.js`.
+
 
 Most gameplay numbers are at the top of `js/level.js` and in its `spawn`, `updateSpawning` and `start` functions:
 - `DWELL_TIME` — how long to hold the circle on a monster before firing

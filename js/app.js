@@ -1,6 +1,8 @@
 // Screens, menus, shop, options, saving and the connection between UI and gameplay.
 (function () {
-  const { Assets, Input, Level, SPR, TYPES, GOAL, GEAR, SHIELD_MAX } = window.SV;
+  const { Assets, Input, Level, SPR, LEVELS, GEAR, SHIELD_MAX } = window.SV;
+  const types = () => window.SV.TYPES;   // monsters of the level being played
+  const goal = () => window.SV.GOAL;
   const $ = (s, root = document) => root.querySelector(s);
   const $$ = (s, root = document) => [...root.querySelectorAll(s)];
 
@@ -11,7 +13,7 @@
     best: {},
     dex: {},        // alien id -> times caught (all time)
     dexNew: {},     // aliens caught but not yet viewed in the guide
-    options: { sound: 'on', assist: 2, hand: 'right', sens: 1, quality: 'fast' },
+    options: { sound: 'on', assist: 2, hand: 'right', sens: 1, smoothing: 'normal', quality: 'fast' },
   };
   let save = load();
 
@@ -55,8 +57,10 @@
     if (name === 'options') renderOptions();
     if (name === 'levels') renderLevels();
     if (name === 'connect') { Net.start(); Net.renderQr(); updatePhoneUi(); }
-    if (name === 'dex') { Dex.hide(); Dex.render(); MenuPointer.start(); }
-    else MenuPointer.stop();
+    if (name === 'dex') { Dex.hide(); Dex.render(); }
+    if (name === 'start') updatePhoneUi();
+    // Hand pointer works on every menu screen; inside a level the game handles it
+    if (name !== 'game' && name !== 'loading') MenuPointer.start(); else MenuPointer.stop();
     setTimeout(focusFirst, 30);
   }
 
@@ -89,15 +93,17 @@
     },
     connect() { go('connect'); },
     'connect-back'() { go('levels'); },
-    'play-phone'() { startLevel('phone'); },
-    'play-mouse'() { startLevel('mouse'); },
+    'play-phone'() { startLevel('phone', pendingLevel); },
+    'play-mouse'() { startLevel('mouse', pendingLevel); },
+    'options-game'() { optionsFromGame = true; Level.menuSuspended = true; go('options'); },
+    'options-back'() { closeOptions(); },
     'skip-cal'() { Level.skipCalibration(); },
     menu() { Level.pause(); },
     'dex-close'() { Dex.hide(); setTimeout(focusFirst, 30); },
     resume() { Level.resume(); },
-    restart() { hideOverlays(); startLevel(lastMode); },
+    restart() { hideOverlays(); startLevel(lastMode, lastLevel); },
     abandon() { Level.stop(); hideOverlays(); go('start'); },
-    again() { hideOverlays(); startLevel(lastMode); },
+    again() { hideOverlays(); startLevel(lastMode, lastLevel); },
     'to-levels'() { Level.stop(); hideOverlays(); go('levels'); },
     reset(el) {
       if (!resetArmed) {
@@ -116,12 +122,34 @@
     },
   };
 
-  $('#level-1-card').addEventListener('click', () => { Sfx.select(); go('connect'); });
+  // Choosing a level: with a phone connected the level starts right away, otherwise show the pairing screen
+  let pendingLevel = 1;
+  $$('.level-card[data-level]').forEach((card) => card.addEventListener('click', () => {
+    Sfx.select();
+    pendingLevel = Number(card.dataset.level);
+    if (Net.isConnected()) startLevel('phone', pendingLevel);
+    else go('connect');
+  }));
+
+  // Options can be opened from the title screen or from the in-game menu
+  let optionsFromGame = false;
+  function closeOptions() {
+    if (optionsFromGame) {
+      optionsFromGame = false;
+      Sfx.enabled = save.options.sound === 'on';
+      Level.applyOptions(save.options);
+      go('game');
+      Level.menuSuspended = false;
+    } else go('start');
+  }
 
   // ---------------- Level select ----------------
   function renderLevels() {
-    const best = save.best.level1;
-    $('#level-1-best').textContent = best ? `Cleared · best time ${fmtTime(best.time)}` : 'Catch 10 of each monster';
+    for (const id of Object.keys(LEVELS)) {
+      const best = save.best['level' + id];
+      const el = $('#level-' + id + '-best');
+      if (el) el.textContent = best ? `Cleared · best time ${fmtTime(best.time)}` : `Catch ${LEVELS[id].goal} of each monster`;
+    }
     updatePhoneUi();
   }
   function fmtTime(s) {
@@ -168,17 +196,15 @@
         b.setAttribute('aria-pressed', b.dataset.v === val);
       });
     });
-    $('#opt-sens').value = o.sens;
   }
   $$('[data-opt] button').forEach((b) => b.addEventListener('click', () => {
     const key = b.parentElement.dataset.opt;
     let v = b.dataset.v;
-    if (key === 'assist') v = Number(v);
+    if (key === 'assist' || key === 'sens') v = Number(v);
     save.options[key] = v;
     if (key === 'sound') Sfx.enabled = v === 'on';
     persist(); renderOptions(); Sfx.select();
   }));
-  $('#opt-sens').addEventListener('input', (e) => { save.options.sens = Number(e.target.value); persist(); });
 
   // ---------------- Phone connection ----------------
   const statusText = { off: 'Phone not connected', starting: 'Setting up connection…', waiting: 'Waiting for phone…', connected: 'Phone connected', lost: 'Phone disconnected', error: 'Connection problem' };
@@ -193,13 +219,14 @@
     $$('[data-phone-text]').forEach((t) => { t.textContent = phoneText; });
     $('#btn-play-phone').disabled = st !== 'connected';
     $('#phone-chip').style.display = lastMode === 'phone' ? 'flex' : 'none';
+    $('#start-connect').style.display = st === 'connected' ? 'none' : 'flex';
   }
 
   Net.onStatus = (status, text) => {
     phoneText = text || statusText[status];
     updatePhoneUi();
     if (status === 'connected' && current === 'connect') setTimeout(focusFirst, 30);
-    if (status === 'connected' && current === 'dex') MenuPointer.start();
+    if (status === 'connected' && current !== 'game' && current !== 'loading') MenuPointer.start();
     if (status !== 'connected' && current === 'game' && lastMode === 'phone' && Level.state === 'play') {
       Level.pause('Phone disconnected. Reconnect the phone, then resume.');
     }
@@ -211,13 +238,16 @@
     const segs = $('#health-segs');
     segs.innerHTML = '';
     for (let i = 0; i < 20; i++) { const c = document.createElement('i'); c.className = 'seg-cell'; segs.appendChild(c); }
+  }
+  // Catch counters for the monsters of the level being played
+  function buildCatches() {
     const catches = $('#catches');
     catches.innerHTML = '';
-    for (const t of TYPES) {
+    for (const t of types()) {
       const d = document.createElement('div');
       d.className = 'catch'; d.dataset.type = t;
       d.style.setProperty('--c', SPR[t].color);
-      d.innerHTML = `<canvas width="132" height="132"></canvas><div><b>0</b><small>/${GOAL}</small></div>`;
+      d.innerHTML = `<canvas width="132" height="132"></canvas><div><b>0</b><small>/${goal()}</small></div>`;
       Level.drawPortrait($('canvas', d), t);
       catches.appendChild(d);
     }
@@ -245,10 +275,11 @@
       [...pips.children].forEach((p, i) => p.classList.toggle('off', i >= L.ammo));
     }
     if (kind === 'all' || kind === 'catch') {
-      for (const t of TYPES) {
+      for (const t of types()) {
         const el = $(`.catch[data-type="${t}"]`);
+        if (!el) continue;
         $('b', el).textContent = L.caught[t];
-        el.classList.toggle('done', L.caught[t] >= GOAL);
+        el.classList.toggle('done', L.caught[t] >= goal());
       }
       $('#hud-crystals').textContent = save.crystals + L.earned;
     }
@@ -321,15 +352,18 @@
   function hideOverlays() { $$('#screen-game .overlay').forEach((o) => o.classList.remove('show')); }
 
   // ---------------- Level flow ----------------
-  let lastMode = 'mouse';
-  function startLevel(mode) {
-    lastMode = mode;
+  let lastMode = 'mouse', lastLevel = 1;
+  function startLevel(mode, level = lastLevel) {
+    lastMode = mode; lastLevel = level;
+    optionsFromGame = false;
     hideOverlays();
     go('game');
     $('#cal-hand').textContent = save.options.hand;
     updatePhoneUi();
     $('#prompt').classList.remove('show');
-    Level.start({ mode, save, options: save.options, onEnd: endLevel, onHud, getMenuButtons });
+    Level.start({ level, mode, save, options: save.options, onEnd: endLevel, onHud, getMenuButtons });
+    buildCatches();
+    onHud('all', null, Level);
     if (mode === 'phone') onHud('cal', 'Looking for you…', Level);
     else onHud('countdown', 3, Level);
   }
@@ -338,12 +372,13 @@
     const bonus = r.won ? 15 : 0;
     save.crystals += r.earned + bonus;
     if (r.won) {
-      const prev = save.best.level1;
-      if (!prev || r.time < prev.time) save.best.level1 = { time: r.time };
+      const key = 'level' + lastLevel;
+      const prev = save.best[key];
+      if (!prev || r.time < prev.time) save.best[key] = { time: r.time };
     }
     persist();
     $('#end-title').textContent = r.won ? 'Level clear' : 'Your shields are down';
-    const caught = TYPES.map((t) => `<span>${SPR[t].name}</span><b>${r.caught[t]}/${GOAL}</b>`).join('');
+    const caught = types().map((t) => `<span>${SPR[t].name}</span><b>${r.caught[t]}/${goal()}</b>`).join('');
     $('#end-stats').innerHTML = `
       <span>Time</span><b>${fmtTime(r.time)}</b>
       ${caught}
@@ -368,6 +403,7 @@
         return;
       }
       if (current === 'dex' && Dex.detailOpen()) { e.preventDefault(); Dex.hide(); setTimeout(focusFirst, 30); return; }
+      if (current === 'options') { e.preventDefault(); closeOptions(); return; }
       const back = { options: 'start', levels: 'start', shop: 'levels', connect: 'levels', quit: 'start', dex: 'levels' }[current];
       if (back) { e.preventDefault(); go(back); }
       return;
@@ -393,6 +429,7 @@
       Input.mode = 'phone';
       Input.hand = save.options.hand;
       Input.sens = save.options.sens;
+      Input.setSmoothing(save.options.smoothing || 'normal');
       this.active = true; this.target = null; this.t = 0;
       this.last = performance.now();
       requestAnimationFrame(this.loop);
@@ -406,7 +443,7 @@
     loop: (now) => {
       const mp = MenuPointer;
       if (!mp.active) return;
-      if (current !== 'dex') { mp.stop(); return; }
+      if (current === 'game' || current === 'loading') { mp.stop(); return; }
       const dt = Math.min(0.05, (now - mp.last) / 1000);
       mp.last = now;
       if (Input.hasAim) {
@@ -415,9 +452,11 @@
         mp.pos.y += (Input.aim.y * 1080 - mp.pos.y) * k;
       }
       const fresh = Input.hasAim && Input.poseFresh();
-      const root = Dex.detailOpen() ? $('#ov-dex') : $('#screen-dex');
+      const screen = $('#screen-' + current);
+      const overlay = $('.overlay.show', screen);
+      const root = overlay || screen;
       const sr = stage.getBoundingClientRect(), s = sr.width / 1920;
-      const hit = $$('button', root).filter((b) => !b.disabled && b.offsetParent !== null && (root.id === 'ov-dex' || !b.closest('.overlay'))).find((b) => {
+      const hit = $$('button', root).filter((b) => !b.disabled && b.offsetParent !== null && (overlay || !b.closest('.overlay'))).find((b) => {
         const r = b.getBoundingClientRect();
         const x = (r.left - sr.left) / s, y = (r.top - sr.top) / s;
         return mp.pos.x >= x && mp.pos.x <= x + r.width / s && mp.pos.y >= y && mp.pos.y <= y + r.height / s;

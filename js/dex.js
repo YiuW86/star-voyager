@@ -48,10 +48,10 @@
       about: 'Crysta is covered in thick crystal armour. It guards the crystal spires and chases away visitors.',
       tip: 'Aim for the gap around its eyes.',
       fact: 'Crysta grows one new crystal on its birthday every year.' },
-    { id: 'pulsar', name: 'Pulsar', title: 'The Beat Keeper', level: null, danger: 3,
-      home: 'Star clusters with lots of noise', size: 'As big as a washing machine', diet: 'Radio waves',
-      about: 'The bubbles around Pulsar light up to a steady beat, like a drum.',
-      tip: 'Wait for its beat and catch it between two pulses.',
+    { id: 'pulsar', name: 'Pulsar', title: 'The Beat Keeper', level: 2, danger: 3,
+      home: 'The mushroom glades of Glowwood Forest', size: 'As big as a washing machine', diet: 'Radio waves',
+      about: 'The bubbles around Pulsar light up to a steady beat, like a drum. It moves toward you in bursts, one beat at a time.',
+      tip: 'Catch it between two beats, when it hardly moves.',
       fact: 'When Pulsars meet, they start pulsing together like a band.' },
     { id: 'tidal', name: 'Tidal', title: 'The Horned Wave', level: null, danger: 4,
       home: 'Oceans under the floating islands', size: 'As big as a rowing boat', diet: 'Sea glass',
@@ -98,10 +98,10 @@
       about: 'Echo finds its way by listening to echoes, like a bat. It can hear you coming from far away.',
       tip: 'Move slowly and quietly, and catch it by surprise.',
       fact: 'Echo can copy any sound it hears.' },
-    { id: 'ember', name: 'Ember', title: 'The Flame Dancer', level: null, danger: 5,
-      home: 'Volcano rims', size: 'As tall as a grown-up', diet: 'Sparks',
-      about: 'Ember flickers and dances like a campfire. It is very rare and very hard to catch.',
-      tip: 'Only the most skilled space catchers have ever seen one.',
+    { id: 'ember', name: 'Ember', title: 'The Flame Dancer', level: 2, danger: 5,
+      home: 'Warm hollows deep in Glowwood Forest', size: 'As tall as a grown-up', diet: 'Sparks',
+      about: 'Ember flickers and dances like a campfire, and it is quick. It throws glowing fire rocks at anyone who comes close.',
+      tip: 'Keep your shield ready for its fire rocks, and catch it early.',
       fact: 'Its flames look hot, but they are actually cold.' },
   ];
 
@@ -152,7 +152,8 @@
       const a = ALIENS.find((x) => x.id === id);
       const n = this.caught(id);
       const panel = $('#dex-detail');
-      const where = a.level ? `Crystal Shores (level ${a.level})` : 'Not spotted yet';
+      const levels = (window.SV && window.SV.LEVELS) || {};
+      const where = a.level && levels[a.level] ? `${levels[a.level].name} (level ${a.level})` : 'Not spotted yet';
       if (!n) {
         panel.innerHTML = `
           <img class="dex-big" src="assets/dex/${a.id}-locked.png" alt="">

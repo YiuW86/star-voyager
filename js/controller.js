@@ -3,7 +3,13 @@
 import { PoseLandmarker, FilesetResolver } from 'https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.14/vision_bundle.mjs';
 
 const WASM = 'https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.14/wasm';
-const MODEL = 'https://storage.googleapis.com/mediapipe-models/pose_landmarker/pose_landmarker_lite/float16/1/pose_landmarker_lite.task';
+// Standard = lite model (fast, cool phone). High = full model (more precise, warmer phone).
+const MODELS = {
+  standard: 'https://storage.googleapis.com/mediapipe-models/pose_landmarker/pose_landmarker_lite/float16/1/pose_landmarker_lite.task',
+  high: 'https://storage.googleapis.com/mediapipe-models/pose_landmarker/pose_landmarker_full/float16/1/pose_landmarker_full.task',
+};
+let quality = 'standard';
+try { quality = localStorage.getItem('sv-quality') || 'standard'; } catch (e) {}
 // Landmarks sent to the game: nose, left/right shoulder, left/right elbow, left/right wrist
 const KEEP = [0, 11, 12, 13, 14, 15, 16];
 const BONES = [[11, 12], [11, 13], [13, 15], [12, 14], [14, 16]];
@@ -43,9 +49,9 @@ async function loadModel() {
   setStatus('track', 'wait', 'Loading pose tracker…');
   const files = await FilesetResolver.forVisionTasks(WASM);
   const make = (delegate) => PoseLandmarker.createFromOptions(files, {
-    baseOptions: { modelAssetPath: MODEL, delegate },
+    baseOptions: { modelAssetPath: MODELS[quality], delegate },
     runningMode: 'VIDEO', numPoses: 1,
-    minPoseDetectionConfidence: 0.5, minPosePresenceConfidence: 0.5, minTrackingConfidence: 0.5,
+    minPoseDetectionConfidence: 0.5, minPosePresenceConfidence: 0.5, minTrackingConfidence: 0.6,
   });
   try { landmarker = await make('GPU'); }
   catch (e) { console.warn('GPU not available, using CPU', e); landmarker = await make('CPU'); }
@@ -179,6 +185,22 @@ $('flip').addEventListener('click', async () => {
 $('saver').addEventListener('click', () => {
   saver = !saver;
   $('saver').textContent = 'Battery saver: ' + (saver ? 'on (15 fps)' : 'off');
+});
+
+function qualityLabel() { $('quality').textContent = 'Accuracy: ' + (quality === 'high' ? 'high (warmer phone)' : 'standard'); }
+qualityLabel();
+$('quality').addEventListener('click', async () => {
+  quality = quality === 'high' ? 'standard' : 'high';
+  try { localStorage.setItem('sv-quality', quality); } catch (e) {}
+  qualityLabel();
+  if (landmarker) {
+    const wasRunning = running;
+    running = false;
+    try { landmarker.close(); } catch (e) {}
+    landmarker = null;
+    try { await loadModel(); } catch (e) { setStatus('track', 'bad', 'Could not load the tracker'); return; }
+    if (wasRunning) { running = true; requestAnimationFrame(loop); }
+  }
 });
 
 $('code').addEventListener('keydown', (e) => { if (e.key === 'Enter') $('start').click(); });

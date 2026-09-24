@@ -273,6 +273,17 @@ input[type=range] { width: 100%; accent-color: var(--cyan); height: 40px; }
   border: 2px solid var(--cyan-deep); background: rgba(8, 18, 70, 0.7); font-size: 22px; padding: 8px 20px; cursor: pointer; display: none;
 }
 
+/* ---------- Start screen: pair the phone ---------- */
+.start-connect {
+  position: absolute; left: 40px; bottom: 40px; display: flex; gap: 22px; align-items: center; max-width: 620px;
+  padding: 18px 24px 18px 18px; background: rgba(10, 20, 72, 0.85); border: 2px solid var(--cyan-deep);
+}
+.start-connect b { font-size: 28px; color: var(--cyan-soft); }
+.start-connect p { font-size: 20px; color: var(--muted); margin: 6px 0; }
+.mini-qr { background: #fff; padding: 8px; width: 166px; height: 166px; flex: none; }
+.mini-qr img, .mini-qr canvas { width: 150px !important; height: 150px !important; }
+.small-code { font-size: 36px; letter-spacing: 6px; }
+
 /* ---------- Alien guide ---------- */
 .dex-wrap { position: absolute; inset: 0; z-index: 1; display: flex; flex-direction: column; align-items: center; padding: 34px 60px 20px; gap: 18px; }
 .dex-head { width: 100%; max-width: 1300px; display: grid; grid-template-columns: 1fr auto 1fr; align-items: center; }
