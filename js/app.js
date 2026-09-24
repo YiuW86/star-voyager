@@ -1,0 +1,458 @@
+// Screens, menus, shop, options, saving and the connection between UI and gameplay.
+(function () {
+  const { Assets, Input, Level, SPR, TYPES, GOAL, GEAR, SHIELD_MAX } = window.SV;
+  const $ = (s, root = document) => root.querySelector(s);
+  const $$ = (s, root = document) => [...root.querySelectorAll(s)];
+
+  // ---------------- Save data ----------------
+  const DEFAULT_SAVE = {
+    crystals: 10,
+    owned: {},
+    best: {},
+    dex: {},        // alien id -> times caught (all time)
+    dexNew: {},     // aliens caught but not yet viewed in the guide
+    options: { sound: 'on', assist: 2, hand: 'right', sens: 1, quality: 'fast' },
+  };
+  let save = load();
+
+  function load() {
+    try {
+      const s = JSON.parse(localStorage.getItem('starvoyager.save'));
+      if (s) return { ...JSON.parse(JSON.stringify(DEFAULT_SAVE)), ...s, options: { ...DEFAULT_SAVE.options, ...(s.options || {}) } };
+    } catch (e) {}
+    return JSON.parse(JSON.stringify(DEFAULT_SAVE));
+  }
+  function persist() {
+    try { localStorage.setItem('starvoyager.save', JSON.stringify(save)); } catch (e) {}
+  }
+
+  const SHOP = [
+    { id: 'magazine',    name: 'Bigger magazine',  text: '12 shots before reloading instead of 8.', price: 25 },
+    { id: 'quickReload', name: 'Quick reload',     text: 'Reloading takes half the time.', price: 30 },
+    { id: 'steadyAim',   name: 'Steady aim',       text: 'Stronger aim assist when it is switched on.', price: 35 },
+    { id: 'medkit',      name: 'Emergency medkit', text: 'Heals 30% once per level when health drops to 30%.', price: 40 },
+    { id: 'grenadePouch', name: 'Grenade pouch',   text: 'Start each level with 5 net grenades instead of 3.', price: 30 },
+  ];
+
+  // ---------------- Stage scaling ----------------
+  const stage = $('#stage');
+  function fitStage() {
+    const s = Math.min(innerWidth / 1920, innerHeight / 1080);
+    stage.style.transform = `scale(${s}) translate(-50%, -50%)`;
+    stage.style.transformOrigin = '0 0';
+    stage.style.left = '50%'; stage.style.top = '50%';
+  }
+  // translate(-50%,-50%) after scale keeps the stage centred at any window size
+  addEventListener('resize', fitStage);
+  fitStage();
+
+  // ---------------- Screens ----------------
+  let current = 'loading';
+  function go(name) {
+    $$('.screen').forEach((s) => s.classList.toggle('active', s.id === 'screen-' + name));
+    current = name;
+    if (name === 'shop') renderShop();
+    if (name === 'options') renderOptions();
+    if (name === 'levels') renderLevels();
+    if (name === 'connect') { Net.start(); Net.renderQr(); updatePhoneUi(); }
+    if (name === 'dex') { Dex.hide(); Dex.render(); MenuPointer.start(); }
+    else MenuPointer.stop();
+    setTimeout(focusFirst, 30);
+  }
+
+  function focusables() {
+    const overlay = $$('#screen-' + current + ' .overlay.show').pop();
+    const root = overlay || $('#screen-' + current);
+    if (!root) return [];
+    return $$('button, input', root).filter((el) => !el.disabled && el.offsetParent !== null && !(overlay === undefined && el.closest('.overlay')));
+  }
+  function focusFirst() {
+    const f = focusables();
+    const primary = f.find((el) => el.classList.contains('pink')) || f[0];
+    if (primary && document.activeElement !== primary) primary.focus({ preventScroll: true });
+  }
+
+  // ---------------- Buttons ----------------
+  document.addEventListener('click', (e) => {
+    const el = e.target.closest('[data-go], [data-action]');
+    if (!el || el.disabled) return;
+    Sfx.select();
+    if (el.dataset.go) return go(el.dataset.go);
+    actions[el.dataset.action] && actions[el.dataset.action](el);
+  });
+
+  let resetArmed = false;
+  const actions = {
+    quit() {
+      try { window.close(); } catch (e) {}
+      go('quit');
+    },
+    connect() { go('connect'); },
+    'connect-back'() { go('levels'); },
+    'play-phone'() { startLevel('phone'); },
+    'play-mouse'() { startLevel('mouse'); },
+    'skip-cal'() { Level.skipCalibration(); },
+    menu() { Level.pause(); },
+    'dex-close'() { Dex.hide(); setTimeout(focusFirst, 30); },
+    resume() { Level.resume(); },
+    restart() { hideOverlays(); startLevel(lastMode); },
+    abandon() { Level.stop(); hideOverlays(); go('start'); },
+    again() { hideOverlays(); startLevel(lastMode); },
+    'to-levels'() { Level.stop(); hideOverlays(); go('levels'); },
+    reset(el) {
+      if (!resetArmed) {
+        resetArmed = true;
+        el.querySelector('span').textContent = 'Press again to confirm';
+        setTimeout(() => { resetArmed = false; el.querySelector('span').textContent = 'Reset progress'; }, 3000);
+        return;
+      }
+      const opts = save.options;
+      save = JSON.parse(JSON.stringify(DEFAULT_SAVE));
+      Dex.setSave(save);
+      save.options = opts;
+      persist();
+      resetArmed = false;
+      el.querySelector('span').textContent = 'Progress reset';
+    },
+  };
+
+  $('#level-1-card').addEventListener('click', () => { Sfx.select(); go('connect'); });
+
+  // ---------------- Level select ----------------
+  function renderLevels() {
+    const best = save.best.level1;
+    $('#level-1-best').textContent = best ? `Cleared · best time ${fmtTime(best.time)}` : 'Catch 10 of each monster';
+    updatePhoneUi();
+  }
+  function fmtTime(s) {
+    const m = Math.floor(s / 60), r = Math.floor(s % 60);
+    return `${m}:${String(r).padStart(2, '0')}`;
+  }
+
+  // ---------------- Shop ----------------
+  function renderShop() {
+    $('#shop-crystals').textContent = save.crystals;
+    const grid = $('#shop-grid');
+    grid.innerHTML = '';
+    for (const item of SHOP) {
+      const owned = !!save.owned[item.id];
+      const div = document.createElement('div');
+      div.className = 'item' + (owned ? ' owned' : '');
+      div.innerHTML = `<b>${item.name}</b><p>${item.text}</p>`;
+      const btn = document.createElement('button');
+      btn.className = 'btn small' + (owned ? '' : ' pink');
+      btn.innerHTML = `<span>${owned ? 'Owned' : '<i class="crystal"></i> ' + item.price}</span>`;
+      btn.disabled = owned || save.crystals < item.price;
+      btn.setAttribute('aria-label', owned ? item.name + ', owned' : `Buy ${item.name} for ${item.price} crystals`);
+      btn.addEventListener('click', () => {
+        if (owned || save.crystals < item.price) return;
+        save.crystals -= item.price;
+        save.owned[item.id] = true;
+        persist();
+        Sfx.reload();
+        renderShop();
+        focusFirst();
+      });
+      div.appendChild(btn);
+      grid.appendChild(div);
+    }
+  }
+
+  // ---------------- Options ----------------
+  function renderOptions() {
+    const o = save.options;
+    $$('[data-opt]').forEach((seg) => {
+      const val = String(o[seg.dataset.opt]);
+      $$('button', seg).forEach((b) => {
+        b.classList.toggle('on', b.dataset.v === val);
+        b.setAttribute('aria-pressed', b.dataset.v === val);
+      });
+    });
+    $('#opt-sens').value = o.sens;
+  }
+  $$('[data-opt] button').forEach((b) => b.addEventListener('click', () => {
+    const key = b.parentElement.dataset.opt;
+    let v = b.dataset.v;
+    if (key === 'assist') v = Number(v);
+    save.options[key] = v;
+    if (key === 'sound') Sfx.enabled = v === 'on';
+    persist(); renderOptions(); Sfx.select();
+  }));
+  $('#opt-sens').addEventListener('input', (e) => { save.options.sens = Number(e.target.value); persist(); });
+
+  // ---------------- Phone connection ----------------
+  const statusText = { off: 'Phone not connected', starting: 'Setting up connection…', waiting: 'Waiting for phone…', connected: 'Phone connected', lost: 'Phone disconnected', error: 'Connection problem' };
+  let phoneText = statusText.off;
+
+  function updatePhoneUi() {
+    const st = Net.status;
+    $$('[data-phone-dot]').forEach((d) => {
+      d.classList.toggle('on', st === 'connected');
+      d.classList.toggle('wait', st === 'waiting' || st === 'starting');
+    });
+    $$('[data-phone-text]').forEach((t) => { t.textContent = phoneText; });
+    $('#btn-play-phone').disabled = st !== 'connected';
+    $('#phone-chip').style.display = lastMode === 'phone' ? 'flex' : 'none';
+  }
+
+  Net.onStatus = (status, text) => {
+    phoneText = text || statusText[status];
+    updatePhoneUi();
+    if (status === 'connected' && current === 'connect') setTimeout(focusFirst, 30);
+    if (status === 'connected' && current === 'dex') MenuPointer.start();
+    if (status !== 'connected' && current === 'game' && lastMode === 'phone' && Level.state === 'play') {
+      Level.pause('Phone disconnected. Reconnect the phone, then resume.');
+    }
+  };
+  Net.onData = (d) => Input.onPose(d);
+
+  // ---------------- HUD ----------------
+  function buildHud() {
+    const segs = $('#health-segs');
+    segs.innerHTML = '';
+    for (let i = 0; i < 20; i++) { const c = document.createElement('i'); c.className = 'seg-cell'; segs.appendChild(c); }
+    const catches = $('#catches');
+    catches.innerHTML = '';
+    for (const t of TYPES) {
+      const d = document.createElement('div');
+      d.className = 'catch'; d.dataset.type = t;
+      d.style.setProperty('--c', SPR[t].color);
+      d.innerHTML = `<canvas width="132" height="132"></canvas><div><b>0</b><small>/${GOAL}</small></div>`;
+      Level.drawPortrait($('canvas', d), t);
+      catches.appendChild(d);
+    }
+  }
+
+  let toastTimer = null;
+  function onHud(kind, value, L) {
+    if (kind === 'all' || kind === 'health') {
+      const on = Math.round(L.health / 5);
+      $$('#health-segs .seg-cell').forEach((c, i) => c.classList.toggle('off', i >= on));
+      $('#health-num').textContent = L.health;
+      const h = $('#health');
+      h.classList.toggle('low', L.health <= 30);
+      if (kind === 'health') {
+        h.classList.remove('hit'); void h.offsetWidth; h.classList.add('hit');
+        const dmg = $('#damage'); dmg.classList.remove('flash'); void dmg.offsetWidth; dmg.classList.add('flash');
+      }
+    }
+    if (kind === 'all' || kind === 'ammo') {
+      const pips = $('#pips');
+      if (pips.children.length !== L.magSize) {
+        pips.innerHTML = '';
+        for (let i = 0; i < L.magSize; i++) { const p = document.createElement('i'); p.className = 'pip'; pips.appendChild(p); }
+      }
+      [...pips.children].forEach((p, i) => p.classList.toggle('off', i >= L.ammo));
+    }
+    if (kind === 'all' || kind === 'catch') {
+      for (const t of TYPES) {
+        const el = $(`.catch[data-type="${t}"]`);
+        $('b', el).textContent = L.caught[t];
+        el.classList.toggle('done', L.caught[t] >= GOAL);
+      }
+      $('#hud-crystals').textContent = save.crystals + L.earned;
+    }
+    if (kind === 'all' || kind === 'gear') {
+      const label = L.equipped === 'grenade' ? `Net grenade · ${L.grenades} left`
+        : L.equipped === 'shield' ? `Shield ${L.shieldHP}/${SHIELD_MAX}`
+        : 'Blaster';
+      $('#gear-label').textContent = label;
+      $('#pips').style.opacity = L.equipped === 'gun' ? 1 : 0.25;
+    }
+    if (kind === 'cursor') {
+      const cur = $('#menu-cursor');
+      if (!value || !value.show) { cur.classList.remove('show'); }
+      else {
+        cur.classList.add('show');
+        cur.style.left = value.x + 'px'; cur.style.top = value.y + 'px';
+        cur.style.setProperty('--p', value.p.toFixed(3));
+      }
+    }
+    if (kind === 'caught') {
+      if (Dex.record(value)) setTimeout(() => showToast(`New in the alien guide: ${SPR[value].name}!`), 900);
+    }
+    if (kind === 'prompt') {
+      const p = $('#prompt');
+      if (value) p.textContent = value;
+      p.classList.toggle('show', !!value);
+    }
+    if (kind === 'toast') {
+      const t = $('#toast');
+      t.textContent = value; t.classList.add('show');
+      clearTimeout(toastTimer);
+      toastTimer = setTimeout(() => t.classList.remove('show'), 1800);
+    }
+    if (kind === 'cal') {
+      $('#ov-calibrate').classList.add('show');
+      $('#cal-status').textContent = value;
+    }
+    if (kind === 'countdown') {
+      $('#ov-calibrate').classList.remove('show');
+      $('#ov-count').classList.add('show');
+      const n = String(Math.max(1, value));
+      if ($('#count-num').textContent !== n) { $('#count-num').textContent = n; Sfx.select(); }
+    }
+    if (kind === 'go') {
+      $('#ov-count').classList.remove('show');
+      showToast(lastMode === 'phone' ? 'Hold the circle on a monster to fire' : 'Click a monster to fire');
+    }
+    if (kind === 'pause') {
+      $('#pause-reason').textContent = value || 'Take a breather.';
+      $('#pause-hint').style.display = lastMode === 'phone' ? 'block' : 'none';
+      $('#ov-pause').classList.add('show');
+      setTimeout(focusFirst, 30);
+    }
+    if (kind === 'resume') $('#ov-pause').classList.remove('show');
+  }
+  function showToast(text) { onHud('toast', text, Level); }
+
+  // Buttons the hand cursor can press while paused or on the end screen, in stage coordinates
+  function getMenuButtons() {
+    const overlay = $$('#ov-pause.show, #ov-end.show')[0];
+    if (!overlay) return [];
+    const sr = stage.getBoundingClientRect();
+    const s = sr.width / 1920;
+    return $$('button', overlay).filter((b) => !b.disabled).map((b) => {
+      const r = b.getBoundingClientRect();
+      return { el: b, x: (r.left - sr.left) / s, y: (r.top - sr.top) / s, w: r.width / s, h: r.height / s };
+    });
+  }
+
+  function hideOverlays() { $$('#screen-game .overlay').forEach((o) => o.classList.remove('show')); }
+
+  // ---------------- Level flow ----------------
+  let lastMode = 'mouse';
+  function startLevel(mode) {
+    lastMode = mode;
+    hideOverlays();
+    go('game');
+    $('#cal-hand').textContent = save.options.hand;
+    updatePhoneUi();
+    $('#prompt').classList.remove('show');
+    Level.start({ mode, save, options: save.options, onEnd: endLevel, onHud, getMenuButtons });
+    if (mode === 'phone') onHud('cal', 'Looking for you…', Level);
+    else onHud('countdown', 3, Level);
+  }
+
+  function endLevel(r) {
+    const bonus = r.won ? 15 : 0;
+    save.crystals += r.earned + bonus;
+    if (r.won) {
+      const prev = save.best.level1;
+      if (!prev || r.time < prev.time) save.best.level1 = { time: r.time };
+    }
+    persist();
+    $('#end-title').textContent = r.won ? 'Level clear' : 'Your shields are down';
+    const caught = TYPES.map((t) => `<span>${SPR[t].name}</span><b>${r.caught[t]}/${GOAL}</b>`).join('');
+    $('#end-stats').innerHTML = `
+      <span>Time</span><b>${fmtTime(r.time)}</b>
+      ${caught}
+      <span>Accuracy</span><b>${r.accuracy}%</b>
+      <span>Health left</span><b>${r.health}%</b>
+      <span>Crystals earned</span><b>${r.earned + bonus}</b>`;
+    $('#ov-end').classList.add('show');
+    setTimeout(focusFirst, 30);
+  }
+
+  // ---------------- Keyboard and TV remote ----------------
+  document.addEventListener('keydown', (e) => {
+    Sfx.unlock();
+    const inGame = current === 'game' && Level.state === 'play';
+    if (inGame && (e.key === 'r' || e.key === 'R')) { Level.keyReload(); return; }
+    if (inGame && ['1', '2', '3'].includes(e.key)) { Level.keyEquip(GEAR[Number(e.key) - 1].id); return; }
+    if (inGame && (e.key === 'g' || e.key === 'G')) { Level.toggleBelt(); return; }
+    if (e.key === 'Escape' || e.key === 'p' || e.key === 'P' || e.key === 'Backspace' || e.key === 'GoBack') {
+      if (inGame) {
+        e.preventDefault();
+        if (Level.paused) Level.resume(); else Level.pause();
+        return;
+      }
+      if (current === 'dex' && Dex.detailOpen()) { e.preventDefault(); Dex.hide(); setTimeout(focusFirst, 30); return; }
+      const back = { options: 'start', levels: 'start', shop: 'levels', connect: 'levels', quit: 'start', dex: 'levels' }[current];
+      if (back) { e.preventDefault(); go(back); }
+      return;
+    }
+    const dir = { ArrowDown: 1, ArrowRight: 1, ArrowUp: -1, ArrowLeft: -1 }[e.key];
+    if (dir && !(document.activeElement && document.activeElement.type === 'range' && Math.abs(dir) && (e.key === 'ArrowLeft' || e.key === 'ArrowRight'))) {
+      const f = focusables();
+      if (!f.length) return;
+      e.preventDefault();
+      const i = f.indexOf(document.activeElement);
+      f[(i + dir + f.length) % f.length].focus({ preventScroll: true });
+    }
+  });
+  document.addEventListener('pointerdown', () => Sfx.unlock(), { once: false });
+
+  // ---------------- Hand pointer for menu screens (alien guide) ----------------
+  // Uses the phone's aim outside of a level: point at a button and hold to press it.
+  const MenuPointer = {
+    active: false, pos: { x: 960, y: 540 }, target: null, t: 0, last: 0,
+    DWELL: 1.0,
+    start() {
+      if (this.active || !Net.isConnected()) return;
+      Input.mode = 'phone';
+      Input.hand = save.options.hand;
+      Input.sens = save.options.sens;
+      this.active = true; this.target = null; this.t = 0;
+      this.last = performance.now();
+      requestAnimationFrame(this.loop);
+    },
+    stop() {
+      if (!this.active) return;
+      this.active = false;
+      $('#menu-cursor').classList.remove('show');
+      $$('.pointed').forEach((el) => el.classList.remove('pointed'));
+    },
+    loop: (now) => {
+      const mp = MenuPointer;
+      if (!mp.active) return;
+      if (current !== 'dex') { mp.stop(); return; }
+      const dt = Math.min(0.05, (now - mp.last) / 1000);
+      mp.last = now;
+      if (Input.hasAim) {
+        const k = Math.min(1, dt * 14);
+        mp.pos.x += (Input.aim.x * 1920 - mp.pos.x) * k;
+        mp.pos.y += (Input.aim.y * 1080 - mp.pos.y) * k;
+      }
+      const fresh = Input.hasAim && Input.poseFresh();
+      const root = Dex.detailOpen() ? $('#ov-dex') : $('#screen-dex');
+      const sr = stage.getBoundingClientRect(), s = sr.width / 1920;
+      const hit = $$('button', root).filter((b) => !b.disabled && b.offsetParent !== null && (root.id === 'ov-dex' || !b.closest('.overlay'))).find((b) => {
+        const r = b.getBoundingClientRect();
+        const x = (r.left - sr.left) / s, y = (r.top - sr.top) / s;
+        return mp.pos.x >= x && mp.pos.x <= x + r.width / s && mp.pos.y >= y && mp.pos.y <= y + r.height / s;
+      });
+      const el = fresh ? hit || null : null;
+      if (el !== mp.target) {
+        if (mp.target) mp.target.classList.remove('pointed');
+        if (el) { el.classList.add('pointed'); Sfx.lock(); }
+        mp.target = el; mp.t = 0;
+      } else if (el) mp.t += dt;
+      const cur = $('#menu-cursor');
+      cur.classList.toggle('show', fresh);
+      cur.style.left = mp.pos.x + 'px'; cur.style.top = mp.pos.y + 'px';
+      cur.style.setProperty('--p', el ? Math.min(1, mp.t / mp.DWELL).toFixed(3) : 0);
+      if (el && mp.t >= mp.DWELL) {
+        el.classList.remove('pointed');
+        mp.target = null; mp.t = -0.6;
+        Sfx.select();
+        el.click();
+      }
+      requestAnimationFrame(mp.loop);
+    },
+  };
+
+  // ---------------- Boot ----------------
+  Sfx.enabled = save.options.sound === 'on';
+  Dex.init({ save, persist });
+  Level.init($('#game-canvas'));
+  Assets.load((p) => { $('#load-text').textContent = `Loading artwork… ${Math.round(p * 100)}%`; })
+    .then(() => {
+      buildHud();
+      go('start');
+      Net.start();   // get the room ready so pairing is instant
+    })
+    .catch((err) => {
+      $('#load-text').textContent = err.message + '. Check that the assets folder was uploaded.';
+    });
+})();

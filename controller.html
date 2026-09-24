@@ -1,0 +1,88 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#0a1440">
+  <title>Star Voyager controller</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Chakra+Petch:wght@400;600;700&display=swap" rel="stylesheet">
+  <style>
+    :root { --space: #0a1440; --panel: #12246e; --cyan: #62f0ff; --cyan-deep: #1c8fd8; --pink: #ff8ad8; --gold: #ffd27a; --text: #e8f7ff; --muted: #9fb7e8; --ok: #5dffb0; --bad: #ff5a7e; }
+    * { box-sizing: border-box; }
+    html, body { margin: 0; min-height: 100%; background: radial-gradient(ellipse at top, #1b2f8a, var(--space) 60%); color: var(--text); font-family: "Chakra Petch", Roboto, Arial, sans-serif; }
+    main { max-width: 560px; margin: 0 auto; padding: calc(env(safe-area-inset-top, 0px) + 20px) 18px calc(env(safe-area-inset-bottom, 0px) + 24px); display: flex; flex-direction: column; gap: 16px; }
+    h1 { margin: 0; font-size: 28px; font-weight: 700; color: #bff9ff; text-shadow: 0 0 12px rgba(98, 240, 255, 0.6); }
+    p { margin: 0; line-height: 1.5; color: var(--muted); font-size: 16px; }
+    label { font-size: 15px; color: var(--muted); }
+    .code-row { display: flex; gap: 10px; }
+    input {
+      flex: 1; min-width: 0; height: 56px; padding: 0 16px; font-family: inherit; font-weight: 700; font-size: 28px; letter-spacing: 6px; text-transform: uppercase;
+      color: var(--gold); background: #0c1c5e; border: 2px solid var(--cyan-deep); outline: none;
+    }
+    input:focus { border-color: var(--cyan); }
+    .btn {
+      height: 60px; border: 0; padding: 0 22px; font-family: inherit; font-weight: 600; font-size: 20px; cursor: pointer; color: var(--space);
+      background: linear-gradient(180deg, var(--cyan), var(--cyan-deep));
+      clip-path: polygon(14px 0, calc(100% - 14px) 0, 100% 50%, calc(100% - 14px) 100%, 14px 100%, 0 50%);
+    }
+    .btn.big { width: 100%; background: linear-gradient(180deg, var(--pink), #9b4fd1); color: #fff; font-size: 22px; }
+    .btn.ghost { background: #0c1c5e; color: var(--cyan); border: 2px solid var(--cyan-deep); clip-path: none; height: 48px; font-size: 16px; }
+    .btn:disabled { opacity: 0.5; }
+    .preview { position: relative; width: 100%; aspect-ratio: 4 / 3; background: #050a24; border: 2px solid var(--cyan-deep); overflow: hidden; }
+    .preview video, .preview canvas { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
+    .preview.mirror video, .preview.mirror canvas { transform: scaleX(-1); }
+    .preview .empty { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; text-align: center; padding: 20px; color: var(--muted); }
+    .status { display: grid; grid-template-columns: auto 1fr; gap: 8px 12px; align-items: center; font-size: 17px; }
+    .dot { width: 12px; height: 12px; border-radius: 50%; background: #56607f; }
+    .dot.on { background: var(--ok); box-shadow: 0 0 10px var(--ok); }
+    .dot.wait { background: var(--gold); }
+    .dot.bad { background: var(--bad); }
+    .row { display: flex; gap: 10px; flex-wrap: wrap; }
+    .row .btn { flex: 1; }
+    .tips { background: rgba(12, 28, 94, 0.8); border-left: 4px solid var(--cyan); padding: 14px 16px; }
+    .tips p + p { margin-top: 8px; }
+    .hidden { display: none !important; }
+  </style>
+</head>
+<body>
+<main>
+  <h1>Star Voyager controller</h1>
+
+  <section id="setup">
+    <label for="code">Code shown on the TV</label>
+    <div class="code-row">
+      <input id="code" maxlength="6" autocomplete="off" autocapitalize="characters" spellcheck="false" placeholder="ABC123">
+    </div>
+  </section>
+
+  <button class="btn big" id="start">Start camera and connect</button>
+
+  <div class="preview mirror" id="preview">
+    <video id="video" playsinline muted></video>
+    <canvas id="overlay"></canvas>
+    <div class="empty" id="empty">The camera preview appears here. Point the phone at yourself so your head, shoulders and arms are visible.</div>
+  </div>
+
+  <div class="status">
+    <i class="dot" id="dot-conn"></i><span id="txt-conn">Not connected</span>
+    <i class="dot" id="dot-track"></i><span id="txt-track">Camera off</span>
+  </div>
+
+  <div class="row">
+    <button class="btn ghost" id="flip" disabled>Switch camera</button>
+    <button class="btn ghost" id="saver">Battery saver: off</button>
+  </div>
+
+  <div class="tips">
+    <p>Prop the phone up near the TV, facing you, about 2–3 metres away.</p>
+    <p>Aim with one arm. Raise your other hand above your head to reload.</p>
+    <p>Keep this page open while you play. The screen stays on automatically.</p>
+  </div>
+</main>
+
+<script src="https://unpkg.com/peerjs@1.5.4/dist/peerjs.min.js"></script>
+<script type="module" src="js/controller.js"></script>
+</body>
+</html>

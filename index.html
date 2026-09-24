@@ -1,0 +1,219 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>Star Voyager</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Chakra+Petch:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+<div id="stage">
+
+  <!-- Loading -->
+  <section id="screen-loading" class="screen active">
+    <div class="center-col">
+      <h1 class="title">Star Voyager</h1>
+      <p class="muted" id="load-text">Loading artwork…</p>
+    </div>
+  </section>
+
+  <!-- Start screen: the buttons are part of the artwork; invisible hotspots sit on top -->
+  <section id="screen-start" class="screen">
+    <img class="fill" src="assets/start-screen.jpg" alt="">
+    <button class="hotspot" id="hs-start" data-go="levels"><span class="sr">Start</span></button>
+    <button class="hotspot" id="hs-options" data-go="options"><span class="sr">Options</span></button>
+    <button class="hotspot" id="hs-quit" data-action="quit"><span class="sr">Quit</span></button>
+  </section>
+
+  <!-- Level select -->
+  <section id="screen-levels" class="screen dim-bg">
+    <img class="fill" src="assets/level1.jpg" alt="">
+    <div class="center-col">
+      <h1 class="title">Choose a level</h1>
+      <div class="levels">
+        <button class="level-card" id="level-1-card">
+          <div class="face">
+            <img src="assets/level1.jpg" alt="">
+            <span class="num">1</span>
+            <div class="label"><b>Crystal Shores</b><small id="level-1-best">Catch 10 of each monster</small></div>
+          </div>
+        </button>
+        <button class="level-card locked" disabled>
+          <div class="face"><span class="num">2</span><div class="label"><b>Coming soon</b><small>Clear level 1 first</small></div></div>
+        </button>
+        <button class="level-card locked" disabled>
+          <div class="face"><span class="num">3</span><div class="label"><b>Coming soon</b><small>Clear level 2 first</small></div></div>
+        </button>
+      </div>
+      <div class="row">
+        <button class="btn" data-go="start"><span>Back</span></button>
+        <button class="btn pink" data-go="shop"><span>Shop</span></button>
+        <button class="btn" data-go="dex"><span>Alien guide</span></button>
+        <button class="btn" data-action="connect"><span>Connect phone</span></button>
+      </div>
+      <div class="phone-status"><i class="dot" data-phone-dot></i><span data-phone-text>Phone not connected</span></div>
+    </div>
+  </section>
+
+  <!-- Shop -->
+  <section id="screen-shop" class="screen dim-bg">
+    <img class="fill" src="assets/level1.jpg" alt="">
+    <div class="center-col">
+      <h1 class="title">Shop</h1>
+      <div class="wallet"><i class="crystal"></i><span id="shop-crystals">0</span> crystals</div>
+      <div class="shop-grid" id="shop-grid"></div>
+      <button class="btn" data-go="levels"><span>Back</span></button>
+    </div>
+  </section>
+
+  <!-- Alien guide -->
+  <section id="screen-dex" class="screen dim-bg">
+    <img class="fill" src="assets/level1.jpg" alt="">
+    <div class="dex-wrap">
+      <header class="dex-head">
+        <button class="btn small" data-go="levels"><span>Back</span></button>
+        <h1 class="title">Alien guide</h1>
+        <div class="dex-count" id="dex-count">Discovered 0/20</div>
+      </header>
+      <div class="dex-grid" id="dex-grid"></div>
+      <p class="muted dex-hint">Select an alien to read about it. With the phone: point at it and hold for 1 second.</p>
+    </div>
+    <div class="overlay" id="ov-dex">
+      <div class="panel dex-panel"><div class="inner">
+        <div class="dex-detail" id="dex-detail"></div>
+        <div class="row"><button class="btn pink" data-action="dex-close"><span>Back to the guide</span></button></div>
+      </div></div>
+    </div>
+  </section>
+
+  <!-- Options -->
+  <section id="screen-options" class="screen dim-bg">
+    <img class="fill" src="assets/start-screen.jpg" alt="">
+    <div class="center-col">
+      <div class="panel"><div class="inner">
+        <h2>Options</h2>
+        <div class="opt-list">
+          <label>Sound</label>
+          <div class="seg" data-opt="sound"><button data-v="on">On</button><button data-v="off">Off</button></div>
+          <label>Aim assist</label>
+          <div class="seg" data-opt="assist"><button data-v="0">Off</button><button data-v="1">Low</button><button data-v="2">Normal</button><button data-v="3">Strong</button></div>
+          <label>Aiming hand</label>
+          <div class="seg" data-opt="hand"><button data-v="right">Right</button><button data-v="left">Left</button></div>
+          <label for="opt-sens">Aim sensitivity</label>
+          <input type="range" id="opt-sens" min="0.6" max="1.6" step="0.1">
+          <label>Graphics</label>
+          <div class="seg" data-opt="quality"><button data-v="fast">Fast (TV)</button><button data-v="sharp">Sharp</button></div>
+        </div>
+      </div></div>
+      <div class="row">
+        <button class="btn" data-go="start"><span>Back</span></button>
+        <button class="btn" data-action="reset"><span>Reset progress</span></button>
+      </div>
+    </div>
+  </section>
+
+  <!-- Connect phone -->
+  <section id="screen-connect" class="screen dim-bg">
+    <img class="fill" src="assets/level1.jpg" alt="">
+    <div class="center-col">
+      <div class="panel"><div class="inner">
+        <div class="connect-wrap">
+          <div class="qr-box" id="qr"></div>
+          <div class="steps">
+            <h2>Connect your phone</h2>
+            <p>Scan the code with your Android phone, or open the link below and enter this code:</p>
+            <div class="code" id="room-code">······</div>
+            <div class="url" id="room-url"></div>
+            <p class="muted">Prop the phone up near the screen, facing you, about 2–3 metres away so your upper body is in view.</p>
+            <div class="phone-status"><i class="dot" data-phone-dot></i><span data-phone-text>Waiting for phone…</span></div>
+          </div>
+        </div>
+      </div></div>
+      <div class="row">
+        <button class="btn" data-action="connect-back"><span>Back</span></button>
+        <button class="btn" data-action="play-mouse" id="btn-mouse"><span>Play with mouse</span></button>
+        <button class="btn pink" data-action="play-phone" id="btn-play-phone" disabled><span>Start level</span></button>
+      </div>
+    </div>
+  </section>
+
+  <!-- Game -->
+  <section id="screen-game" class="screen">
+    <canvas id="game-canvas" width="1280" height="720"></canvas>
+    <div class="damage" id="damage"></div>
+    <div class="hud">
+      <div class="health" id="health">
+        <div class="core"><div id="health-num">100</div></div>
+        <div class="bar"><div class="segs" id="health-segs"></div></div>
+      </div>
+      <div class="phone-chip" id="phone-chip"><i class="dot" data-phone-dot></i><span data-phone-text></span></div>
+      <div class="catches" id="catches"></div>
+      <button class="menu-btn" id="btn-menu" data-action="menu" aria-label="Pause and open the menu">Menu</button>
+      <div class="ammo">
+        <div class="gear-label" id="gear-label">Blaster</div>
+        <div class="pips" id="pips"></div>
+        <div class="wallet"><i class="crystal"></i><span id="hud-crystals">0</span></div>
+      </div>
+      <div class="prompt" id="prompt"></div>
+      <div class="toast" id="toast"></div>
+    </div>
+
+    <div class="overlay" id="ov-calibrate">
+      <div class="center-col">
+        <h2>Point at the screen with your <span id="cal-hand">right</span> hand</h2>
+        <p>Hold still for a moment so the game learns your centre position.</p>
+        <p class="muted" id="cal-status">Looking for you…</p>
+        <button class="btn small" data-action="skip-cal"><span>Skip</span></button>
+      </div>
+    </div>
+    <div class="overlay" id="ov-count"><div class="big-count" id="count-num">3</div></div>
+    <div class="overlay" id="ov-pause">
+      <div class="center-col">
+        <h1 class="title">Paused</h1>
+        <p class="muted" id="pause-reason">Take a breather.</p>
+        <p class="muted" id="pause-hint">Point at a button and hold to choose it.</p>
+        <div class="row">
+          <button class="btn pink" data-action="resume"><span>Resume</span></button>
+          <button class="btn" data-action="restart"><span>Restart level</span></button>
+          <button class="btn" data-action="abandon"><span>Main menu</span></button>
+        </div>
+      </div>
+    </div>
+    <div class="overlay" id="ov-end">
+      <div class="center-col">
+        <h1 class="title" id="end-title">Level clear</h1>
+        <div class="stats" id="end-stats"></div>
+        <div class="row">
+          <button class="btn pink" data-action="again"><span>Play again</span></button>
+          <button class="btn" data-action="to-levels"><span>Level select</span></button>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Hand cursor for menus while paused or at the end of a level -->
+  <div id="menu-cursor" aria-hidden="true"></div>
+
+  <!-- Quit -->
+  <section id="screen-quit" class="screen dim-bg">
+    <img class="fill" src="assets/start-screen.jpg" alt="">
+    <div class="center-col">
+      <h1 class="title">Thanks for playing</h1>
+      <p>You can close this tab now.</p>
+      <button class="btn" data-go="start"><span>Back to title</span></button>
+    </div>
+  </section>
+</div>
+
+<script src="https://unpkg.com/peerjs@1.5.4/dist/peerjs.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+<script src="js/audio.js"></script>
+<script src="js/net.js"></script>
+<script src="js/level.js"></script>
+<script src="js/dex.js"></script>
+<script src="js/app.js"></script>
+</body>
+</html>
