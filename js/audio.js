@@ -35,6 +35,7 @@ window.Sfx = {
   block()  { this.tone(900, 0.12, 'triangle', 0.1, 1500); this.tone(300, 0.15, 'sine', 0.08, 200); },
   throw()  { this.tone(400, 0.25, 'sine', 0.07, 900); },
   net()    { this.tone(700, 0.08, 'triangle', 0.1, 350); this.tone(1200, 0.3, 'sine', 0.07, 600, 0.06); },
+  slow()   { this.tone(900, 0.6, 'sine', 0.09, 180); this.tone(450, 0.8, 'triangle', 0.05, 90, 0.1); },
   select() { this.tone(880, 0.06, 'triangle', 0.06); },
   lock()   { this.tone(1500, 0.05, 'sine', 0.04); },
   win()    { [523, 659, 784, 1046].forEach((f, i) => this.tone(f, 0.25, 'triangle', 0.1, null, i * 0.12)); },

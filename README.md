@@ -56,12 +56,17 @@ Prism and Vexa throw rocks from a distance. Shoot them down or block them with t
 Levels:
 - **Level 1, Crystal Shores:** catch 10 each of Nebula, Prism, Solara, Glide and Vexa.
 - **Level 2, Glowwood Forest:** catch 15 each of Pulsar and Ember. Pulsar moves in bursts; Ember is quick and throws fire rocks.
+- **Level 3, Sunken Lagoon (underwater):** catch 10 each of Nimbus, Echo and Splash. Nimbus and Splash swim like jellyfish (a squeeze, then a glide), Echo glides like a manta ray and throws bubble rocks. Bubbles rise all around. When all goals are reached the boss, the **Tidequeen**, appears: shoot her (1 point) or hit her with a net grenade (4 points) until her bar is empty. She throws bubble rocks and calls small helpers.
 
 Menus with the phone: scan the QR code on the start screen, then point at any button and hold for 1 second. Once the phone is connected, choosing a level starts it straight away.
 
 In a level, the **Menu** button (or the time-out T) opens the in-game menu: Return to game, Options, Restart level, Main menu.
 
 Aiming: Options has **Aim sensitivity** and **Aim smoothing** (Fast, Normal, Extra smooth). On the phone, **Accuracy: high** uses a larger tracking model: more precise, but the phone gets warmer. Each monster that reaches you costs 5% health.
+
+## Time grenades
+
+Buy **Time grenades** in the shop (2 per level, or 4 with the Time grenade pouch). Throw one like a net grenade: everything (aliens, rocks and the boss) moves at a quarter of its speed for 3 seconds. Choose it on the gear belt, with the **Time** button on the phone, or key `4`.
 
 ## Two players
 

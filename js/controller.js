@@ -117,7 +117,7 @@ function stopMode() {
 // ---------------- Buttons (gamepad and tilt) ----------------
 // Each press increases a counter. The game compares counters, so a lost message never loses a press.
 const session = Math.random().toString(36).slice(2, 8);
-const counters = { fire: 0, reload: 0, gun: 0, grenade: 0, shield: 0, menu: 0 };
+const counters = { fire: 0, reload: 0, gun: 0, grenade: 0, shield: 0, time: 0, menu: 0 };
 let fireHeld = false;
 
 function press(name) {

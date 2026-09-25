@@ -336,3 +336,9 @@ input[type=range] { width: 100%; accent-color: var(--cyan); height: 40px; }
 @media (prefers-reduced-motion: reduce) {
   .btn, .level-card, .health.hit .core { transition: none; animation: none; }
 }
+
+/* Shop with more items: a bit more compact */
+#screen-shop .center-col { gap: 22px; }
+#screen-shop .title { font-size: 64px; }
+#screen-shop .shop-grid { gap: 18px; }
+#screen-shop .item { padding: 18px 28px; }

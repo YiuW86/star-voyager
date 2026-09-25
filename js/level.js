@@ -6,8 +6,11 @@
   const LEVELS = {
     1: { name: 'Crystal Shores',  bg: 'assets/level1.jpg', types: ['nebula', 'prism', 'solara', 'glide', 'vexa'], goal: 10 },
     2: { name: 'Glowwood Forest', bg: 'assets/level2.jpg', types: ['pulsar', 'ember'], goal: 15 },
+    // Underwater: aliens swim, bubbles rise, and after the goal the boss appears
+    3: { name: 'Sunken Lagoon', bg: 'assets/level3.jpg', types: ['nimbus', 'echo', 'splash'], goal: 10, underwater: true,
+         boss: { name: 'Tidequeen', sprite: 'splash', hp: 30 } },
   };
-  const ALL_TYPES = ['nebula', 'prism', 'solara', 'glide', 'vexa', 'pulsar', 'ember'];
+  const ALL_TYPES = ['nebula', 'prism', 'solara', 'glide', 'vexa', 'pulsar', 'ember', 'nimbus', 'echo', 'splash'];
   let TYPES = LEVELS[1].types;                       // types of the level being played
   const DWELL_TIME = 0.45;       // seconds the circle must rest on a target to fire the blaster
   const SHOT_COOLDOWN = 0.28;
@@ -20,6 +23,10 @@
     { id: 'grenade', name: 'Net grenade', color: '#ff8ad8' },
     { id: 'shield',  name: 'Shield',      color: '#8ff0c8' },
   ];
+  // Time grenade: bought in the shop. Slows all aliens, rocks and the boss down for a few seconds.
+  const TIME_GEAR = { id: 'time', name: 'Time grenade', color: '#9fd8ff' };
+  const TIME_SLOW = 3;           // seconds
+  const TIME_FACTOR = 0.25;      // how slow the world moves meanwhile
   const NET_R = 210;             // capture radius of the net
   const GRENADE_STILL = 0.6;     // hold the circle still this long to throw
   const STILL_PX = 30;           // how far the circle may drift while holding still
@@ -43,6 +50,11 @@
     vexa:   { src: 'assets/vexa.png',   fw: 245, fh: 234, front: [0, 1, 11, 1],   side: [3, 9, 10, 14], color: '#ffa45c', name: 'Vexa',  speed: [9, 11], thrower: true },
     // pulse = moves toward you in bursts, to the rhythm of its glowing bubbles
     pulsar: { src: 'assets/pulsar.png', fw: 244, fh: 229, front: [0, 10, 11, 10], side: [3, 8, 9], color: '#b8f06a', name: 'Pulsar', speed: [7, 9], pulse: true },
+    // swim: 'jelly' = pushes forward in strokes like a jellyfish, 'glide' = glides and banks like a manta ray
+    // open/push = frames with tentacles spread and pulled in (jellyfish stroke)
+    nimbus: { src: 'assets/nimbus.png', fw: 266, fh: 243, front: [0, 1], push: [5], side: [3, 4, 9, 7], color: '#8fd8ff', name: 'Nimbus', speed: [8, 10], swim: 'jelly' },
+    echo:   { src: 'assets/echo.png',   fw: 278, fh: 255, front: [0, 5, 10, 5], side: [2, 3, 8, 9], color: '#c79bff', name: 'Echo', speed: [7, 9], swim: 'glide', thrower: true },
+    splash: { src: 'assets/splash.png', fw: 265, fh: 246, front: [0, 12], push: [5, 14], side: [3, 4, 9, 7], color: '#ff9ad8', name: 'Splash', speed: [7.5, 9.5], swim: 'jelly' },
     ember:  { src: 'assets/ember.png',  fw: 244, fh: 260, front: [0, 5, 0, 7],    side: [3, 6, 11, 12], color: '#ff9a6a', name: 'Ember', speed: [6.5, 8], thrower: true },
   };
   // Gun frames ordered from pointing far left to pointing far right
@@ -256,6 +268,7 @@
     start({ level = 1, mode, players = 1, save, options, onEnd, onHud, getMenuButtons }) {
       Object.assign(this, { save, options, onEnd, onHud, getMenuButtons });
       this.levelId = level;
+      this.levelCfg = LEVELS[level];
       TYPES = LEVELS[level].types;
       GOAL = LEVELS[level].goal;
       this.types = TYPES; this.goal = GOAL;
@@ -285,6 +298,9 @@
       this.time = 0; this.shots = 0; this.hits = 0; this.earned = 0;
       this.medkitUsed = false;
       this.shake = 0;
+      this.boss = null; this.bossDefeated = false;
+      this.bubbles = []; this.bubbleT = 0;
+      this.slowT = 0; this.waves = [];
       this.promptText = ''; this.promptUntil = 0;
 
       this.players = [this.makePlayer(1)];
@@ -325,6 +341,7 @@
         still: { x: 0, y: 0, t: 0 },
         belt: { open: false, hover: 0, sel: null, selT: 0, away: 0, anim: 0 },
         grenades: up.grenadePouch ? 5 : 3,
+        timeGrenades: up.timeGrenade ? (up.timePouch ? 4 : 2) : 0,
         shieldHP: SHIELD_MAX, shieldRecharge: 0, shieldFlash: 0,
         tHold: 0, tLatch: true, menuHold: 0,
         calSamples: [], calibrated: !input.isCam(),
@@ -414,7 +431,8 @@
       if (this.state !== 'play') return;
 
       // The world runs in slow motion while a gadget belt is open; your own actions don't.
-      const gdt = dt * (this.players.some((p) => p.belt.open) ? BELT.slowMo : 1);
+      const gdt = dt * (this.players.some((p) => p.belt.open) ? BELT.slowMo : 1) * (this.slowT > 0 ? TIME_FACTOR : 1);
+      if (this.slowT > 0) { this.slowT = Math.max(0, this.slowT - dt); if (this.slowT === 0) this.hud('toast', 'Time is back to normal'); }
 
       this.time += dt;
       this.shake = Math.max(0, this.shake - dt);
@@ -435,6 +453,8 @@
       this.monsters = this.monsters.filter((m) => !m.gone);
       this.updateRocks(gdt);
       this.updateFlying(dt);
+      if (this.boss) this.updateBoss(gdt, dt);
+      if (this.levelCfg.underwater) this.updateBubbles(dt);
 
       for (const p of this.players) { this.handlePhoneButtons(p); if (this.paused) return; }
       for (const p of this.players) { this.updatePauseGestures(p, dt); if (this.paused) return; }
@@ -448,7 +468,9 @@
       const stale = this.players.find((p) => !p.input.poseFresh());
       if (stale) this.setPrompt(stale.input.isCam() ? 'Step into view of the phone camera' : 'Waiting for your phone…', 0.3, stale);
 
-      if (TYPES.every((t) => this.caught[t] >= GOAL)) {
+      const goalsDone = TYPES.every((t) => this.caught[t] >= GOAL);
+      if (goalsDone && this.levelCfg.boss && !this.boss && !this.bossDefeated) this.spawnBoss();
+      if (goalsDone && (!this.levelCfg.boss || this.bossDefeated)) {
         this.state = 'ending'; this.stateT = 0; this.won = true;
         this.players.forEach((p) => { p.belt.open = false; });
         Sfx.win(); this.hud('toast', 'Level clear!');
@@ -490,7 +512,7 @@
           p.input.mouseFire = true;
         }
         if (e === 'reload') p.input.mouseReload = true;
-        if (e === 'gun' || e === 'grenade' || e === 'shield') { this.equip(p, e); this.closeBelt(p); }
+        if (e === 'gun' || e === 'grenade' || e === 'shield' || e === 'time') { this.equip(p, e); this.closeBelt(p); }
       }
     },
 
@@ -597,20 +619,46 @@
         if (m.t > 0.45) m.gone = true;
         return;
       }
-      if (!frozen) m.z += (dt / m.dur) * (s0.pulse ? 0.25 + 2.2 * Math.max(0, Math.sin(m.age * 3 + m.phase)) : 1);
+      // Jellyfish swimmers push forward in strokes: a quick squeeze, then a slow glide
+      let stroke = 0;
+      if (s0.swim === 'jelly') {
+        const ph = (m.age * 0.8 + m.phase / 6.283) % 1;
+        stroke = Math.pow(Math.max(0, Math.sin(ph * Math.PI * 2)), 2);
+        if (stroke > 0.9 && !m.bubbled && this.levelCfg.underwater) { m.bubbled = true; this.trailBubbles(m); }
+        if (stroke < 0.1) m.bubbled = false;
+      }
+      const zRate = s0.pulse ? 0.25 + 2.2 * Math.max(0, Math.sin(m.age * 3 + m.phase))
+        : s0.swim === 'jelly' ? 0.35 + 1.4 * stroke : 1;
+      if (!frozen) m.z += (dt / m.dur) * zRate;
       const e = Math.pow(Math.min(m.z, 1), 1.35);
-      const wob = Math.sin(m.phase + m.age * m.freq) * m.amp * (0.35 + 0.65 * m.z);
+      const wobFreq = s0.swim === 'jelly' ? m.freq * 0.6 : m.freq;
+      const wob = Math.sin(m.phase + m.age * wobFreq) * m.amp * (0.35 + 0.65 * m.z);
       const px = lerp(m.x0, 0.5, m.z * 0.35) * W + wob;
       m.vx = dt > 0 ? (px - m.px) / dt : 0;
       m.px = px;
       m.py = lerp(0.4, 0.6, e) * H + Math.sin(m.age * 2.1 + m.phase) * 10 * (0.5 + m.z);
       m.size = lerp(80, 360, e) * (s0.pulse ? 1 + 0.06 * Math.sin(m.age * 6 + m.phase) : 1);
       m.r = m.size * 0.38;
+      if (s0.swim === 'jelly') {
+        // squeeze the bell on each stroke and rise a little, tilt toward where it swims
+        m.sx = 1 + 0.07 * stroke; m.sy = 1 - 0.1 * stroke;
+        m.py -= stroke * 22 * (0.5 + m.z);
+        m.rot = clamp(m.vx * 0.0012, -0.35, 0.35);
+      } else if (s0.swim === 'glide') {
+        // glide with slow wing beats, banking into turns, rising and sinking in long waves
+        m.sx = 1 + 0.07 * Math.sin(m.age * 4.5 + m.phase); m.sy = 1;
+        m.py += Math.sin(m.age * 1.3 + m.phase) * 26 * (0.5 + m.z);
+        m.rot = clamp(m.vx * 0.0016, -0.4, 0.4);
+      }
 
       // Face the player, or turn sideways while drifting quickly
       const s = SPR[m.type];
       const step = Math.floor(m.age * 5 + m.phase);
-      if (Math.abs(m.vx) > 120) { m.frame = s.side[step % s.side.length]; m.flip = m.vx < 0; }
+      if (s.swim === 'jelly') {
+        // frames follow the stroke: tentacles pulled in while pushing, spread while gliding
+        if (Math.abs(m.vx) > 150) { m.frame = s.side[Math.floor(m.age * 3 + m.phase) % s.side.length]; m.flip = m.vx < 0; m.rot = 0; }
+        else { m.frame = stroke > 0.45 ? s.push[step % s.push.length] : s.front[Math.floor(m.age * 1.5 + m.phase) % s.front.length]; m.flip = false; }
+      } else if (Math.abs(m.vx) > 120) { m.frame = s.side[step % s.side.length]; m.flip = m.vx < 0; if (s.swim) m.rot *= 0.4; }
       else { m.frame = s.front[step % s.front.length]; m.flip = false; }
 
       // Some monsters throw rocks from mid-distance
@@ -705,17 +753,114 @@
 
     tag(p) { return this.players.length > 1 && p ? `Player ${p.id}: ` : ''; },
 
+    // ---------------- Boss ----------------
+    spawnBoss() {
+      const cfg = this.levelCfg.boss;
+      const hp = Math.round(cfg.hp * (this.players.length > 1 ? 1.5 : 1));
+      this.boss = {
+        isBoss: true, name: cfg.name, sprite: cfg.sprite, hp, max: hp,
+        x: W / 2, y: H * 0.34, size: 120, r: 40, t: 0, state: 'enter',
+        throwT: 3, minionT: 4, flash: 0, frame: SPR[cfg.sprite].front[0], sx: 1, sy: 1, rot: 0,
+      };
+      this.shake = 0.5;
+      Sfx.lose();
+      this.hud('toast', `The ${cfg.name} appears!`);
+      this.setPrompt('Catch the ' + cfg.name + ': shoot her or throw net grenades', 3);
+    },
+
+    updateBoss(gdt, dt) {
+      const b = this.boss, s = SPR[b.sprite];
+      b.t += gdt;
+      b.flash = Math.max(0, b.flash - dt);
+      const ph = (b.t * 0.55) % 1;
+      const stroke = Math.pow(Math.max(0, Math.sin(ph * Math.PI * 2)), 2);
+      if (b.state === 'enter') {
+        const k = Math.min(1, b.t / 2.5), e = 1 - Math.pow(1 - k, 3);
+        b.size = lerp(120, 560, e);
+        b.y = lerp(H * 0.24, H * 0.36, e);
+        if (k >= 1) { b.state = 'fight'; b.t = 0; }
+      } else if (b.state === 'fight') {
+        const nx = W / 2 + Math.sin(b.t * 0.3) * W * 0.26;
+        b.rot = clamp((nx - b.x) / Math.max(gdt, 0.001) * 0.0008, -0.25, 0.25);
+        b.x = nx;
+        b.y = H * 0.36 + Math.sin(b.t * 0.7) * 30 - stroke * 24;
+        // Bubble rocks at the players, and small helpers joining the fight
+        b.throwT -= gdt;
+        if (b.throwT <= 0) {
+          const from = { px: b.x, py: b.y + b.size * 0.2, type: b.sprite };
+          this.throwRock(from);
+          if (b.hp < b.max * 0.5) this.throwRock(from);     // angrier when half caught
+          b.throwT = rand(3, 4.2);
+        }
+        b.minionT -= gdt;
+        if (b.minionT <= 0) {
+          if (this.monsters.filter((m) => m.state === 'alive').length < 3) this.spawn(TYPES[Math.floor(Math.random() * TYPES.length)]);
+          b.minionT = rand(3.5, 5.5);
+        }
+      } else if (b.state === 'caught') {
+        b.size *= Math.pow(0.35, dt);
+        if (b.t > 1.6) { this.boss = null; this.bossDefeated = true; return; }
+      }
+      b.r = b.size * 0.3;
+      b.sx = 1 + 0.07 * stroke; b.sy = 1 - 0.1 * stroke;
+      b.frame = stroke > 0.45 ? s.push[0] : s.front[Math.floor(b.t * 1.5) % s.front.length];
+    },
+
+    bossHit(dmg, x, y) {
+      const b = this.boss;
+      if (!b || b.state !== 'fight') return;
+      b.hp = Math.max(0, b.hp - dmg);
+      b.flash = 0.25;
+      Sfx.pop();
+      this.burst(x, y, SPR[b.sprite].color, 10 + dmg * 3);
+      if (b.hp <= 0) {
+        b.state = 'caught'; b.t = 0;
+        this.nets.push({ x: b.x, y: b.y, t: 0, big: true });
+        this.earned += 10;
+        this.shake = 0.4;
+        Sfx.win();
+        this.hud('toast', `You caught the ${b.name}!`);
+        this.hud('catch');
+      }
+    },
+
+    // ---------------- Underwater bubbles ----------------
+    updateBubbles(dt) {
+      this.bubbleT -= dt;
+      if (this.bubbleT <= 0) {
+        this.bubbleT = 0.12;
+        this.bubbles.push({ x: rand(0, W), y: H + 20, r: rand(3, 11), vy: rand(60, 150), ph: rand(0, 6), life: 99 });
+      }
+      for (const b of this.bubbles) { b.y -= b.vy * dt; b.x += Math.sin(this.time * 2 + b.ph) * 20 * dt; b.life -= dt; }
+      this.bubbles = this.bubbles.filter((b) => b.y > -30 && b.life > 0);
+    },
+    trailBubbles(m) {
+      for (let i = 0; i < 3; i++) {
+        this.bubbles.push({ x: m.px + rand(-0.15, 0.15) * m.size, y: m.py + m.size * 0.35, r: rand(2, 6) * (0.5 + m.z), vy: rand(40, 90), ph: rand(0, 6), life: 2.5 });
+      }
+    },
+
+    // ---------------- Time grenade ----------------
+    timeBurst(x, y) {
+      this.slowT = TIME_SLOW;
+      this.waves.push({ x, y, t: 0 });
+      Sfx.slow();
+      this.hud('toast', 'Time slowed down!');
+    },
+
     // ---------------- Gadget belt ----------------
     // One player: on the side of the aiming hand. Two players: Player 1 left, Player 2 right.
     beltPos(p) {
       const left = this.players.length > 1 ? p.id === 1 : p.input.hand === 'left';
       return left ? { x: 150, y: H - 150 } : { x: W - 150, y: H - 150 };
     },
+    gearList() { return (this.save.owned || {}).timeGrenade ? [...GEAR, TIME_GEAR] : GEAR; },
     beltItems(p) {
       const b = this.beltPos(p);
-      return GEAR.map((g, i) => ({ ...g, x: b.x, y: b.y - BELT.gap * (i + 1) }));
+      return this.gearList().map((g, i) => ({ ...g, x: b.x, y: b.y - BELT.gap * (i + 1) }));
     },
     gearAvailable(p, id) {
+      if (id === 'time') return p.timeGrenades > 0;
       if (id === 'grenade') return p.grenades > 0;
       if (id === 'shield') return p.shieldHP > 0;
       return true;
@@ -724,7 +869,7 @@
       const b = this.beltPos(p);
       if (dist(pt, b) < BELT.r * 1.7) return true;
       if (!p.belt.open) return false;
-      const top = b.y - BELT.gap * GEAR.length - BELT.itemR - 30;
+      const top = b.y - BELT.gap * this.gearList().length - BELT.itemR - 30;
       return Math.abs(pt.x - b.x) < BELT.itemR + 60 && pt.y > top && pt.y < b.y + BELT.r;
     },
 
@@ -740,10 +885,11 @@
       } else {
         let over = null;
         this.beltItems(p).forEach((it, i) => { if (dist(a, it) < BELT.itemR * 1.25) over = i; });
-        if (over !== null && this.gearAvailable(p, GEAR[over].id) && fresh) {
+        const items = this.gearList();
+        if (over !== null && this.gearAvailable(p, items[over].id) && fresh) {
           if (belt.sel !== over) { belt.sel = over; belt.selT = 0; Sfx.lock(); }
           belt.selT += dt;
-          if (click || belt.selT >= BELT.selectTime) { this.equip(p, GEAR[over].id); this.closeBelt(p); }
+          if (click || belt.selT >= BELT.selectTime) { this.equip(p, items[over].id); this.closeBelt(p); }
         } else { belt.sel = null; belt.selT = 0; }
         belt.away = this.inBeltZone(p, a) ? 0 : belt.away + dt;
         if (belt.away > BELT.closeDelay) this.closeBelt(p);
@@ -762,16 +908,22 @@
     },
 
     equip(p, id) {
-      if (!this.gearAvailable(p, id)) { this.hud('toast', this.tag(p) + (id === 'grenade' ? 'No net grenades left' : 'Shield is recharging')); return; }
+      if (id === 'time' && !(this.save.owned || {}).timeGrenade) { this.hud('toast', 'Buy time grenades in the shop first'); return; }
+      if (!this.gearAvailable(p, id)) {
+        this.hud('toast', this.tag(p) + (id === 'grenade' ? 'No net grenades left' : id === 'time' ? 'No time grenades left' : 'Shield is recharging'));
+        return;
+      }
       p.equipped = id;
       p.dwell = 0; p.dwellTarget = null;
       p.still = { x: p.smoothAim.x, y: p.smoothAim.y, t: 0 };
       Sfx.reload();
       if (id === 'grenade') this.setPrompt(p.input.usesDwell() ? 'Hold the circle still to throw' : 'Press Fire to throw', 2, p);
+      if (id === 'time') this.setPrompt(p.input.usesDwell() ? 'Hold the circle still to throw: slows everything down' : 'Press Fire to throw: slows everything down', 2, p);
       if (id === 'shield') this.setPrompt('Shield up: it blocks rocks and attacks', 2, p);
       if (id === 'gun') this.setPrompt('', 0);
       this.hud('gear');
     },
+    keyEquipIndex(i) { const g = this.gearList()[i]; if (g) this.keyEquip(g.id); },
     keyEquip(id) {
       const p = this.players[0];
       if (this.state === 'play' && !this.paused && p) { this.equip(p, id); this.closeBelt(p); }
@@ -785,7 +937,7 @@
 
       p.reticle = { x: raw.x, y: raw.y };
       p.dwellTarget = null;
-      if (p.equipped === 'grenade') {
+      if (p.equipped === 'grenade' || p.equipped === 'time') {
         // Throw by pressing Fire, or (camera/mouse) by holding the circle still
         if (dist(raw, p.still) > STILL_PX || blocked) p.still = { x: raw.x, y: raw.y, t: 0 };
         else p.still.t += dt;
@@ -801,6 +953,7 @@
       const raw = p.smoothAim, inp = p.input;
       const alive = this.monsters.filter((m) => m.state === 'alive');
       const targets = [...alive, ...this.rocks.map((r) => ({ ...r, ref: r, px: r.x, py: r.y }))];
+      if (this.boss && this.boss.state === 'fight') targets.push({ px: this.boss.x, py: this.boss.y, r: this.boss.r, ref: this.boss });
 
       // Aim assist: gently pull the circle toward the nearest target within reach
       let pos = { x: raw.x, y: raw.y };
@@ -849,21 +1002,23 @@
       p.cooldown = SHOT_COOLDOWN;
       p.recoil = 1;
       const muzzle = this.muzzle(p);
-      const end = target ? { x: target.rock ? target.x : target.px, y: target.rock ? target.y : target.py } : p.reticle;
+      const end = target ? { x: target.rock || target.isBoss ? target.x : target.px, y: target.rock || target.isBoss ? target.y : target.py } : p.reticle;
       this.lasers.push({ x1: muzzle.x, y1: muzzle.y, x2: end.x, y2: end.y, t: 0.16, color: p.color });
       Sfx.laser();
       if (target && target.rock) { this.hits++; this.smashRock(target); }
+      else if (target && target.isBoss) { this.hits++; this.bossHit(1, end.x, end.y); }
       else if (target) this.catchMonster(target);
       if (p.ammo === 0) this.setPrompt(this.reloadHint(p), 2, p);
       this.hud('ammo');
     },
 
     throwGrenade(p, at) {
-      if (p.grenades <= 0) return;
-      p.grenades--;
+      const kind = p.equipped === 'time' ? 'time' : 'net';
+      if (kind === 'time') { if (p.timeGrenades <= 0) return; p.timeGrenades--; }
+      else { if (p.grenades <= 0) return; p.grenades--; }
       const side = this.isMirrored(p) ? -1 : 1;
       const hand = { x: this.gunBase(p) + 90 * side, y: H - 130 };
-      this.flying.push({ x0: hand.x, y0: hand.y, x1: at.x, y1: at.y, t: 0, dur: 0.55 });
+      this.flying.push({ x0: hand.x, y0: hand.y, x1: at.x, y1: at.y, t: 0, dur: 0.55, kind });
       Sfx.throw();
       this.equip(p, 'gun');          // the blaster comes back right after a throw
       this.hud('gear');
@@ -872,7 +1027,7 @@
     updateFlying(dt) {
       for (const g of this.flying) {
         g.t += dt;
-        if (g.t >= g.dur && !g.done) { g.done = true; this.openNet(g.x1, g.y1); }
+        if (g.t >= g.dur && !g.done) { g.done = true; if (g.kind === 'time') this.timeBurst(g.x1, g.y1); else this.openNet(g.x1, g.y1); }
       }
       this.flying = this.flying.filter((g) => !g.done);
     },
@@ -885,6 +1040,11 @@
         if (m.state === 'alive' && Math.hypot(m.px - x, m.py - y) < NET_R + m.r * 0.4) { this.catchMonster(m, true); n++; }
       }
       for (const r of this.rocks) if (Math.hypot(r.x - x, r.y - y) < NET_R) this.smashRock(r);
+      if (this.boss && this.boss.state === 'fight' && Math.hypot(this.boss.x - x, this.boss.y - y) < NET_R + this.boss.r * 0.6) {
+        this.bossHit(4, x, y);
+        this.hud('toast', 'The net tangles the ' + this.boss.name + '!');
+        return;
+      }
       this.hud('toast', n > 1 ? `Net caught ${n} monsters!` : n === 1 ? 'Net caught 1 monster' : 'The net missed');
     },
 
@@ -945,7 +1105,9 @@
       for (const l of this.lasers) l.t -= dt;
       this.lasers = this.lasers.filter((l) => l.t > 0);
       for (const n of this.nets) n.t += dt;
-      this.nets = this.nets.filter((n) => n.t < 1.1);
+      this.nets = this.nets.filter((n) => n.t < (n.big ? 1.8 : 1.1));
+      for (const w of this.waves) w.t += dt;
+      this.waves = this.waves.filter((w) => w.t < 1.2);
       const show = this.time < this.promptUntil ? this.promptText : '';
       if (show !== this._shownPrompt) { this._shownPrompt = show; this.hud('prompt', show); }
     },
@@ -957,6 +1119,7 @@
         won: this.won, time: this.time,
         accuracy: this.shots ? Math.round((this.hits / this.shots) * 100) : 0,
         earned: this.earned, caught: { ...this.caught }, health: this.health,
+        boss: this.levelCfg.boss ? { name: this.levelCfg.boss.name, caught: this.bossDefeated } : null,
       });
     },
 
@@ -989,15 +1152,17 @@
       return { x: g.x + lx * Math.cos(g.rot) - ly * Math.sin(g.rot), y: g.y + lx * Math.sin(g.rot) + ly * Math.cos(g.rot) };
     },
 
-    drawFrame(img, meta, idx, cx, cy, h, flip, alpha) {
-      const sx = (idx % 5) * meta.fw, sy = Math.floor(idx / 5) * meta.fh;
+    drawFrame(img, meta, idx, cx, cy, h, flip, alpha, rot = 0, sx = 1, sy = 1) {
+      const fx = (idx % 5) * meta.fw, fy = Math.floor(idx / 5) * meta.fh;
       const w = h * meta.fw / meta.fh;
       const c = this.ctx;
       c.save();
       c.globalAlpha = alpha;
       c.translate(cx, cy);
+      if (rot) c.rotate(rot);
+      if (sx !== 1 || sy !== 1) c.scale(sx, sy);
       if (flip) c.scale(-1, 1);
-      c.drawImage(img, sx, sy, meta.fw, meta.fh, -w / 2, -h / 2, w, h);
+      c.drawImage(img, fx, fy, meta.fw, meta.fh, -w / 2, -h / 2, w, h);
       c.restore();
     },
 
@@ -1018,6 +1183,9 @@
       const bw = W * 1.06, bh = H * 1.06;
       c.drawImage(img['bg' + this.levelId], (W - bw) / 2 + px, (H - bh) / 2 + py, bw, bh);
 
+      if (this.levelCfg.underwater) this.drawBubbles();
+      if (this.boss) this.drawBoss();
+
       // Monsters, far ones first
       const sorted = [...this.monsters].sort((a, b) => a.z - b.z);
       for (const m of sorted) {
@@ -1025,9 +1193,9 @@
         if (m.state === 'dying') {
           const q = m.t / 0.45;
           const grow = m.netted ? 1 - q * 0.6 : 1 + q * 0.5;    // netted monsters shrink into the net
-          this.drawFrame(img[m.type], s, m.frame, m.px, m.py, m.size * grow, m.flip, 1 - q);
+          this.drawFrame(img[m.type], s, m.frame, m.px, m.py, m.size * grow, m.flip, 1 - q, m.rot || 0);
           c.save(); c.globalCompositeOperation = 'lighter';
-          this.drawFrame(img[m.type], s, m.frame, m.px, m.py, m.size * grow, m.flip, (1 - q) * 0.8);
+          this.drawFrame(img[m.type], s, m.frame, m.px, m.py, m.size * grow, m.flip, (1 - q) * 0.8, m.rot || 0);
           c.restore();
         } else if (m.state === 'attacking') {
           const q = Math.min(1, m.t / 0.3);
@@ -1037,13 +1205,17 @@
             c.save(); c.globalAlpha = (m.z - 0.7) / 0.3 * 0.5; c.fillStyle = '#ff5a7e';
             c.beginPath(); c.ellipse(m.px, m.py + m.size * 0.45, m.size * 0.4, m.size * 0.08, 0, 0, Math.PI * 2); c.fill(); c.restore();
           }
-          this.drawFrame(img[m.type], s, m.frame, m.px, m.py, m.size, m.flip, Math.min(1, m.age * 3));
+          this.drawFrame(img[m.type], s, m.frame, m.px, m.py, m.size, m.flip, Math.min(1, m.age * 3), m.rot || 0, m.sx || 1, m.sy || 1);
         }
       }
 
       this.drawRocks();
       this.drawNets();
       this.drawFlying();
+      this.drawWaves();
+      if (this.slowT > 0) {
+        c.save(); c.globalAlpha = Math.min(1, this.slowT) * 0.14; c.fillStyle = '#9fd8ff'; c.fillRect(0, 0, W, H); c.restore();
+      }
 
       // Particles and laser shots (each player's laser in their own colour)
       c.save();
@@ -1071,13 +1243,14 @@
         if (g.mirror) c.scale(-1, 1);
         c.drawImage(img.gun, (g.idx % 5) * SPR.gun.fw, Math.floor(g.idx / 5) * SPR.gun.fh, SPR.gun.fw, SPR.gun.fh, -g.gw / 2, -g.gh, g.gw, g.gh);
         c.restore();
-        if (p.equipped === 'grenade' && this.state === 'play') {
+        if ((p.equipped === 'grenade' || p.equipped === 'time') && this.state === 'play') {
           const side = g.mirror ? -1 : 1;
-          this.drawGrenade(this.gunBase(p) + 90 * side, H - 130 + (1 - p.gunDown) * 220 + Math.sin(this.time * 3) * 6, 46);
+          this.drawGrenade(this.gunBase(p) + 90 * side, H - 130 + (1 - p.gunDown) * 220 + Math.sin(this.time * 3) * 6, 46, p.equipped === 'time' ? 'time' : 'net');
         }
         if (p.equipped === 'shield' || p.shieldFlash > 0) this.drawShield(p);
       }
 
+      if (this.boss && this.boss.state !== 'caught') this.drawBossBar();
       if (this.state === 'play') {
         if (this.players.some((p) => p.belt.open)) this.drawSlowMo();
         for (const p of this.players) { this.drawBelt(p); if (this.players.length > 1) this.drawPlayerHud(p); }
@@ -1133,20 +1306,29 @@
     drawNets() {
       for (const n of this.nets) {
         const grow = Math.min(1, n.t / 0.25);
-        const R = NET_R * (0.3 + 0.7 * (1 - Math.pow(1 - grow, 3)));
-        this.netShape(n.x, n.y, R, n.t < 0.6 ? 1 : 1 - (n.t - 0.6) / 0.5);
+        const R = (n.big ? 320 : NET_R) * (0.3 + 0.7 * (1 - Math.pow(1 - grow, 3)));
+        const hold = n.big ? 1.2 : 0.6;
+        this.netShape(n.x, n.y, R, n.t < hold ? 1 : 1 - (n.t - hold) / 0.5);
       }
     },
 
-    drawGrenade(x, y, r) {
+    drawGrenade(x, y, r, kind = 'net') {
       const c = this.ctx;
+      const col = kind === 'time' ? '#9fd8ff' : '#ff8ad8';
       c.save();
-      c.shadowColor = '#ff8ad8'; c.shadowBlur = 26;
-      c.fillStyle = '#3a2a8f'; c.strokeStyle = '#ff8ad8'; c.lineWidth = 5;
+      c.shadowColor = col; c.shadowBlur = 26;
+      c.fillStyle = kind === 'time' ? '#1d3f8f' : '#3a2a8f'; c.strokeStyle = col; c.lineWidth = 5;
       c.beginPath(); c.arc(x, y, r, 0, Math.PI * 2); c.fill(); c.stroke();
       c.shadowBlur = 0; c.lineWidth = 2.5; c.strokeStyle = '#bff9ff';
-      c.beginPath(); c.moveTo(x - r, y); c.lineTo(x + r, y); c.moveTo(x, y - r); c.lineTo(x, y + r); c.stroke();
-      c.beginPath(); c.arc(x, y, r * 0.55, 0, Math.PI * 2); c.stroke();
+      if (kind === 'time') {
+        // clock face
+        for (let i = 0; i < 12; i++) { const a = i / 12 * Math.PI * 2; c.beginPath(); c.moveTo(x + Math.cos(a) * r * 0.72, y + Math.sin(a) * r * 0.72); c.lineTo(x + Math.cos(a) * r * 0.85, y + Math.sin(a) * r * 0.85); c.stroke(); }
+        c.lineWidth = 4;
+        c.beginPath(); c.moveTo(x, y); c.lineTo(x, y - r * 0.55); c.moveTo(x, y); c.lineTo(x + r * 0.4, y + r * 0.1); c.stroke();
+      } else {
+        c.beginPath(); c.moveTo(x - r, y); c.lineTo(x + r, y); c.moveTo(x, y - r); c.lineTo(x, y + r); c.stroke();
+        c.beginPath(); c.arc(x, y, r * 0.55, 0, Math.PI * 2); c.stroke();
+      }
       c.fillStyle = '#ffffff'; c.globalAlpha = 0.7;
       c.beginPath(); c.arc(x - r * 0.35, y - r * 0.35, r * 0.18, 0, Math.PI * 2); c.fill();
       c.restore();
@@ -1157,7 +1339,78 @@
         const p = Math.min(1, g.t / g.dur);
         const x = lerp(g.x0, g.x1, p);
         const y = lerp(g.y0, g.y1, p) - Math.sin(p * Math.PI) * 220;
-        this.drawGrenade(x, y, lerp(46, 22, p));
+        this.drawGrenade(x, y, lerp(46, 22, p), g.kind);
+      }
+    },
+
+    drawBubbles() {
+      const c = this.ctx;
+      c.save();
+      c.strokeStyle = 'rgba(210, 245, 255, 0.55)'; c.lineWidth = 2;
+      for (const b of this.bubbles) {
+        c.globalAlpha = Math.min(1, b.life);
+        c.beginPath(); c.arc(b.x, b.y, b.r, 0, Math.PI * 2); c.stroke();
+        c.fillStyle = 'rgba(255, 255, 255, 0.5)';
+        c.beginPath(); c.arc(b.x - b.r * 0.35, b.y - b.r * 0.35, b.r * 0.25, 0, Math.PI * 2); c.fill();
+      }
+      c.restore();
+    },
+
+    drawBoss() {
+      const c = this.ctx, b = this.boss, s = SPR[b.sprite], img = Assets.images[b.sprite];
+      const alpha = b.state === 'caught' ? Math.max(0, 1 - b.t / 1.6) : Math.min(1, b.t / 0.6 + (b.state === 'fight' ? 1 : 0));
+      // royal glow behind her
+      c.save();
+      const g = c.createRadialGradient(b.x, b.y, b.size * 0.1, b.x, b.y, b.size * 0.7);
+      g.addColorStop(0, 'rgba(255, 210, 122, 0.45)'); g.addColorStop(1, 'rgba(255, 138, 216, 0)');
+      c.globalAlpha = alpha; c.fillStyle = g;
+      c.beginPath(); c.arc(b.x, b.y, b.size * 0.7, 0, Math.PI * 2); c.fill();
+      c.restore();
+      this.drawFrame(img, s, b.frame, b.x, b.y, b.size, false, alpha, b.rot, b.sx, b.sy);
+      if (b.flash > 0) {
+        c.save(); c.globalCompositeOperation = 'lighter';
+        this.drawFrame(img, s, b.frame, b.x, b.y, b.size, false, b.flash * 3, b.rot, b.sx, b.sy);
+        c.restore();
+      }
+      // a little golden crown
+      if (b.state !== 'caught') {
+        const cx = b.x, cy = b.y - b.size * 0.47 * b.sy, w = b.size * 0.22;
+        c.save(); c.globalAlpha = alpha;
+        c.translate(cx, cy); c.rotate(b.rot);
+        c.fillStyle = '#ffd27a'; c.strokeStyle = '#fff4c9'; c.lineWidth = 3; c.shadowColor = '#ffd27a'; c.shadowBlur = 20;
+        c.beginPath();
+        c.moveTo(-w / 2, 0); c.lineTo(-w / 2, -w * 0.45); c.lineTo(-w / 4, -w * 0.2); c.lineTo(0, -w * 0.55); c.lineTo(w / 4, -w * 0.2); c.lineTo(w / 2, -w * 0.45); c.lineTo(w / 2, 0);
+        c.closePath(); c.fill(); c.stroke();
+        c.restore();
+      }
+    },
+
+    drawBossBar() {
+      const c = this.ctx, b = this.boss;
+      const w = 640, h = 24, x = (W - w) / 2, y = 128;
+      c.save();
+      c.font = `700 28px ${FONT}`; c.textAlign = 'center'; c.textBaseline = 'bottom';
+      c.fillStyle = '#ffd27a'; c.shadowColor = '#000'; c.shadowBlur = 8;
+      c.fillText(b.name, W / 2, y - 6);
+      c.shadowBlur = 0;
+      c.fillStyle = 'rgba(12, 28, 94, 0.9)'; c.fillRect(x - 4, y - 4, w + 8, h + 8);
+      c.strokeStyle = '#ffd27a'; c.lineWidth = 2; c.strokeRect(x - 4, y - 4, w + 8, h + 8);
+      const k = b.hp / b.max;
+      const g = c.createLinearGradient(x, 0, x + w, 0);
+      g.addColorStop(0, '#ff8ad8'); g.addColorStop(1, '#ffd27a');
+      c.fillStyle = g; c.fillRect(x, y, w * k, h);
+      c.restore();
+    },
+
+    drawWaves() {
+      const c = this.ctx;
+      for (const wv of this.waves) {
+        const k = wv.t / 1.2;
+        c.save();
+        c.globalAlpha = 1 - k; c.strokeStyle = '#9fd8ff'; c.lineWidth = 8 * (1 - k) + 2; c.shadowColor = '#9fd8ff'; c.shadowBlur = 20;
+        c.beginPath(); c.arc(wv.x, wv.y, 40 + k * 900, 0, Math.PI * 2); c.stroke();
+        c.beginPath(); c.arc(wv.x, wv.y, 20 + k * 500, 0, Math.PI * 2); c.stroke();
+        c.restore();
       }
     },
 
@@ -1204,6 +1457,9 @@
         c.lineWidth = 2.5;
         c.beginPath(); c.moveTo(-s * 0.5, 0); c.lineTo(s * 0.5, 0); c.moveTo(0, -s * 0.5); c.lineTo(0, s * 0.5); c.stroke();
         c.beginPath(); c.arc(0, 0, s * 0.27, 0, Math.PI * 2); c.stroke();
+      } else if (id === 'time') {
+        c.beginPath(); c.arc(0, 0, s * 0.5, 0, Math.PI * 2); c.stroke();
+        c.beginPath(); c.moveTo(0, 0); c.lineTo(0, -s * 0.32); c.moveTo(0, 0); c.lineTo(s * 0.24, s * 0.08); c.stroke();
       } else if (id === 'shield') {
         c.beginPath();
         c.moveTo(0, -s * 0.6); c.lineTo(s * 0.5, -s * 0.4); c.lineTo(s * 0.42, s * 0.15);
@@ -1230,7 +1486,7 @@
 
       // Unfolding rounded column
       if (anim > 0.02) {
-        const top = b.y - BELT.gap * GEAR.length * anim - BELT.itemR - 14;
+        const top = b.y - BELT.gap * this.gearList().length * anim - BELT.itemR - 14;
         const w = (BELT.itemR + 16) * 2;
         c.globalAlpha = anim;
         c.fillStyle = 'rgba(12, 28, 94, 0.88)';
@@ -1252,6 +1508,7 @@
 
           let label = it.name;
           if (it.id === 'grenade') label += ` ×${p.grenades}`;
+          if (it.id === 'time') label += ` ×${p.timeGrenades}`;
           if (it.id === 'shield') label = p.shieldHP > 0 ? `Shield ${p.shieldHP}/${SHIELD_MAX}` : `Shield ${Math.ceil(p.shieldRecharge)}s`;
           c.fillStyle = '#e8f7ff';
           c.textAlign = labelLeft ? 'right' : 'left';
@@ -1267,7 +1524,7 @@
       c.strokeStyle = p.color; c.lineWidth = 4; c.shadowColor = p.color; c.shadowBlur = 18;
       c.beginPath(); c.arc(b.x, b.y, BELT.r, 0, Math.PI * 2); c.fill(); c.stroke();
       c.shadowBlur = 0;
-      const eq = GEAR.find((g) => g.id === p.equipped);
+      const eq = this.gearList().find((g) => g.id === p.equipped) || GEAR[0];
       this.drawGearIcon(eq.id, b.x, b.y - 4, 50, eq.color);
       c.fillStyle = '#9fb7e8'; c.font = `500 18px ${FONT}`; c.textAlign = 'center';
       c.fillText(this.players.length > 1 ? `P${p.id} gear` : 'Gear', b.x, b.y + BELT.r + 20);
@@ -1291,7 +1548,7 @@
       c.font = `700 26px ${FONT}`;
       c.fillStyle = p.color;
       c.shadowColor = '#000'; c.shadowBlur = 8;
-      const label = p.equipped === 'grenade' ? `P${p.id} · Net grenade` : p.equipped === 'shield' ? `P${p.id} · Shield ${p.shieldHP}/${SHIELD_MAX}` : `P${p.id} · Blaster`;
+      const label = p.equipped === 'time' ? `P${p.id} · Time grenade` : p.equipped === 'grenade' ? `P${p.id} · Net grenade` : p.equipped === 'shield' ? `P${p.id} · Shield ${p.shieldHP}/${SHIELD_MAX}` : `P${p.id} · Blaster`;
       c.fillText(label, x0, b.y + 30);
       c.shadowBlur = 0;
       // ammo pips
@@ -1329,10 +1586,11 @@
       }
 
       // Net grenade: show the capture area
-      if (playing && p.equipped === 'grenade' && !inBelt) {
+      if (playing && (p.equipped === 'grenade' || p.equipped === 'time') && !inBelt) {
+        const tg = p.equipped === 'time';
         c.save();
-        c.setLineDash([16, 12]); c.lineWidth = 4; c.strokeStyle = '#ff8ad8'; c.globalAlpha = 0.85;
-        c.beginPath(); c.arc(x, y, NET_R, 0, Math.PI * 2); c.stroke();
+        c.setLineDash([16, 12]); c.lineWidth = 4; c.strokeStyle = tg ? '#9fd8ff' : '#ff8ad8'; c.globalAlpha = 0.85;
+        c.beginPath(); c.arc(x, y, tg ? 110 : NET_R, 0, Math.PI * 2); c.stroke();
         c.restore();
         if (p.input.usesDwell()) this.ring(x, y, 58, p.still.t / GRENADE_STILL, '#ffffff', 9);
       }
@@ -1374,5 +1632,5 @@
     },
   };
 
-  window.SV = { Assets, Input, inputs, Level, SPR, LEVELS, ALL_TYPES, GEAR, SHIELD_MAX, get TYPES() { return TYPES; }, get GOAL() { return GOAL; } };
+  window.SV = { Assets, Input, inputs, Level, SPR, LEVELS, ALL_TYPES, GEAR, TIME_GEAR, SHIELD_MAX, get TYPES() { return TYPES; }, get GOAL() { return GOAL; } };
 })();

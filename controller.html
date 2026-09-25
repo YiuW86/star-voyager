@@ -124,6 +124,8 @@
     .tilt-top { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 10px; text-align: center; min-height: 0; }
     .tilt-top .fire { width: min(62vw, 36vh, 240px); aspect-ratio: 1; }
     .grid3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 10px; }
+    .grid4 { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; }
+    .pbtn.time { color: #9fd8ff; }
     .grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
     .mini { display: flex; gap: 8px; align-items: center; justify-content: center; font-size: 14px; color: var(--muted); flex-wrap: wrap; }
     .mini button { border: 1px solid var(--cyan-deep); background: #0c1c5e; color: var(--cyan); height: 38px; min-width: 42px; padding: 0 10px; font-size: 15px; }
@@ -202,7 +204,7 @@
       <button class="pbtn fire" data-press="fire">FIRE</button>
       <button class="pbtn grenade" data-press="grenade">Net<small>grenade</small></button>
       <button class="pbtn shield" data-press="shield">Shield</button>
-      <div></div>
+      <button class="pbtn time" data-press="time">Time<small>grenade</small></button>
     </div>
   </div>
 </section>
@@ -219,10 +221,11 @@
     <button class="pbtn" data-press="reload">Reload<small>or flick the phone up</small></button>
     <button class="pbtn" id="recenter">Center<small>aim at the middle</small></button>
   </div>
-  <div class="grid3">
+  <div class="grid4">
     <button class="pbtn" data-press="gun">Blaster</button>
     <button class="pbtn grenade" data-press="grenade">Net<small>grenade</small></button>
     <button class="pbtn shield" data-press="shield">Shield</button>
+    <button class="pbtn time" data-press="time">Time<small>grenade</small></button>
   </div>
   <button class="pbtn" data-press="menu">Menu</button>
   <div class="mini">

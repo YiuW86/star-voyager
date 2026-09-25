@@ -34,6 +34,8 @@
     { id: 'steadyAim',   name: 'Steady aim',       text: 'Stronger aim assist when it is switched on.', price: 35 },
     { id: 'medkit',      name: 'Emergency medkit', text: 'Heals 30% once per level when health drops to 30%.', price: 40 },
     { id: 'grenadePouch', name: 'Grenade pouch',   text: 'Start each level with 5 net grenades instead of 3.', price: 30 },
+    { id: 'timeGrenade', name: 'Time grenades',    text: '2 time grenades per level. Everything slows down for 3 seconds.', price: 45 },
+    { id: 'timePouch',   name: 'Time grenade pouch', text: '4 time grenades per level instead of 2.', price: 35, needs: 'timeGrenade' },
   ];
 
   // ---------------- Stage scaling ----------------
@@ -148,7 +150,7 @@
     for (const id of Object.keys(LEVELS)) {
       const best = save.best['level' + id];
       const el = $('#level-' + id + '-best');
-      if (el) el.textContent = best ? `Cleared · best time ${fmtTime(best.time)}` : `Catch ${LEVELS[id].goal} of each monster`;
+      if (el) el.textContent = best ? `Cleared · best time ${fmtTime(best.time)}` : `Catch ${LEVELS[id].goal} of each${LEVELS[id].boss ? ', then the boss' : ' monster'}`;
     }
     updatePhoneUi();
   }
@@ -163,6 +165,7 @@
     const grid = $('#shop-grid');
     grid.innerHTML = '';
     for (const item of SHOP) {
+      if (item.needs && !save.owned[item.needs]) continue;     // shown once the first item is bought
       const owned = !!save.owned[item.id];
       const div = document.createElement('div');
       div.className = 'item' + (owned ? ' owned' : '');
@@ -407,7 +410,8 @@
     }
     persist();
     $('#end-title').textContent = r.won ? 'Level clear' : 'Your shields are down';
-    const caught = types().map((t) => `<span>${SPR[t].name}</span><b>${r.caught[t]}/${goal()}</b>`).join('');
+    const caught = types().map((t) => `<span>${SPR[t].name}</span><b>${r.caught[t]}/${goal()}</b>`).join('')
+      + (r.boss ? `<span>${r.boss.name}</span><b>${r.boss.caught ? 'Caught!' : 'Got away'}</b>` : '');
     $('#end-stats').innerHTML = `
       <span>Time</span><b>${fmtTime(r.time)}</b>
       ${caught}
@@ -423,7 +427,7 @@
     Sfx.unlock();
     const inGame = current === 'game' && Level.state === 'play';
     if (inGame && (e.key === 'r' || e.key === 'R')) { Level.keyReload(); return; }
-    if (inGame && ['1', '2', '3'].includes(e.key)) { Level.keyEquip(GEAR[Number(e.key) - 1].id); return; }
+    if (inGame && ['1', '2', '3', '4'].includes(e.key)) { Level.keyEquipIndex(Number(e.key) - 1); return; }
     if (inGame && (e.key === 'g' || e.key === 'G')) { Level.toggleBelt(); return; }
     if (e.key === 'Escape' || e.key === 'p' || e.key === 'P' || e.key === 'Backspace' || e.key === 'GoBack') {
       if (inGame) {
