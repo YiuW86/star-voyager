@@ -273,6 +273,15 @@ input[type=range] { width: 100%; accent-color: var(--cyan); height: 40px; }
   border: 2px solid var(--cyan-deep); background: rgba(8, 18, 70, 0.7); font-size: 22px; padding: 8px 20px; cursor: pointer; display: none;
 }
 
+.ammo.two .pips, .ammo.two .gear-label { display: none; }
+.ammo.two { left: 40px; bottom: auto; top: 214px; }
+.menu-toast {
+  position: absolute; left: 50%; top: 40px; transform: translateX(-50%); z-index: 30; padding: 12px 28px;
+  font-size: 30px; font-weight: 700; color: var(--gold); background: rgba(10, 20, 72, 0.9); border: 2px solid var(--gold);
+  opacity: 0; transition: opacity 0.25s ease; pointer-events: none;
+}
+.menu-toast.show { opacity: 1; }
+
 /* ---------- Start screen: pair the phone ---------- */
 .start-connect {
   position: absolute; left: 40px; bottom: 40px; display: flex; gap: 22px; align-items: center; max-width: 620px;

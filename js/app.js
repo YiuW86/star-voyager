@@ -216,7 +216,8 @@
       d.classList.toggle('on', st === 'connected');
       d.classList.toggle('wait', st === 'waiting' || st === 'starting');
     });
-    $$('[data-phone-text]').forEach((t) => { t.textContent = phoneText; });
+    const p2 = Net.isConnected(2) ? ' · Player 2 connected' : '';
+    $$('[data-phone-text]').forEach((t) => { t.textContent = phoneText + p2; });
     $('#btn-play-phone').disabled = st !== 'connected';
     $('#phone-chip').style.display = lastMode === 'phone' ? 'flex' : 'none';
     $('#start-connect').style.display = st === 'connected' ? 'none' : 'flex';
@@ -232,11 +233,28 @@
     }
   };
   // Camera controller sends body points; gamepad and tilt controllers send a pointer and buttons
-  Net.onData = (d) => {
+  Net.onData = (d, player = 1) => {
     if (!d) return;
-    if (d.m === 'pad' || d.m === 'tilt' || d.m === 'hello') Input.onPointer(d);
-    else Input.onPose(d);
+    const inp = window.SV.inputs[player - 1];
+    if (!inp) return;
+    if (d.m === 'pad' || d.m === 'tilt' || d.m === 'hello') inp.onPointer(d);
+    else inp.onPose(d);
   };
+  // A second phone joins or leaves: add or remove Player 2's gun, also in the middle of a level
+  Net.onPlayer = (player, joined) => {
+    updatePhoneUi();
+    if (player === 2) {
+      if (joined) window.SV.inputs[1].reset();
+      if (current === 'game' && Level.running) { if (joined) Level.addPlayer(2); else Level.removePlayer(2); }
+      else if (joined) showToastMenu('Player 2 connected');
+    }
+  };
+  function showToastMenu(text) {
+    let t = $('#menu-toast');
+    if (!t) { t = document.createElement('div'); t.id = 'menu-toast'; t.className = 'menu-toast'; stage.appendChild(t); }
+    t.textContent = text; t.classList.add('show');
+    clearTimeout(t._h); t._h = setTimeout(() => t.classList.remove('show'), 2200);
+  }
 
   // ---------------- HUD ----------------
   function buildHud() {
@@ -271,13 +289,18 @@
         const dmg = $('#damage'); dmg.classList.remove('flash'); void dmg.offsetWidth; dmg.classList.add('flash');
       }
     }
-    if (kind === 'all' || kind === 'ammo') {
+    const P1 = L.players && L.players[0];
+    if ((kind === 'all' || kind === 'ammo' || kind === 'gear' || kind === 'players') && P1) {
+      // With two players each player's ammo is drawn next to their gear button instead
+      $('.ammo').classList.toggle('two', L.players.length > 1);
+    }
+    if ((kind === 'all' || kind === 'ammo') && P1) {
       const pips = $('#pips');
       if (pips.children.length !== L.magSize) {
         pips.innerHTML = '';
         for (let i = 0; i < L.magSize; i++) { const p = document.createElement('i'); p.className = 'pip'; pips.appendChild(p); }
       }
-      [...pips.children].forEach((p, i) => p.classList.toggle('off', i >= L.ammo));
+      [...pips.children].forEach((p, i) => p.classList.toggle('off', i >= P1.ammo));
     }
     if (kind === 'all' || kind === 'catch') {
       for (const t of types()) {
@@ -288,12 +311,12 @@
       }
       $('#hud-crystals').textContent = save.crystals + L.earned;
     }
-    if (kind === 'all' || kind === 'gear') {
-      const label = L.equipped === 'grenade' ? `Net grenade · ${L.grenades} left`
-        : L.equipped === 'shield' ? `Shield ${L.shieldHP}/${SHIELD_MAX}`
+    if ((kind === 'all' || kind === 'gear') && P1) {
+      const label = P1.equipped === 'grenade' ? `Net grenade · ${P1.grenades} left`
+        : P1.equipped === 'shield' ? `Shield ${P1.shieldHP}/${SHIELD_MAX}`
         : 'Blaster';
       $('#gear-label').textContent = label;
-      $('#pips').style.opacity = L.equipped === 'gun' ? 1 : 0.25;
+      $('#pips').style.opacity = P1.equipped === 'gun' ? 1 : 0.25;
     }
     if (kind === 'cursor') {
       const cur = $('#menu-cursor');
@@ -367,7 +390,7 @@
     $('#cal-hand').textContent = save.options.hand;
     updatePhoneUi();
     $('#prompt').classList.remove('show');
-    Level.start({ level, mode, save, options: save.options, onEnd: endLevel, onHud, getMenuButtons });
+    Level.start({ level, mode, players: Net.isConnected(2) ? 2 : 1, save, options: save.options, onEnd: endLevel, onHud, getMenuButtons });
     buildCatches();
     onHud('all', null, Level);
     if (mode === 'phone' && Input.isCam()) onHud('cal', 'Looking for you…', Level);
@@ -481,6 +504,7 @@
       const cam = Input.isCam();
       if (!cam) cur.style.setProperty('--p', 0);
       const events = Input.takeEvents();
+      window.SV.inputs[1].takeEvents();     // Player 2 doesn't control the menus
       if (cam && el && mp.t >= mp.DWELL) {
         el.classList.remove('pointed');
         mp.target = null; mp.t = -0.6;

@@ -56,7 +56,18 @@ function openConn(code) {
     if (!mode) show('s-modes');
     else send({ m: 'hello', mode });
   });
-  conn.on('close', () => { setConn('bad', 'Disconnected. Reconnecting…'); scheduleRetry(); });
+  conn.on('data', (d) => {
+    if (!d) return;
+    if (d.m === 'welcome') {
+      $$('[data-badge]').forEach((b) => { b.textContent = 'Player ' + d.player; b.classList.remove('hidden'); b.classList.toggle('p2', d.player === 2); });
+    }
+    if (d.m === 'full') {
+      wantConnection = false;
+      setConn('bad', 'This game already has 2 players.');
+      show('s-connect');
+    }
+  });
+  conn.on('close', () => { if (wantConnection) { setConn('bad', 'Disconnected. Reconnecting…'); scheduleRetry(); } });
   conn.on('error', () => scheduleRetry());
 }
 
@@ -90,11 +101,12 @@ async function chooseMode(m) {
   send({ m: 'hello', mode: m });
   keepAwake();
   if (m === 'cam') { show('s-cam'); startCamera(); }
-  if (m === 'pad') { show('s-pad'); startPointerLoop(); }
+  if (m === 'pad') { show('s-pad'); landscapeMode(); startPointerLoop(); }
   if (m === 'tilt') { show('s-tilt'); await startTilt(); startPointerLoop(); }
 }
 
 function stopMode() {
+  if (mode === 'pad') leaveLandscape();
   stopCamera();
   stopTilt();
   pointerRunning = false;
@@ -151,54 +163,71 @@ function pointerLoop(now) {
   requestAnimationFrame(pointerLoop);
 }
 
-// ---------------- Gamepad: joystick ----------------
-// The stick moves the aiming circle: a small push moves it slowly (precise), a full push moves it fast.
-const zone = $('stick-zone'), base = $('stick-base'), knob = $('stick-knob');
-const stick = { id: null, ox: 0, oy: 0, x: 0, y: 0 };
-const STICK_R = 60;
+// ---------------- Gamepad: fixed 360° d-pad ----------------
+// The d-pad stays in one place. Pushing it moves the aiming circle: a small push moves it slowly
+// (for precise aiming), pushing to the edge moves it faster, and holding at the edge speeds up further.
+const zone = $('stick-zone'), dpad = $('dpad'), knob = $('stick-knob');
+const stick = { id: null, x: 0, y: 0, edgeT: 0 };
 
+function stickFrom(e) {
+  const r = dpad.getBoundingClientRect();
+  const R = r.width / 2;
+  let dx = e.clientX - (r.left + R), dy = e.clientY - (r.top + R);
+  const len = Math.hypot(dx, dy), max = R * 0.62;
+  if (len > max) { dx *= max / len; dy *= max / len; }
+  stick.x = dx / max; stick.y = dy / max;
+  knob.style.transform = `translate(calc(-50% + ${dx}px), calc(-50% + ${dy}px))`;
+}
 zone.addEventListener('pointerdown', (e) => {
   if (stick.id !== null) return;
   e.preventDefault();
   try { zone.setPointerCapture(e.pointerId); } catch (err) {}
-  const r = zone.getBoundingClientRect();
   stick.id = e.pointerId;
-  stick.ox = e.clientX - r.left; stick.oy = e.clientY - r.top;
-  stick.x = 0; stick.y = 0;
-  base.style.display = knob.style.display = 'block';
-  base.style.left = knob.style.left = stick.ox + 'px';
-  base.style.top = knob.style.top = stick.oy + 'px';
+  stickFrom(e);
 });
-zone.addEventListener('pointermove', (e) => {
-  if (e.pointerId !== stick.id) return;
-  const r = zone.getBoundingClientRect();
-  let dx = e.clientX - r.left - stick.ox, dy = e.clientY - r.top - stick.oy;
-  const len = Math.hypot(dx, dy);
-  if (len > STICK_R) { dx *= STICK_R / len; dy *= STICK_R / len; }
-  stick.x = dx / STICK_R; stick.y = dy / STICK_R;
-  knob.style.left = stick.ox + dx + 'px';
-  knob.style.top = stick.oy + dy + 'px';
-});
+zone.addEventListener('pointermove', (e) => { if (e.pointerId === stick.id) stickFrom(e); });
 const stickEnd = (e) => {
   if (e.pointerId !== stick.id) return;
-  stick.id = null; stick.x = 0; stick.y = 0;
-  base.style.display = knob.style.display = 'none';
+  stick.id = null; stick.x = 0; stick.y = 0; stick.edgeT = 0;
+  knob.style.transform = 'translate(-50%, -50%)';
 };
 zone.addEventListener('pointerup', stickEnd);
 zone.addEventListener('pointercancel', stickEnd);
 
 function updateStick(dt) {
-  const mag = Math.hypot(stick.x, stick.y);
-  if (mag < 0.08) return;                                     // small dead zone
-  const speed = 1.3 * Math.pow((mag - 0.08) / 0.92, 1.8);     // screen widths per second, curved for precision
+  const mag = Math.min(1, Math.hypot(stick.x, stick.y));
+  const DEAD = 0.14;
+  if (mag < DEAD) { stick.edgeT = 0; return; }
+  const m = (mag - DEAD) / (1 - DEAD);
+  // Holding the d-pad near the edge for a moment speeds the circle up, for crossing the screen
+  stick.edgeT = m > 0.9 ? stick.edgeT + dt : 0;
+  const boost = 1 + Math.min(0.8, Math.max(0, stick.edgeT - 0.35) * 1.4);
+  const speed = 0.6 * Math.pow(m, 2.4) * boost;           // screen widths per second
   aim.x = clamp(aim.x + (stick.x / mag) * speed * dt, 0, 1);
   aim.y = clamp(aim.y + (stick.y / mag) * speed * dt * (16 / 9), 0, 1);
+}
+
+// Gamepad works in landscape: go full screen and turn sideways where the phone allows it
+let wentFullscreen = false;
+async function landscapeMode() {
+  try {
+    if (!document.fullscreenElement && document.documentElement.requestFullscreen) {
+      await document.documentElement.requestFullscreen({ navigationUI: 'hide' });
+      wentFullscreen = true;
+    }
+    if (screen.orientation && screen.orientation.lock) await screen.orientation.lock('landscape');
+  } catch (e) { /* not supported (e.g. iPhone): the "turn your phone" hint is shown instead */ }
+}
+function leaveLandscape() {
+  try { if (screen.orientation && screen.orientation.unlock) screen.orientation.unlock(); } catch (e) {}
+  if (wentFullscreen && document.fullscreenElement) { document.exitFullscreen().catch(() => {}); }
+  wentFullscreen = false;
 }
 
 // ---------------- Tilt: point the phone like a remote ----------------
 // Uses the gyroscope: turning the phone left/right moves the circle sideways, tilting it up/down moves it vertically.
 // Works whether the phone is held flat (screen up) or upright: "sideways" is measured around the real vertical axis.
-const tilt = { speed: 5, flipX: false, flipY: false, up: [0, 0, 1], lastFlick: 0, on: false, gotData: false };
+const tilt = { raw: { x: 0.5, y: 0.5 }, speed: 4, flipX: false, flipY: false, up: [0, 0, 1], lastFlick: 0, on: false, gotData: false };
 try {
   const saved = JSON.parse(localStorage.getItem('sv-tilt') || '{}');
   ['speed', 'flipX', 'flipY'].forEach((k) => { if (k in saved) tilt[k] = saved[k]; });
@@ -218,7 +247,7 @@ async function startTilt() {
     } catch (e) { $('tilt-msg').textContent = 'Tap Change and choose Tilt again to allow motion access.'; return; }
   }
   tilt.on = true; tilt.gotData = false;
-  aim.x = 0.5; aim.y = 0.5;
+  aim.x = 0.5; aim.y = 0.5; tilt.raw = { x: 0.5, y: 0.5 };
   window.addEventListener('devicemotion', onMotion);
   setTimeout(() => { if (tilt.on && !tilt.gotData) $('tilt-msg').textContent = 'No motion data from this phone. Use Gamepad instead, or try Chrome.'; }, 2000);
 }
@@ -252,17 +281,23 @@ function onMotion(e) {
   if (pitch > 320 && now - tilt.lastFlick > 800) { tilt.lastFlick = now; press('reload'); return; }
   if (now - tilt.lastFlick < 350) return;                             // don't let the flick move the aim
   // Ignore tiny rotations so the circle stays still when your hand is still
-  const dead = 1.5;
+  const dead = 2.5;
   yaw = Math.abs(yaw) < dead ? 0 : yaw - Math.sign(yaw) * dead;
   pitch = Math.abs(pitch) < dead ? 0 : pitch - Math.sign(pitch) * dead;
-  const k = 0.006 + tilt.speed * 0.0022;                             // speed 5: roughly 60 degrees of turning crosses the screen
-  aim.x = clamp(aim.x + (tilt.flipX ? 1 : -1) * yaw * dt * k, 0, 1);
-  aim.y = clamp(aim.y + (tilt.flipY ? 1 : -1) * pitch * dt * k * (16 / 9), 0, 1);
+  // Like a computer mouse: slow turns move the circle less (precise), quick turns move it more
+  const rate = Math.hypot(yaw, pitch);
+  const accel = 0.4 + 0.6 * Math.min(1, rate / 90);
+  const k = (0.006 + tilt.speed * 0.0022) * accel;
+  tilt.raw.x = clamp(tilt.raw.x + (tilt.flipX ? 1 : -1) * yaw * dt * k, 0, 1);
+  tilt.raw.y = clamp(tilt.raw.y + (tilt.flipY ? 1 : -1) * pitch * dt * k * (16 / 9), 0, 1);
+  // A little smoothing takes out hand tremble
+  aim.x += (tilt.raw.x - aim.x) * 0.5;
+  aim.y += (tilt.raw.y - aim.y) * 0.5;
 }
 
 $('recenter').addEventListener('pointerdown', (e) => {
   e.preventDefault();
-  aim.x = 0.5; aim.y = 0.5;
+  aim.x = 0.5; aim.y = 0.5; tilt.raw = { x: 0.5, y: 0.5 };
   if (navigator.vibrate) navigator.vibrate(20);
 });
 $('tilt-slower').addEventListener('click', () => { tilt.speed = Math.max(1, tilt.speed - 1); tiltLabel(); saveTilt(); });

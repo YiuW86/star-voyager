@@ -35,7 +35,7 @@ GitHub Pages serves everything over HTTPS, which the phone needs for camera acce
 
 After connecting, the phone asks how you want to play. You can switch at any time with **Change**:
 - **Tilt:** point the phone at the TV like a remote. Tap **Fire** to shoot (hold it to keep firing at a target), **Reload** or flick the phone up to reload, **Center** if the circle drifts. Blaster, Net grenade and Shield buttons switch gear; **Menu** opens the in-game menu. Speed and Flip buttons adjust the feel.
-- **Gamepad:** slide your thumb in the joystick area to move the circle; the same buttons as Tilt. Works in portrait and landscape.
+- **Gamepad:** hold the phone sideways. Push the round d-pad on the left in any direction to move the circle: a small push moves it slowly, pushing to the edge moves it faster, and holding at the edge speeds up further. Fire and the other buttons are on the right.
 - **Camera:** the motion controls described below.
 
 In the menus with Tilt or Gamepad: move the circle to a button and press **Fire**; **Menu** goes back.
@@ -62,6 +62,10 @@ Menus with the phone: scan the QR code on the start screen, then point at any bu
 In a level, the **Menu** button (or the time-out T) opens the in-game menu: Return to game, Options, Restart level, Main menu.
 
 Aiming: Options has **Aim sensitivity** and **Aim smoothing** (Fast, Normal, Extra smooth). On the phone, **Accuracy: high** uses a larger tracking model: more precise, but the phone gets warmer. Each monster that reaches you costs 5% health.
+
+## Two players
+
+A second phone can scan the same QR code (or enter the same code) at any time, even in the middle of a level. It becomes **Player 2** and gets its own gun: Player 1's gun moves to the left and Player 2's (mirrored) gun to the right, at the same distance from the centre. Each player has their own aiming circle (P1 cyan, P2 gold), ammo, net grenades and shield; Player 1's gear button is bottom left, Player 2's bottom right. Health and the monsters to catch are shared. Each phone chooses its own way to play (tilt, gamepad or camera). Player 1 controls the menus. A third phone is told the game is full.
 
 ## Alien guide
 

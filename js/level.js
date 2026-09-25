@@ -89,7 +89,9 @@
   }
 
   // ---------------- Input: phone pose or mouse ----------------
-  const Input = {
+  // One input per player (Player 1 can also use the mouse)
+  function makeInput() {
+    return {
     mode: 'mouse',
     hand: 'right',
     sens: 1,
@@ -211,12 +213,21 @@
 
     poseFresh() { return this.mode === 'mouse' || performance.now() - this.lastPose < 700; },
   };
+  }
+  const inputs = [makeInput(), makeInput()];
+  inputs[1].mode = 'phone';
+  const Input = inputs[0];
 
   // ---------------- Level ----------------
+  // Everything a single player owns (gun, aim, ammo, gear) lives in a player object,
+  // so a second phone simply adds a second player with their own gun.
+  const PLAYER_COLORS = { 1: '#62f0ff', 2: '#ffd27a' };
+
   const Level = {
     canvas: null, ctx: null, scale: 1,
     running: false, paused: false, state: 'idle', loopId: 0,
     onEnd: null, onHud: null, getMenuButtons: null, save: null, options: null,
+    players: [],
 
     init(canvas) {
       this.canvas = canvas;
@@ -242,7 +253,7 @@
       this.scale = w / W;
     },
 
-    start({ level = 1, mode, save, options, onEnd, onHud, getMenuButtons }) {
+    start({ level = 1, mode, players = 1, save, options, onEnd, onHud, getMenuButtons }) {
       Object.assign(this, { save, options, onEnd, onHud, getMenuButtons });
       this.levelId = level;
       TYPES = LEVELS[level].types;
@@ -250,12 +261,15 @@
       this.types = TYPES; this.goal = GOAL;
       this.menuSuspended = false;
       Input.mode = mode;
-      Input.hand = options.hand;
-      Input.sens = options.sens;
-      Input.setSmoothing(options.smoothing || 'normal');
-      Input.reset();
+      inputs[1].mode = 'phone';
+      for (const inp of inputs) {
+        inp.hand = options.hand;
+        inp.sens = options.sens;
+        inp.setSmoothing(options.smoothing || 'normal');
+        inp.reset();
+      }
+      if (mode === 'phone') Input.calib = null;
       TYPES.forEach((t) => { delete this['done_' + t]; });
-      Input.calib = mode === 'phone' ? null : Input.calib;
       this.setQuality(options.quality);
 
       const up = save.owned || {};
@@ -265,38 +279,22 @@
       this.hasMedkit = !!up.medkit;
 
       this.health = 100;
-      this.ammo = this.magSize;
-      this.reloading = 0;
       this.caught = Object.fromEntries(TYPES.map((t) => [t, 0]));
       this.monsters = []; this.particles = []; this.lasers = []; this.rocks = []; this.nets = []; this.flying = [];
       this.spawnTimer = 0.8;
       this.time = 0; this.shots = 0; this.hits = 0; this.earned = 0;
       this.medkitUsed = false;
-      this.recoil = 0; this.shake = 0;
-      this.dwell = 0; this.dwellTarget = null; this.cooldown = 0;
-      this.reloadHold = 0; this.reloadLatch = false;
-      this.reticle = { x: W / 2, y: H / 2 };
-      this.smoothAim = { x: W / 2, y: H / 2 };
+      this.shake = 0;
       this.promptText = ''; this.promptUntil = 0;
 
-      // Gear
-      this.equipped = 'gun';
-      this.gunDown = 0;                         // 0 = gun raised, 1 = lowered (other gear in use)
-      this.grenades = up.grenadePouch ? 5 : 3;
-      this.shieldHP = SHIELD_MAX;
-      this.shieldRecharge = 0;
-      this.shieldFlash = 0;
-      this.still = { x: 0, y: 0, t: 0 };
-      this.belt = { open: false, hover: 0, sel: null, selT: 0, away: 0, anim: 0 };
-
-      // Pause helpers
-      this.tHold = 0; this.tLatch = true; this.menuHold = 0;
+      this.players = [this.makePlayer(1)];
+      if (players > 1) this.players.push(this.makePlayer(2));
+      this.menuPlayer = null;
       this.cursor = { target: null, t: 0 };
 
       this.paused = false;
-      this.state = Input.isCam() ? 'calibrate' : 'countdown';
+      this.state = this.players.some((p) => p.input.isCam()) ? 'calibrate' : 'countdown';
       this.stateT = 0;
-      this.calSamples = [];
       this.running = true;
       this.last = performance.now();
       this.hud('all');
@@ -314,21 +312,66 @@
       requestAnimationFrame(loop);
     },
 
+    makePlayer(id) {
+      const up = this.save.owned || {};
+      const input = inputs[id - 1];
+      if (id === 2) input.calib = null;
+      return {
+        id, input, color: PLAYER_COLORS[id],
+        ammo: this.magSize, reloading: 0, reloadHold: 0, reloadLatch: false,
+        equipped: 'gun', gunDown: 0, recoil: 0, cooldown: 0,
+        dwell: 0, dwellTarget: null,
+        reticle: { x: W / 2, y: H / 2 }, smoothAim: { x: W / 2, y: H / 2 },
+        still: { x: 0, y: 0, t: 0 },
+        belt: { open: false, hover: 0, sel: null, selT: 0, away: 0, anim: 0 },
+        grenades: up.grenadePouch ? 5 : 3,
+        shieldHP: SHIELD_MAX, shieldRecharge: 0, shieldFlash: 0,
+        tHold: 0, tLatch: true, menuHold: 0,
+        calSamples: [], calibrated: !input.isCam(),
+      };
+    },
+    player(id) { return this.players.find((p) => p.id === id) || null; },
+
+    // A second phone joins or leaves during a level
+    addPlayer(id) {
+      if (!this.running || this.state === 'done' || this.player(id)) return;
+      const p = this.makePlayer(id);
+      p.input.mode = 'phone';
+      p.calibrated = true;           // joins straight in; camera players use the default centre
+      this.players.push(p);
+      this.players.sort((a, b) => a.id - b.id);
+      this.hud('toast', `Player ${id} joined!`);
+      this.hud('players');
+    },
+    removePlayer(id) {
+      if (id === 1) return;
+      const p = this.player(id);
+      if (!p) return;
+      this.players = this.players.filter((q) => q !== p);
+      this.hud('toast', `Player ${id} left`);
+      this.hud('players');
+    },
+
     stop() { this.running = false; this.hud('cursor', null); },
 
     // Options changed from the in-game menu
     applyOptions(o) {
       this.options = o;
-      Input.hand = o.hand;
-      Input.sens = o.sens;
-      Input.setSmoothing(o.smoothing || 'normal');
+      for (const inp of inputs) {
+        inp.hand = o.hand;
+        inp.sens = o.sens;
+        inp.setSmoothing(o.smoothing || 'normal');
+      }
       const up = this.save.owned || {};
       this.assist = [0, 0.35, 0.6, 0.85][o.assist] + (up.steadyAim && o.assist > 0 ? 0.12 : 0);
-      this.closeBelt();
+      this.players.forEach((p) => this.closeBelt(p));
     },
-    pause(reason) {
+
+    pause(reason, byPlayer) {
       if (this.state !== 'play' || this.paused) return;
-      this.paused = true; this.tHold = 0; this.tLatch = true; this.menuHold = 0;
+      this.paused = true;
+      this.menuPlayer = byPlayer || null;
+      this.players.forEach((p) => { p.tHold = 0; p.tLatch = true; p.menuHold = 0; });
       this.cursor = { target: null, t: 0 };
       this.hud('pause', reason);
     },
@@ -341,18 +384,19 @@
 
     hud(kind, value) { if (this.onHud) this.onHud(kind, value, this); },
 
-    followAim(dt) {
-      const target = Input.hasAim ? { x: Input.aim.x * W, y: Input.aim.y * H } : { x: W / 2, y: H / 2 };
-      const k = Input.mode === 'mouse' ? 1 : Math.min(1, dt * (Input.isCam() ? 30 : 45));
-      this.smoothAim.x = lerp(this.smoothAim.x, target.x, k);
-      this.smoothAim.y = lerp(this.smoothAim.y, target.y, k);
+    followAim(p, dt) {
+      const inp = p.input;
+      const target = inp.hasAim ? { x: inp.aim.x * W, y: inp.aim.y * H } : { x: this.gunBase(p), y: H / 2 };
+      const k = inp.mode === 'mouse' ? 1 : Math.min(1, dt * (inp.isCam() ? 30 : 45));
+      p.smoothAim.x = lerp(p.smoothAim.x, target.x, k);
+      p.smoothAim.y = lerp(p.smoothAim.y, target.y, k);
     },
 
     // ---------------- Update ----------------
     update(dt) {
       this.stateT += dt;
-      this.followAim(dt);
-      if (this.state !== 'play') Input.takeEvents();   // ignore presses during countdown and the end
+      for (const p of this.players) this.followAim(p, dt);
+      if (this.state !== 'play') this.players.forEach((p) => p.input.takeEvents());   // ignore presses before and after play
 
       if (this.state === 'calibrate') return this.updateCalibration();
       if (this.state === 'countdown') {
@@ -369,20 +413,21 @@
       }
       if (this.state !== 'play') return;
 
-      // The world runs in slow motion while the gadget belt is open; your own actions don't.
-      const gdt = dt * (this.belt.open ? BELT.slowMo : 1);
+      // The world runs in slow motion while a gadget belt is open; your own actions don't.
+      const gdt = dt * (this.players.some((p) => p.belt.open) ? BELT.slowMo : 1);
 
       this.time += dt;
-      this.cooldown = Math.max(0, this.cooldown - dt);
-      this.recoil = Math.max(0, this.recoil - dt * 6);
       this.shake = Math.max(0, this.shake - dt);
-      this.shieldFlash = Math.max(0, this.shieldFlash - dt);
-      this.gunDown = lerp(this.gunDown, this.equipped === 'gun' ? 0 : 1, Math.min(1, dt * 8));
-      this.belt.anim = lerp(this.belt.anim, this.belt.open ? 1 : 0, Math.min(1, dt * 10));
-
-      if (this.shieldHP <= 0) {
-        this.shieldRecharge -= dt;
-        if (this.shieldRecharge <= 0) { this.shieldHP = SHIELD_MAX; this.hud('toast', 'Shield recharged'); this.hud('gear'); }
+      for (const p of this.players) {
+        p.cooldown = Math.max(0, p.cooldown - dt);
+        p.recoil = Math.max(0, p.recoil - dt * 6);
+        p.shieldFlash = Math.max(0, p.shieldFlash - dt);
+        p.gunDown = lerp(p.gunDown, p.equipped === 'gun' ? 0 : 1, Math.min(1, dt * 8));
+        p.belt.anim = lerp(p.belt.anim, p.belt.open ? 1 : 0, Math.min(1, dt * 10));
+        if (p.shieldHP <= 0) {
+          p.shieldRecharge -= dt;
+          if (p.shieldRecharge <= 0) { p.shieldHP = SHIELD_MAX; this.hud('toast', this.tag(p) + 'Shield recharged'); this.hud('gear'); }
+        }
       }
 
       this.updateSpawning(gdt);
@@ -391,92 +436,106 @@
       this.updateRocks(gdt);
       this.updateFlying(dt);
 
-      this.handlePhoneButtons();
-      if (this.paused) return;
-      this.updatePauseGestures(dt);
-      if (this.paused) return;
-      this.updateBelt(dt);
-      this.updateWeapon(dt);
-      this.updateReload(dt);
+      for (const p of this.players) { this.handlePhoneButtons(p); if (this.paused) return; }
+      for (const p of this.players) { this.updatePauseGestures(p, dt); if (this.paused) return; }
+      for (const p of this.players) {
+        this.updateBelt(p, dt);
+        this.updateWeapon(p, dt);
+        this.updateReload(p, dt);
+      }
       this.updateEffects(dt);
 
-      if (!Input.poseFresh()) this.setPrompt(Input.isCam() ? 'Step into view of the phone camera' : 'Waiting for your phone…', 0.3);
+      const stale = this.players.find((p) => !p.input.poseFresh());
+      if (stale) this.setPrompt(stale.input.isCam() ? 'Step into view of the phone camera' : 'Waiting for your phone…', 0.3, stale);
 
       if (TYPES.every((t) => this.caught[t] >= GOAL)) {
         this.state = 'ending'; this.stateT = 0; this.won = true;
-        this.belt.open = false;
+        this.players.forEach((p) => { p.belt.open = false; });
         Sfx.win(); this.hud('toast', 'Level clear!');
       }
     },
 
+    // Camera players point at the screen and hold still once, so the aim fits their body
     updateCalibration() {
-      const o = Input.offsetNow;
+      const todo = this.players.filter((p) => p.input.isCam() && !p.calibrated);
+      if (!todo.length) { this.state = 'countdown'; this.stateT = 0; this.hud('countdown', 3); return; }
       const now = performance.now();
-      if (!o || now - o.t > 500) { this.hud('cal', 'Looking for you…'); this.calSamples = []; return; }
-      this.calSamples.push(o);
-      this.calSamples = this.calSamples.filter((s) => now - s.t < 1200);
-      const n = this.calSamples.length;
-      const mx = this.calSamples.reduce((a, s) => a + s.dx, 0) / n;
-      const my = this.calSamples.reduce((a, s) => a + s.dy, 0) / n;
-      const spread = Math.max(...this.calSamples.map((s) => Math.hypot(s.dx - mx, s.dy - my)));
-      const span = n > 1 ? (this.calSamples[n - 1].t - this.calSamples[0].t) / 1000 : 0;
-      if (spread > 0.12) { this.hud('cal', 'Hold your arm still…'); this.calSamples = [o]; return; }
-      this.hud('cal', span > 0.3 ? 'Almost there…' : 'Hold still…');
-      if (span >= 1.0) {
-        Input.calib = { cx: mx, cy: my };
-        Sfx.lock();
-        this.state = 'countdown'; this.stateT = 0;
-        this.hud('countdown', 3);
+      const who = (p) => (this.players.length > 1 ? `Player ${p.id}: ` : '');
+      let status = '';
+      for (const p of todo) {
+        const o = p.input.offsetNow;
+        if (!o || now - o.t > 500) { p.calSamples = []; status = status || who(p) + 'Looking for you…'; continue; }
+        p.calSamples.push(o);
+        p.calSamples = p.calSamples.filter((s) => now - s.t < 1200);
+        const n = p.calSamples.length;
+        const mx = p.calSamples.reduce((a, s) => a + s.dx, 0) / n;
+        const my = p.calSamples.reduce((a, s) => a + s.dy, 0) / n;
+        const spread = Math.max(...p.calSamples.map((s) => Math.hypot(s.dx - mx, s.dy - my)));
+        const span = n > 1 ? (p.calSamples[n - 1].t - p.calSamples[0].t) / 1000 : 0;
+        if (spread > 0.12) { p.calSamples = [o]; status = status || who(p) + 'Hold your arm still…'; continue; }
+        status = status || who(p) + (span > 0.3 ? 'Almost there…' : 'Hold still…');
+        if (span >= 1.0) { p.input.calib = { cx: mx, cy: my }; p.calibrated = true; Sfx.lock(); }
       }
+      this.hud('cal', status || 'Almost there…');
     },
 
     // Buttons pressed on the gamepad or tilt controller
-    handlePhoneButtons() {
-      for (const e of Input.takeEvents()) {
-        if (e === 'menu') { this.pause(); return; }
+    handlePhoneButtons(p) {
+      for (const e of p.input.takeEvents()) {
+        if (e === 'menu') { this.pause(null, p); return; }
         if (e === 'fire') {
-          const p = this.smoothAim;
-          const onMenu = p.x > MENU_BTN.x && p.x < MENU_BTN.x + MENU_BTN.w && p.y > MENU_BTN.y && p.y < MENU_BTN.y + MENU_BTN.h + 20;
-          if (onMenu) { this.pause(); return; }
-          Input.mouseFire = true;
+          const a = p.smoothAim;
+          const onMenu = a.x > MENU_BTN.x && a.x < MENU_BTN.x + MENU_BTN.w && a.y > MENU_BTN.y && a.y < MENU_BTN.y + MENU_BTN.h + 20;
+          if (onMenu) { this.pause(null, p); return; }
+          p.input.mouseFire = true;
         }
-        if (e === 'reload') Input.mouseReload = true;
-        if (e === 'gun' || e === 'grenade' || e === 'shield') this.keyEquip(e);
+        if (e === 'reload') p.input.mouseReload = true;
+        if (e === 'gun' || e === 'grenade' || e === 'shield') { this.equip(p, e); this.closeBelt(p); }
       }
     },
 
     // ---------------- Pause: time-out T, or holding the circle on the Menu button ----------------
-    updatePauseGestures(dt) {
-      if (Input.isClicky()) { this.menuHold = 0; return; }   // gamepad/tilt/mouse use their Menu button
-      if (Input.isCam()) {
-        if (Input.tSign && Input.poseFresh()) {
-          if (!this.tLatch) {
-            this.tHold += dt;
-            this.setPrompt('Keep holding the T to pause', 0.2);
-            if (this.tHold >= T_HOLD) { this.tHold = 0; this.pause('Paused with the time-out sign'); return; }
+    updatePauseGestures(p, dt) {
+      const inp = p.input;
+      if (inp.isClicky()) { p.menuHold = 0; return; }   // gamepad/tilt/mouse use their Menu button
+      if (inp.isCam()) {
+        if (inp.tSign && inp.poseFresh()) {
+          if (!p.tLatch) {
+            p.tHold += dt;
+            this.setPrompt('Keep holding the T to pause', 0.2, p);
+            if (p.tHold >= T_HOLD) { p.tHold = 0; this.pause('Paused with the time-out sign', p); return; }
           }
-        } else { this.tHold = 0; this.tLatch = false; }
+        } else { p.tHold = 0; p.tLatch = false; }
       }
-      const p = this.smoothAim;
-      const onMenu = p.x > MENU_BTN.x && p.x < MENU_BTN.x + MENU_BTN.w && p.y > MENU_BTN.y && p.y < MENU_BTN.y + MENU_BTN.h + 20;
-      if (onMenu && Input.poseFresh()) {
-        this.menuHold += dt;
-        if (this.menuHold >= MENU_DWELL) { this.menuHold = 0; this.pause(); }
-      } else this.menuHold = 0;
+      const a = p.smoothAim;
+      const onMenu = a.x > MENU_BTN.x && a.x < MENU_BTN.x + MENU_BTN.w && a.y > MENU_BTN.y && a.y < MENU_BTN.y + MENU_BTN.h + 20;
+      if (onMenu && inp.poseFresh()) {
+        p.menuHold += dt;
+        if (p.menuHold >= MENU_DWELL) { p.menuHold = 0; this.pause(null, p); }
+      } else p.menuHold = 0;
     },
 
-    // While paused or on the end screen: point at a button and hold to press it (phone mode)
+    // While paused or on the end screen: the player who opened the menu (or Player 1) points at buttons
     updateMenuCursor(dt) {
-      if (Input.mode !== 'phone' || !this.getMenuButtons) { this.hud('cursor', null); return; }
-      this.followAim(dt);
-      const p = this.smoothAim;
+      const phonePlayers = this.players.filter((p) => p.input.mode === 'phone');
+      const cp = (this.menuPlayer && this.menuPlayer.input.mode === 'phone' && this.players.includes(this.menuPlayer)) ? this.menuPlayer : phonePlayers[0];
+      // Other players: their Menu button returns to the game, everything else is ignored
+      for (const p of this.players) {
+        if (p === cp) continue;
+        const ev = p.input.takeEvents();
+        if (ev.includes('menu') && this.paused) { this.resume(); return; }
+      }
+      if (!cp || !this.getMenuButtons) { this.hud('cursor', null); return; }
+      const inp = cp.input;
+      this.followAim(cp, dt);
+      const a = cp.smoothAim;
       const buttons = this.getMenuButtons();
-      const over = buttons.find((b) => p.x >= b.x && p.x <= b.x + b.w && p.y >= b.y && p.y <= b.y + b.h);
+      const over = buttons.find((b) => a.x >= b.x && a.x <= b.x + b.w && a.y >= b.y && a.y <= b.y + b.h);
       const el = over ? over.el : null;
-      if (!Input.isCam()) {
+      if (!inp.isCam()) {
         // Gamepad / tilt: move the circle and press Fire to choose; Menu returns to the game
-        this.hud('cursor', { x: p.x, y: p.y, p: 0, show: Input.poseFresh() });
-        for (const e of Input.takeEvents()) {
+        this.hud('cursor', { x: a.x, y: a.y, p: 0, show: inp.poseFresh() });
+        for (const e of inp.takeEvents()) {
           if (e === 'fire' && el) { Sfx.select(); el.click(); break; }
           if (e === 'menu' && this.paused) { this.resume(); break; }
         }
@@ -485,7 +544,7 @@
       if (el !== this.cursor.target) { this.cursor = { target: el, t: 0 }; if (el) Sfx.lock(); }
       else if (el) this.cursor.t += dt;
       const progress = el ? Math.min(1, this.cursor.t / MENU_DWELL) : 0;
-      this.hud('cursor', { x: p.x, y: p.y, p: progress, show: Input.poseFresh() });
+      this.hud('cursor', { x: a.x, y: a.y, p: progress, show: inp.poseFresh() });
       if (el && this.cursor.t >= MENU_DWELL) {
         this.cursor = { target: null, t: -0.6 };
         el.click();
@@ -534,7 +593,7 @@
       if (m.state === 'dying') { m.t += dt; if (m.t > 0.45) m.gone = true; return; }
       if (m.state === 'attacking') {
         m.t += dt;
-        if (m.t > 0.3 && !m.hitDone) { m.hitDone = true; this.playerHit(); }
+        if (m.t > 0.3 && !m.hitDone) { m.hitDone = true; this.playerHit(this.nearestPlayer(m.px)); }
         if (m.t > 0.45) m.gone = true;
         return;
       }
@@ -563,15 +622,16 @@
       if (m.z >= 1 && !frozen) { m.state = 'attacking'; m.t = 0; }
     },
 
-    // ---------------- Rocks thrown at the player ----------------
+    // ---------------- Rocks thrown at the players ----------------
     throwRock(m) {
+      const target = this.players[Math.floor(Math.random() * this.players.length)] || this.players[0];
       const pts = [];
       const n = 7;
       for (let i = 0; i < n; i++) pts.push([Math.cos(i / n * Math.PI * 2) * rand(0.7, 1), Math.sin(i / n * Math.PI * 2) * rand(0.7, 1)]);
       this.rocks.push({
-        x0: m.px, y0: m.py, tx: W / 2 + rand(-380, 380), ty: H * 0.8,
+        x0: m.px, y0: m.py, tx: this.gunBase(target) + rand(this.players.length > 1 ? -200 : -380, this.players.length > 1 ? 200 : 380), ty: H * 0.8,
         t: 0, dur: rand(1.6, 2.1), color: SPR[m.type].color, spin: rand(-4, 4), pts,
-        x: m.px, y: m.py, size: 20, r: 10, state: 'fly', rock: true,
+        x: m.px, y: m.py, size: 20, r: 10, state: 'fly', rock: true, target: target.id,
       });
     },
 
@@ -584,7 +644,7 @@
         r.y = lerp(r.y0, r.ty, e) - Math.sin(p * Math.PI) * 70;
         r.size = lerp(22, 170, e);
         r.r = Math.max(34, r.size * 0.55);    // generous target size, easier to shoot down
-        if (p >= 1) { r.state = 'gone'; this.playerHit(); }
+        if (p >= 1) { r.state = 'gone'; this.playerHit(this.player(r.target)); }
       }
       this.rocks = this.rocks.filter((r) => r.state !== 'gone');
     },
@@ -596,17 +656,27 @@
     },
 
     // All damage goes through here, so the shield can block it
-    playerHit() {
+
+    // The player whose gun is closest to a spot on screen (monsters attack the nearest player)
+    nearestPlayer(x) {
+      let best = this.players[0], bd = Infinity;
+      for (const p of this.players) { const d = Math.abs(this.gunBase(p) - x); if (d < bd) { bd = d; best = p; } }
+      return best;
+    },
+
+    // All damage goes through here, so a player's shield can block it
+    playerHit(p) {
       if (this.state !== 'play') return;
-      if (this.equipped === 'shield' && this.shieldHP > 0) {
-        this.shieldHP--;
-        this.shieldFlash = 0.35;
+      p = p && this.players.includes(p) ? p : this.players[0];
+      if (p.equipped === 'shield' && p.shieldHP > 0) {
+        p.shieldHP--;
+        p.shieldFlash = 0.35;
         Sfx.block();
-        if (this.shieldHP === 0) {
-          this.shieldRecharge = SHIELD_RECHARGE;
-          this.equip('gun');
+        if (p.shieldHP === 0) {
+          p.shieldRecharge = SHIELD_RECHARGE;
+          this.equip(p, 'gun');
           Sfx.hurt();
-          this.hud('toast', 'Shield broken: back to the blaster');
+          this.hud('toast', this.tag(p) + 'Shield broken: back to the blaster');
         }
         this.hud('gear');
         return;
@@ -626,96 +696,109 @@
       this.hud('health');
       if (this.health <= 0) {
         this.state = 'ending'; this.stateT = 0; this.won = false;
-        this.belt.open = false;
+        this.players.forEach((p) => { p.belt.open = false; });
         Sfx.lose();
       }
     },
 
     totalCaught() { return TYPES.reduce((a, t) => a + this.caught[t], 0); },
 
+    tag(p) { return this.players.length > 1 && p ? `Player ${p.id}: ` : ''; },
+
     // ---------------- Gadget belt ----------------
-    beltPos() { return Input.hand === 'left' ? { x: 150, y: H - 150 } : { x: W - 150, y: H - 150 }; },
-    beltItems() {
-      const b = this.beltPos();
+    // One player: on the side of the aiming hand. Two players: Player 1 left, Player 2 right.
+    beltPos(p) {
+      const left = this.players.length > 1 ? p.id === 1 : p.input.hand === 'left';
+      return left ? { x: 150, y: H - 150 } : { x: W - 150, y: H - 150 };
+    },
+    beltItems(p) {
+      const b = this.beltPos(p);
       return GEAR.map((g, i) => ({ ...g, x: b.x, y: b.y - BELT.gap * (i + 1) }));
     },
-    gearAvailable(id) {
-      if (id === 'grenade') return this.grenades > 0;
-      if (id === 'shield') return this.shieldHP > 0;
+    gearAvailable(p, id) {
+      if (id === 'grenade') return p.grenades > 0;
+      if (id === 'shield') return p.shieldHP > 0;
       return true;
     },
-    inBeltZone(p) {
-      const b = this.beltPos();
-      if (dist(p, b) < BELT.r * 1.7) return true;
-      if (!this.belt.open) return false;
+    inBeltZone(p, pt) {
+      const b = this.beltPos(p);
+      if (dist(pt, b) < BELT.r * 1.7) return true;
+      if (!p.belt.open) return false;
       const top = b.y - BELT.gap * GEAR.length - BELT.itemR - 30;
-      return Math.abs(p.x - b.x) < BELT.itemR + 60 && p.y > top && p.y < b.y + BELT.r;
+      return Math.abs(pt.x - b.x) < BELT.itemR + 60 && pt.y > top && pt.y < b.y + BELT.r;
     },
 
-    updateBelt(dt) {
-      const p = this.smoothAim, b = this.beltPos(), belt = this.belt;
-      const fresh = Input.poseFresh();
-      const click = Input.mouseFire && this.inBeltZone(p);
+    updateBelt(p, dt) {
+      const a = p.smoothAim, b = this.beltPos(p), belt = p.belt, inp = p.input;
+      const fresh = inp.poseFresh();
+      const click = inp.mouseFire && this.inBeltZone(p, a);
 
       if (!belt.open) {
-        const over = dist(p, b) < BELT.r * 1.2;
+        const over = dist(a, b) < BELT.r * 1.2;
         if (over && fresh) belt.hover += dt; else belt.hover = Math.max(0, belt.hover - dt * 2);
-        if ((over && click) || belt.hover >= BELT.openTime) this.openBelt();
+        if ((over && click) || belt.hover >= BELT.openTime) this.openBelt(p);
       } else {
         let over = null;
-        this.beltItems().forEach((it, i) => { if (dist(p, it) < BELT.itemR * 1.25) over = i; });
-        if (over !== null && this.gearAvailable(GEAR[over].id) && fresh) {
+        this.beltItems(p).forEach((it, i) => { if (dist(a, it) < BELT.itemR * 1.25) over = i; });
+        if (over !== null && this.gearAvailable(p, GEAR[over].id) && fresh) {
           if (belt.sel !== over) { belt.sel = over; belt.selT = 0; Sfx.lock(); }
           belt.selT += dt;
-          if (click || belt.selT >= BELT.selectTime) { this.equip(GEAR[over].id); this.closeBelt(); }
+          if (click || belt.selT >= BELT.selectTime) { this.equip(p, GEAR[over].id); this.closeBelt(p); }
         } else { belt.sel = null; belt.selT = 0; }
-        belt.away = this.inBeltZone(p) ? 0 : belt.away + dt;
-        if (belt.away > BELT.closeDelay) this.closeBelt();
+        belt.away = this.inBeltZone(p, a) ? 0 : belt.away + dt;
+        if (belt.away > BELT.closeDelay) this.closeBelt(p);
       }
-      if (click) Input.mouseFire = false;   // a click on the belt never fires the gun
+      if (click) inp.mouseFire = false;   // a click on the belt never fires the gun
     },
-    openBelt() {
-      Object.assign(this.belt, { open: true, hover: 0, sel: null, selT: 0, away: 0 });
+    openBelt(p) {
+      Object.assign(p.belt, { open: true, hover: 0, sel: null, selT: 0, away: 0 });
       Sfx.select();
     },
-    closeBelt() { Object.assign(this.belt, { open: false, hover: 0, sel: null, selT: 0, away: 0 }); },
-    toggleBelt() { if (this.state !== 'play' || this.paused) return; if (this.belt.open) this.closeBelt(); else this.openBelt(); },
+    closeBelt(p) { Object.assign(p.belt, { open: false, hover: 0, sel: null, selT: 0, away: 0 }); },
+    toggleBelt() {
+      const p = this.players[0];
+      if (this.state !== 'play' || this.paused || !p) return;
+      if (p.belt.open) this.closeBelt(p); else this.openBelt(p);
+    },
 
-    equip(id) {
-      if (!this.gearAvailable(id)) { this.hud('toast', id === 'grenade' ? 'No net grenades left' : 'Shield is recharging'); return; }
-      this.equipped = id;
-      this.dwell = 0; this.dwellTarget = null;
-      this.still = { x: this.smoothAim.x, y: this.smoothAim.y, t: 0 };
+    equip(p, id) {
+      if (!this.gearAvailable(p, id)) { this.hud('toast', this.tag(p) + (id === 'grenade' ? 'No net grenades left' : 'Shield is recharging')); return; }
+      p.equipped = id;
+      p.dwell = 0; p.dwellTarget = null;
+      p.still = { x: p.smoothAim.x, y: p.smoothAim.y, t: 0 };
       Sfx.reload();
-      if (id === 'grenade') this.setPrompt(Input.usesDwell() ? 'Hold the circle still to throw' : 'Press Fire to throw', 2);
-      if (id === 'shield') this.setPrompt('Shield up: it blocks rocks and attacks', 2);
+      if (id === 'grenade') this.setPrompt(p.input.usesDwell() ? 'Hold the circle still to throw' : 'Press Fire to throw', 2, p);
+      if (id === 'shield') this.setPrompt('Shield up: it blocks rocks and attacks', 2, p);
       if (id === 'gun') this.setPrompt('', 0);
       this.hud('gear');
     },
-    keyEquip(id) { if (this.state === 'play' && !this.paused) { this.equip(id); this.closeBelt(); } },
+    keyEquip(id) {
+      const p = this.players[0];
+      if (this.state === 'play' && !this.paused && p) { this.equip(p, id); this.closeBelt(p); }
+    },
 
     // ---------------- Weapons ----------------
-    updateWeapon(dt) {
-      const raw = this.smoothAim;
-      const blocked = this.belt.open || this.inBeltZone(raw) || !Input.poseFresh();
-      if (this.equipped === 'gun') return this.updateGun(dt, blocked);
+    updateWeapon(p, dt) {
+      const raw = p.smoothAim, inp = p.input;
+      const blocked = p.belt.open || this.inBeltZone(p, raw) || !inp.poseFresh();
+      if (p.equipped === 'gun') return this.updateGun(p, dt, blocked);
 
-      this.reticle = { x: raw.x, y: raw.y };
-      this.dwellTarget = null;
-      if (this.equipped === 'grenade') {
-        // Throw by holding the circle still
-        if (dist(raw, this.still) > STILL_PX || blocked) this.still = { x: raw.x, y: raw.y, t: 0 };
-        else this.still.t += dt;
-        const clickThrow = Input.mouseFire && !blocked;
-        Input.mouseFire = false;
-        if (clickThrow || (Input.usesDwell() && this.still.t >= GRENADE_STILL)) this.throwGrenade(clickThrow ? raw : this.still);
+      p.reticle = { x: raw.x, y: raw.y };
+      p.dwellTarget = null;
+      if (p.equipped === 'grenade') {
+        // Throw by pressing Fire, or (camera/mouse) by holding the circle still
+        if (dist(raw, p.still) > STILL_PX || blocked) p.still = { x: raw.x, y: raw.y, t: 0 };
+        else p.still.t += dt;
+        const clickThrow = inp.mouseFire && !blocked;
+        inp.mouseFire = false;
+        if (clickThrow || (inp.usesDwell() && p.still.t >= GRENADE_STILL)) this.throwGrenade(p, clickThrow ? raw : p.still);
       } else {
-        Input.mouseFire = false;
+        inp.mouseFire = false;
       }
     },
 
-    updateGun(dt, blocked) {
-      const raw = this.smoothAim;
+    updateGun(p, dt, blocked) {
+      const raw = p.smoothAim, inp = p.input;
       const alive = this.monsters.filter((m) => m.state === 'alive');
       const targets = [...alive, ...this.rocks.map((r) => ({ ...r, ref: r, px: r.x, py: r.y }))];
 
@@ -733,7 +816,7 @@
           pos = { x: lerp(raw.x, best.px, pull), y: lerp(raw.y, best.py, pull) };
         }
       }
-      this.reticle = pos;
+      p.reticle = pos;
 
       // What is under the circle? (rocks count as targets too)
       let target = null, td = Infinity;
@@ -743,45 +826,46 @@
           if (d < m.r * (1 + 0.3 * this.assist) && d < td) { target = m.ref || m; td = d; }
         }
       }
-      if (target !== this.dwellTarget) {
+      if (target !== p.dwellTarget) {
         if (target) Sfx.lock();
-        this.dwellTarget = target; this.dwell = 0;
+        p.dwellTarget = target; p.dwell = 0;
       }
 
-      if (target && !this.reloading) this.dwell += dt; else this.dwell = Math.max(0, this.dwell - dt * 2);
+      if (target && !p.reloading) p.dwell += dt; else p.dwell = Math.max(0, p.dwell - dt * 2);
 
-      if (Input.mouseFire) { Input.mouseFire = false; if (!blocked) this.fire(target); }
-      else if (Input.usesDwell() && target && this.dwell >= DWELL_TIME && this.cooldown <= 0) { this.fire(target); this.dwell = 0; }
-      else if (!Input.usesDwell() && Input.fireHeld && target && this.cooldown <= 0.0 && this.dwell > 0.12) { this.fire(target); this.cooldown = 0.32; }
+      if (inp.mouseFire) { inp.mouseFire = false; if (!blocked) this.fire(p, target); }
+      else if (inp.usesDwell() && target && p.dwell >= DWELL_TIME && p.cooldown <= 0) { this.fire(p, target); p.dwell = 0; }
+      else if (!inp.usesDwell() && inp.fireHeld && target && p.cooldown <= 0 && p.dwell > 0.12) { this.fire(p, target); p.cooldown = 0.32; }
     },
 
-    fire(target) {
-      if (this.reloading) return;
-      if (this.ammo <= 0) {
+    fire(p, target) {
+      if (p.reloading) return;
+      if (p.ammo <= 0) {
         Sfx.empty();
-        this.setPrompt(this.reloadHint(), 1.2);
+        this.setPrompt(this.reloadHint(p), 1.2, p);
         return;
       }
-      this.ammo--; this.shots++;
-      this.cooldown = SHOT_COOLDOWN;
-      this.recoil = 1;
-      const muzzle = this.muzzle();
-      const end = target ? { x: target.rock ? target.x : target.px, y: target.rock ? target.y : target.py } : this.reticle;
-      this.lasers.push({ x1: muzzle.x, y1: muzzle.y, x2: end.x, y2: end.y, t: 0.16 });
+      p.ammo--; this.shots++;
+      p.cooldown = SHOT_COOLDOWN;
+      p.recoil = 1;
+      const muzzle = this.muzzle(p);
+      const end = target ? { x: target.rock ? target.x : target.px, y: target.rock ? target.y : target.py } : p.reticle;
+      this.lasers.push({ x1: muzzle.x, y1: muzzle.y, x2: end.x, y2: end.y, t: 0.16, color: p.color });
       Sfx.laser();
       if (target && target.rock) { this.hits++; this.smashRock(target); }
       else if (target) this.catchMonster(target);
-      if (this.ammo === 0) this.setPrompt(this.reloadHint(), 2);
+      if (p.ammo === 0) this.setPrompt(this.reloadHint(p), 2, p);
       this.hud('ammo');
     },
 
-    throwGrenade(at) {
-      if (this.grenades <= 0) return;
-      this.grenades--;
-      const hand = { x: W / 2 + 90, y: H - 130 };
+    throwGrenade(p, at) {
+      if (p.grenades <= 0) return;
+      p.grenades--;
+      const side = this.isMirrored(p) ? -1 : 1;
+      const hand = { x: this.gunBase(p) + 90 * side, y: H - 130 };
       this.flying.push({ x0: hand.x, y0: hand.y, x1: at.x, y1: at.y, t: 0, dur: 0.55 });
       Sfx.throw();
-      this.equip('gun');          // the blaster comes back right after a throw
+      this.equip(p, 'gun');          // the blaster comes back right after a throw
       this.hud('gear');
     },
 
@@ -822,35 +906,36 @@
       }
     },
 
-    updateReload(dt) {
-      if (this.reloading > 0) {
-        this.reloading = Math.max(0, this.reloading - dt);
-        if (this.reloading === 0) { this.ammo = this.magSize; this.hud('ammo'); }
+    updateReload(p, dt) {
+      const inp = p.input;
+      if (p.reloading > 0) {
+        p.reloading = Math.max(0, p.reloading - dt);
+        if (p.reloading === 0) { p.ammo = this.magSize; this.hud('ammo'); }
         return;
       }
       let want = false;
-      if (Input.isClicky()) { want = Input.mouseReload; Input.mouseReload = false; }
-      else if (Input.freeHandUp && Input.poseFresh()) {
-        this.reloadHold += dt;
-        if (this.reloadHold > 0.3 && !this.reloadLatch) { want = true; this.reloadLatch = true; }
-      } else { this.reloadHold = 0; this.reloadLatch = false; }
-      if (want && this.equipped === 'gun' && this.ammo < this.magSize) {
-        this.reloading = this.reloadTime;
+      if (inp.isClicky()) { want = inp.mouseReload; inp.mouseReload = false; }
+      else if (inp.freeHandUp && inp.poseFresh()) {
+        p.reloadHold += dt;
+        if (p.reloadHold > 0.3 && !p.reloadLatch) { want = true; p.reloadLatch = true; }
+      } else { p.reloadHold = 0; p.reloadLatch = false; }
+      if (want && p.equipped === 'gun' && p.ammo < this.magSize) {
+        p.reloading = this.reloadTime;
         Sfx.reload();
-        this.setPrompt('Reloading…', this.reloadTime);
+        this.setPrompt('Reloading…', this.reloadTime, p);
       }
     },
 
-    reloadHint() {
-      if (Input.isCam()) return 'Raise your free hand to reload';
-      if (Input.mode === 'phone') return 'Press Reload on your phone';
+    reloadHint(p) {
+      if (p.input.isCam()) return 'Raise your free hand to reload';
+      if (p.input.mode === 'phone') return 'Press Reload on your phone';
       return 'Right-click or press R to reload';
     },
 
-    keyReload() { if (this.state === 'play' && !this.paused) Input.mouseReload = true; },
+    keyReload() { const p = this.players[0]; if (this.state === 'play' && !this.paused && p) p.input.mouseReload = true; },
 
-    setPrompt(text, seconds) {
-      this.promptText = text;
+    setPrompt(text, seconds, p) {
+      this.promptText = text ? this.tag(p) + text : '';
       this.promptUntil = this.time + seconds;
     },
 
@@ -867,7 +952,7 @@
 
     finish() {
       this.state = 'done';
-      this.belt.open = false;
+      this.players.forEach((p) => { p.belt.open = false; });
       if (this.onEnd) this.onEnd({
         won: this.won, time: this.time,
         accuracy: this.shots ? Math.round((this.hits / this.shots) * 100) : 0,
@@ -876,20 +961,30 @@
     },
 
     // ---------------- Drawing ----------------
-    gunPose() {
-      const t = clamp(this.reticle.x / W, 0, 1);
-      const idx = GUN_ORDER[Math.round(t * (GUN_ORDER.length - 1))];
+    // One player: gun in the middle. Two players: guns at 30% and 70% of the width,
+    // the same distance from the centre, with Player 2's gun mirrored.
+    gunBase(p) {
+      if (this.players.length < 2) return W / 2;
+      return p.id === 1 ? W * 0.3 : W * 0.7;
+    },
+    isMirrored(p) { return this.players.length > 1 && p.id === 2; },
+
+    gunPose(p) {
+      const base = this.gunBase(p);
+      const t = clamp(0.5 + (p.reticle.x - base) / (W * 0.9), 0, 1);
+      const mirror = this.isMirrored(p);
+      const idx = GUN_ORDER[Math.round((mirror ? 1 - t : t) * (GUN_ORDER.length - 1))];
       const gh = H * 0.4, gw = gh * SPR.gun.fw / SPR.gun.fh;
-      const reloadP = this.reloading > 0 ? 1 - this.reloading / this.reloadTime : 0;
+      const reloadP = p.reloading > 0 ? 1 - p.reloading / this.reloadTime : 0;
       const dip = Math.sin(reloadP * Math.PI);
-      const x = W / 2 + (t - 0.5) * 115;
-      const y = H + 10 + this.recoil * 22 + dip * 200 + this.gunDown * 270 + Math.sin(this.time * 2) * 4;
+      const x = base + (t - 0.5) * 115;
+      const y = H + 10 + p.recoil * 22 + dip * 200 + p.gunDown * 270 + Math.sin(this.time * 2 + p.id) * 4;
       const rot = (t - 0.5) * 0.14;
-      return { idx, gw, gh, x, y, rot };
+      return { idx, gw, gh, x, y, rot, mirror };
     },
 
-    muzzle() {
-      const g = this.gunPose();
+    muzzle(p) {
+      const g = this.gunPose(p);
       const lx = 0, ly = -g.gh * 0.9;   // top of the scope
       return { x: g.x + lx * Math.cos(g.rot) - ly * Math.sin(g.rot), y: g.y + lx * Math.sin(g.rot) + ly * Math.cos(g.rot) };
     },
@@ -915,8 +1010,11 @@
         c.translate(rand(-1, 1) * this.shake * 40, rand(-1, 1) * this.shake * 40);
       }
 
-      // Background with a little parallax from the aim
-      const px = (this.smoothAim.x / W - 0.5) * -36, py = (this.smoothAim.y / H - 0.5) * -20;
+      // Background with a little parallax from the aim (average of all players)
+      const n = this.players.length || 1;
+      const ax = this.players.reduce((a, p) => a + p.smoothAim.x, 0) / n || W / 2;
+      const ay = this.players.reduce((a, p) => a + p.smoothAim.y, 0) / n || H / 2;
+      const px = (ax / W - 0.5) * -36, py = (ay / H - 0.5) * -20;
       const bw = W * 1.06, bh = H * 1.06;
       c.drawImage(img['bg' + this.levelId], (W - bw) / 2 + px, (H - bh) / 2 + py, bw, bh);
 
@@ -925,15 +1023,15 @@
       for (const m of sorted) {
         const s = SPR[m.type];
         if (m.state === 'dying') {
-          const p = m.t / 0.45;
-          const grow = m.netted ? 1 - p * 0.6 : 1 + p * 0.5;    // netted monsters shrink into the net
-          this.drawFrame(img[m.type], s, m.frame, m.px, m.py, m.size * grow, m.flip, 1 - p);
+          const q = m.t / 0.45;
+          const grow = m.netted ? 1 - q * 0.6 : 1 + q * 0.5;    // netted monsters shrink into the net
+          this.drawFrame(img[m.type], s, m.frame, m.px, m.py, m.size * grow, m.flip, 1 - q);
           c.save(); c.globalCompositeOperation = 'lighter';
-          this.drawFrame(img[m.type], s, m.frame, m.px, m.py, m.size * grow, m.flip, (1 - p) * 0.8);
+          this.drawFrame(img[m.type], s, m.frame, m.px, m.py, m.size * grow, m.flip, (1 - q) * 0.8);
           c.restore();
         } else if (m.state === 'attacking') {
-          const p = Math.min(1, m.t / 0.3);
-          this.drawFrame(img[m.type], s, m.frame, m.px, m.py + p * 80, m.size * (1 + p * 0.6), m.flip, m.t > 0.3 ? 1 - (m.t - 0.3) / 0.15 : 1);
+          const q = Math.min(1, m.t / 0.3);
+          this.drawFrame(img[m.type], s, m.frame, m.px, m.py + q * 80, m.size * (1 + q * 0.6), m.flip, m.t > 0.3 ? 1 - (m.t - 0.3) / 0.15 : 1);
         } else {
           if (m.z > 0.7) {
             c.save(); c.globalAlpha = (m.z - 0.7) / 0.3 * 0.5; c.fillStyle = '#ff5a7e';
@@ -947,42 +1045,47 @@
       this.drawNets();
       this.drawFlying();
 
-      // Particles and laser shots
+      // Particles and laser shots (each player's laser in their own colour)
       c.save();
       c.globalCompositeOperation = 'lighter';
-      for (const p of this.particles) {
-        c.globalAlpha = Math.max(0, p.life / p.max);
-        c.fillStyle = p.color;
-        c.beginPath(); c.arc(p.x, p.y, p.r, 0, Math.PI * 2); c.fill();
+      for (const q of this.particles) {
+        c.globalAlpha = Math.max(0, q.life / q.max);
+        c.fillStyle = q.color;
+        c.beginPath(); c.arc(q.x, q.y, q.r, 0, Math.PI * 2); c.fill();
       }
       for (const l of this.lasers) {
         const a = l.t / 0.16;
-        c.globalAlpha = a * 0.5; c.strokeStyle = '#62f0ff'; c.lineWidth = 22; c.lineCap = 'round';
+        c.globalAlpha = a * 0.5; c.strokeStyle = l.color || '#62f0ff'; c.lineWidth = 22; c.lineCap = 'round';
         c.beginPath(); c.moveTo(l.x1, l.y1); c.lineTo(l.x2, l.y2); c.stroke();
         c.globalAlpha = a; c.strokeStyle = '#ffffff'; c.lineWidth = 6;
         c.beginPath(); c.moveTo(l.x1, l.y1); c.lineTo(l.x2, l.y2); c.stroke();
       }
       c.restore();
 
-      // Gun, fixed at the bottom middle, turning toward the aim (lowered while other gear is in use)
-      const g = this.gunPose();
-      c.save();
-      c.translate(g.x, g.y);
-      c.rotate(g.rot);
-      c.drawImage(img.gun, (g.idx % 5) * SPR.gun.fw, Math.floor(g.idx / 5) * SPR.gun.fh, SPR.gun.fw, SPR.gun.fh, -g.gw / 2, -g.gh, g.gw, g.gh);
-      c.restore();
-
-      if (this.equipped === 'grenade' && this.state === 'play') {
-        this.drawGrenade(W / 2 + 90, H - 130 + (1 - this.gunDown) * 220 + Math.sin(this.time * 3) * 6, 46);
+      // Guns at the bottom, turning toward each player's aim (lowered while other gear is in use)
+      for (const p of this.players) {
+        const g = this.gunPose(p);
+        c.save();
+        c.translate(g.x, g.y);
+        c.rotate(g.rot);
+        if (g.mirror) c.scale(-1, 1);
+        c.drawImage(img.gun, (g.idx % 5) * SPR.gun.fw, Math.floor(g.idx / 5) * SPR.gun.fh, SPR.gun.fw, SPR.gun.fh, -g.gw / 2, -g.gh, g.gw, g.gh);
+        c.restore();
+        if (p.equipped === 'grenade' && this.state === 'play') {
+          const side = g.mirror ? -1 : 1;
+          this.drawGrenade(this.gunBase(p) + 90 * side, H - 130 + (1 - p.gunDown) * 220 + Math.sin(this.time * 3) * 6, 46);
+        }
+        if (p.equipped === 'shield' || p.shieldFlash > 0) this.drawShield(p);
       }
-      if (this.equipped === 'shield' || this.shieldFlash > 0) this.drawShield();
 
       if (this.state === 'play') {
-        if (this.belt.open) this.drawSlowMo();
-        this.drawBelt();
+        if (this.players.some((p) => p.belt.open)) this.drawSlowMo();
+        for (const p of this.players) { this.drawBelt(p); if (this.players.length > 1) this.drawPlayerHud(p); }
         this.drawMenuHold();
       }
-      if (this.state === 'play' || this.state === 'countdown' || this.state === 'calibrate') this.drawReticle();
+      if (this.state === 'play' || this.state === 'countdown' || this.state === 'calibrate') {
+        for (const p of this.players) this.drawReticle(p);
+      }
     },
 
     drawRocks() {
@@ -1058,27 +1161,30 @@
       }
     },
 
-    drawShield() {
+    drawShield(p) {
       const c = this.ctx;
-      const up = this.equipped === 'shield' ? 1 : 0;
-      const a = 0.35 * up + this.shieldFlash * 1.8;
+      const up = p.equipped === 'shield' ? 1 : 0;
+      const a = 0.35 * up + p.shieldFlash * 1.8;
+      const two = this.players.length > 1;
+      const cx = this.gunBase(p), rw = two ? W * 0.3 : W * 0.62, rh = two ? H * 0.62 : H * 0.78;
       c.save();
       c.globalAlpha = Math.min(1, a);
-      c.strokeStyle = this.shieldFlash > 0 ? '#ffffff' : '#8ff0c8';
+      c.strokeStyle = p.shieldFlash > 0 ? '#ffffff' : '#8ff0c8';
       c.fillStyle = 'rgba(143, 240, 200, 0.10)';
       c.lineWidth = 8; c.shadowColor = '#8ff0c8'; c.shadowBlur = 30;
-      c.beginPath(); c.ellipse(W / 2, H * 1.25, W * 0.62, H * 0.78, 0, Math.PI, Math.PI * 2); c.fill(); c.stroke();
+      c.beginPath(); c.ellipse(cx, H * 1.25, rw, rh, 0, Math.PI, Math.PI * 2); c.fill(); c.stroke();
       c.shadowBlur = 0; c.lineWidth = 2; c.globalAlpha *= 0.6;
       for (let k = 1; k <= 3; k++) {
-        c.beginPath(); c.ellipse(W / 2, H * 1.25, W * 0.62 * (1 - k * 0.12), H * 0.78 * (1 - k * 0.12), 0, Math.PI, Math.PI * 2); c.stroke();
+        c.beginPath(); c.ellipse(cx, H * 1.25, rw * (1 - k * 0.12), rh * (1 - k * 0.12), 0, Math.PI, Math.PI * 2); c.stroke();
       }
       c.restore();
     },
 
     drawSlowMo() {
       const c = this.ctx;
+      const anim = Math.max(...this.players.map((p) => p.belt.anim));
       c.save();
-      c.globalAlpha = 0.25 * this.belt.anim;
+      c.globalAlpha = 0.25 * anim;
       c.fillStyle = '#1b2f8a';
       c.fillRect(0, 0, W, H);
       c.restore();
@@ -1115,9 +1221,9 @@
       c.beginPath(); c.arc(x, y, r, -Math.PI / 2, -Math.PI / 2 + Math.PI * 2 * Math.min(1, progress)); c.stroke(); c.restore();
     },
 
-    drawBelt() {
-      const c = this.ctx, b = this.beltPos(), belt = this.belt, anim = belt.anim;
-      const labelLeft = Input.hand !== 'left';
+    drawBelt(p) {
+      const c = this.ctx, b = this.beltPos(p), belt = p.belt, anim = belt.anim;
+      const labelLeft = b.x > W / 2;
       c.save();
       c.font = `600 28px ${FONT}`;
       c.textBaseline = 'middle';
@@ -1128,15 +1234,15 @@
         const w = (BELT.itemR + 16) * 2;
         c.globalAlpha = anim;
         c.fillStyle = 'rgba(12, 28, 94, 0.88)';
-        c.strokeStyle = '#62f0ff'; c.lineWidth = 3;
+        c.strokeStyle = p.color; c.lineWidth = 3;
         c.beginPath();
         if (c.roundRect) c.roundRect(b.x - w / 2, top, w, b.y - top, w / 2); else c.rect(b.x - w / 2, top, w, b.y - top);
         c.fill(); c.stroke();
 
-        this.beltItems().forEach((it, i) => {
+        this.beltItems(p).forEach((it, i) => {
           const y = b.y - BELT.gap * (i + 1) * anim;
-          const ok = this.gearAvailable(it.id);
-          const on = this.equipped === it.id;
+          const ok = this.gearAvailable(p, it.id);
+          const on = p.equipped === it.id;
           c.globalAlpha = anim * (ok ? 1 : 0.4);
           c.fillStyle = on ? 'rgba(255, 138, 216, 0.25)' : '#12246e';
           c.strokeStyle = on ? '#ff8ad8' : it.color; c.lineWidth = on ? 5 : 3;
@@ -1145,8 +1251,8 @@
           if (belt.sel === i) this.ring(b.x, y, BELT.itemR + 12, belt.selT / BELT.selectTime, '#ffffff', 8);
 
           let label = it.name;
-          if (it.id === 'grenade') label += ` ×${this.grenades}`;
-          if (it.id === 'shield') label = this.shieldHP > 0 ? `Shield ${this.shieldHP}/${SHIELD_MAX}` : `Shield ${Math.ceil(this.shieldRecharge)}s`;
+          if (it.id === 'grenade') label += ` ×${p.grenades}`;
+          if (it.id === 'shield') label = p.shieldHP > 0 ? `Shield ${p.shieldHP}/${SHIELD_MAX}` : `Shield ${Math.ceil(p.shieldRecharge)}s`;
           c.fillStyle = '#e8f7ff';
           c.textAlign = labelLeft ? 'right' : 'left';
           c.shadowColor = '#000'; c.shadowBlur = 8;
@@ -1158,53 +1264,82 @@
       // Belt button, showing the gear in use
       c.globalAlpha = 1;
       c.fillStyle = belt.open ? '#2150c4' : 'rgba(12, 28, 94, 0.85)';
-      c.strokeStyle = '#62f0ff'; c.lineWidth = 4; c.shadowColor = '#62f0ff'; c.shadowBlur = 18;
+      c.strokeStyle = p.color; c.lineWidth = 4; c.shadowColor = p.color; c.shadowBlur = 18;
       c.beginPath(); c.arc(b.x, b.y, BELT.r, 0, Math.PI * 2); c.fill(); c.stroke();
       c.shadowBlur = 0;
-      const eq = GEAR.find((g) => g.id === this.equipped);
+      const eq = GEAR.find((g) => g.id === p.equipped);
       this.drawGearIcon(eq.id, b.x, b.y - 4, 50, eq.color);
       c.fillStyle = '#9fb7e8'; c.font = `500 18px ${FONT}`; c.textAlign = 'center';
-      c.fillText('Gear', b.x, b.y + BELT.r + 20);
+      c.fillText(this.players.length > 1 ? `P${p.id} gear` : 'Gear', b.x, b.y + BELT.r + 20);
       // Grenade count badge
       c.fillStyle = '#ff8ad8';
       c.beginPath(); c.arc(b.x + BELT.r * 0.72, b.y - BELT.r * 0.72, 20, 0, Math.PI * 2); c.fill();
       c.fillStyle = '#0a1440'; c.font = `700 22px ${FONT}`;
-      c.fillText(String(this.grenades), b.x + BELT.r * 0.72, b.y - BELT.r * 0.72 + 1);
+      c.fillText(String(p.grenades), b.x + BELT.r * 0.72, b.y - BELT.r * 0.72 + 1);
       if (!belt.open) this.ring(b.x, b.y, BELT.r + 12, belt.hover / BELT.openTime, '#ffffff', 8);
+      c.restore();
+    },
+
+    // Two players: each player's ammo next to their gear button
+    drawPlayerHud(p) {
+      const c = this.ctx, b = this.beltPos(p);
+      const right = b.x > W / 2;
+      const x0 = right ? b.x - BELT.r - 30 : b.x + BELT.r + 30;
+      c.save();
+      c.textBaseline = 'middle';
+      c.textAlign = right ? 'right' : 'left';
+      c.font = `700 26px ${FONT}`;
+      c.fillStyle = p.color;
+      c.shadowColor = '#000'; c.shadowBlur = 8;
+      const label = p.equipped === 'grenade' ? `P${p.id} · Net grenade` : p.equipped === 'shield' ? `P${p.id} · Shield ${p.shieldHP}/${SHIELD_MAX}` : `P${p.id} · Blaster`;
+      c.fillText(label, x0, b.y + 30);
+      c.shadowBlur = 0;
+      // ammo pips
+      const pw = 12, gap = 6;
+      for (let i = 0; i < this.magSize; i++) {
+        const k = right ? this.magSize - 1 - i : i;
+        const x = right ? x0 - k * (pw + gap) - pw : x0 + k * (pw + gap);
+        c.globalAlpha = i < p.ammo ? (p.equipped === 'gun' ? 1 : 0.35) : 0.15;
+        c.fillStyle = '#d4fbff';
+        c.fillRect(x, b.y - 22, pw, 30);
+      }
       c.restore();
     },
 
     // Progress ring on the Menu button and for the time-out T
     drawMenuHold() {
       const cx = MENU_BTN.x + MENU_BTN.w / 2, cy = MENU_BTN.y + MENU_BTN.h / 2;
-      if (this.menuHold > 0) this.ring(cx, cy, 60, this.menuHold / MENU_DWELL, '#ffffff', 8);
-      if (this.tHold > 0) this.ring(cx, cy, 60, this.tHold / T_HOLD, '#ffd27a', 8);
+      const menuHold = Math.max(0, ...this.players.map((p) => p.menuHold));
+      const tHold = Math.max(0, ...this.players.map((p) => p.tHold));
+      if (menuHold > 0) this.ring(cx, cy, 60, menuHold / MENU_DWELL, '#ffffff', 8);
+      if (tHold > 0) this.ring(cx, cy, 60, tHold / T_HOLD, '#ffd27a', 8);
     },
 
-    drawReticle() {
+    drawReticle(p) {
       const c = this.ctx;
       const playing = this.state === 'play';
-      const { x, y } = playing ? this.reticle : this.smoothAim;
-      const inBelt = playing && (this.belt.open || this.inBeltZone(this.smoothAim));
+      const { x, y } = playing ? p.reticle : p.smoothAim;
+      const inBelt = playing && (p.belt.open || this.inBeltZone(p, p.smoothAim));
+      const two = this.players.length > 1;
 
       // Where your hand actually is (before aim assist)
-      if (Input.isCam() && playing && this.equipped === 'gun') {
+      if (p.input.isCam() && playing && p.equipped === 'gun') {
         c.save(); c.globalAlpha = 0.45; c.fillStyle = '#ffffff';
-        c.beginPath(); c.arc(this.smoothAim.x, this.smoothAim.y, 7, 0, Math.PI * 2); c.fill(); c.restore();
+        c.beginPath(); c.arc(p.smoothAim.x, p.smoothAim.y, 7, 0, Math.PI * 2); c.fill(); c.restore();
       }
 
       // Net grenade: show the capture area
-      if (playing && this.equipped === 'grenade' && !inBelt) {
+      if (playing && p.equipped === 'grenade' && !inBelt) {
         c.save();
         c.setLineDash([16, 12]); c.lineWidth = 4; c.strokeStyle = '#ff8ad8'; c.globalAlpha = 0.85;
         c.beginPath(); c.arc(x, y, NET_R, 0, Math.PI * 2); c.stroke();
         c.restore();
-        if (Input.usesDwell()) this.ring(x, y, 58, this.still.t / GRENADE_STILL, '#ffffff', 9);
+        if (p.input.usesDwell()) this.ring(x, y, 58, p.still.t / GRENADE_STILL, '#ffffff', 9);
       }
 
-      const locked = !!this.dwellTarget && playing && this.equipped === 'gun';
-      const col = inBelt ? '#ffffff' : this.equipped === 'shield' ? '#8ff0c8' : locked ? '#ff8ad8' : '#62f0ff';
-      const R = this.equipped === 'gun' || inBelt ? 44 : 30;
+      const locked = !!p.dwellTarget && playing && p.equipped === 'gun';
+      const col = inBelt ? '#ffffff' : p.equipped === 'shield' ? '#8ff0c8' : locked ? '#ff8ad8' : p.color;
+      const R = p.equipped === 'gun' || inBelt ? 44 : 30;
 
       c.save();
       c.lineWidth = 4; c.strokeStyle = col;
@@ -1219,13 +1354,17 @@
         c.stroke();
       }
       c.fillStyle = col; c.beginPath(); c.arc(x, y, 5, 0, Math.PI * 2); c.fill();
+      if (two) {
+        c.font = `700 24px ${FONT}`; c.textAlign = 'left'; c.textBaseline = 'middle';
+        c.fillStyle = p.color; c.shadowColor = '#000'; c.shadowBlur = 6;
+        c.fillText('P' + p.id, x + R + 10, y - R + 4);
+      }
       c.restore();
 
       // Dwell progress: the ring fills up, then the blaster fires
-      if (locked && this.dwell > 0 && Input.usesDwell()) this.ring(x, y, R + 12, this.dwell / DWELL_TIME, '#ffffff', 9);
+      if (locked && p.dwell > 0 && p.input.usesDwell()) this.ring(x, y, R + 12, p.dwell / DWELL_TIME, '#ffffff', 9);
     },
 
-    // Small portrait of a monster for the HUD counters
     drawPortrait(canvas, type) {
       const s = SPR[type], img = Assets.images[type];
       const c = canvas.getContext('2d');
@@ -1235,5 +1374,5 @@
     },
   };
 
-  window.SV = { Assets, Input, Level, SPR, LEVELS, ALL_TYPES, GEAR, SHIELD_MAX, get TYPES() { return TYPES; }, get GOAL() { return GOAL; } };
+  window.SV = { Assets, Input, inputs, Level, SPR, LEVELS, ALL_TYPES, GEAR, SHIELD_MAX, get TYPES() { return TYPES; }, get GOAL() { return GOAL; } };
 })();
