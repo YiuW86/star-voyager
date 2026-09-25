@@ -2,86 +2,203 @@
 <html lang="en">
 <head>
   <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no">
   <meta name="theme-color" content="#0a1440">
   <title>Star Voyager controller</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Chakra+Petch:wght@400;600;700&display=swap" rel="stylesheet">
   <style>
-    :root { --space: #0a1440; --panel: #12246e; --cyan: #62f0ff; --cyan-deep: #1c8fd8; --pink: #ff8ad8; --gold: #ffd27a; --text: #e8f7ff; --muted: #9fb7e8; --ok: #5dffb0; --bad: #ff5a7e; }
-    * { box-sizing: border-box; }
-    html, body { margin: 0; min-height: 100%; background: radial-gradient(ellipse at top, #1b2f8a, var(--space) 60%); color: var(--text); font-family: "Chakra Petch", Roboto, Arial, sans-serif; }
-    main { max-width: 560px; margin: 0 auto; padding: calc(env(safe-area-inset-top, 0px) + 20px) 18px calc(env(safe-area-inset-bottom, 0px) + 24px); display: flex; flex-direction: column; gap: 16px; }
+    :root { --space: #0a1440; --panel: #12246e; --cyan: #62f0ff; --cyan-deep: #1c8fd8; --pink: #ff8ad8; --gold: #ffd27a; --text: #e8f7ff; --muted: #9fb7e8; --ok: #5dffb0; --bad: #ff5a7e; --mint: #8ff0c8; }
+    * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+    html, body { margin: 0; height: 100%; background: radial-gradient(ellipse at top, #1b2f8a, var(--space) 60%); color: var(--text); font-family: "Chakra Petch", Roboto, Arial, sans-serif; overscroll-behavior: none; }
+    body { user-select: none; -webkit-user-select: none; }
+    .screen { display: none; min-height: 100%; }
+    .screen.active { display: flex; }
+    .col { flex-direction: column; gap: 16px; max-width: 560px; margin: 0 auto; padding: calc(env(safe-area-inset-top, 0px) + 16px) 18px calc(env(safe-area-inset-bottom, 0px) + 20px); }
     h1 { margin: 0; font-size: 28px; font-weight: 700; color: #bff9ff; text-shadow: 0 0 12px rgba(98, 240, 255, 0.6); }
-    p { margin: 0; line-height: 1.5; color: var(--muted); font-size: 16px; }
+    h2 { margin: 0; font-size: 22px; color: #bff9ff; }
+    p { margin: 0; line-height: 1.45; color: var(--muted); font-size: 16px; }
     label { font-size: 15px; color: var(--muted); }
-    .code-row { display: flex; gap: 10px; }
     input {
-      flex: 1; min-width: 0; height: 56px; padding: 0 16px; font-family: inherit; font-weight: 700; font-size: 28px; letter-spacing: 6px; text-transform: uppercase;
+      width: 100%; height: 58px; padding: 0 16px; font-family: inherit; font-weight: 700; font-size: 28px; letter-spacing: 6px; text-transform: uppercase;
       color: var(--gold); background: #0c1c5e; border: 2px solid var(--cyan-deep); outline: none;
     }
     input:focus { border-color: var(--cyan); }
+    button { font-family: inherit; color: inherit; cursor: pointer; }
     .btn {
-      height: 60px; border: 0; padding: 0 22px; font-family: inherit; font-weight: 600; font-size: 20px; cursor: pointer; color: var(--space);
+      height: 58px; border: 0; padding: 0 22px; font-weight: 600; font-size: 20px; color: var(--space);
       background: linear-gradient(180deg, var(--cyan), var(--cyan-deep));
       clip-path: polygon(14px 0, calc(100% - 14px) 0, 100% 50%, calc(100% - 14px) 100%, 14px 100%, 0 50%);
     }
     .btn.big { width: 100%; background: linear-gradient(180deg, var(--pink), #9b4fd1); color: #fff; font-size: 22px; }
-    .btn.ghost { background: #0c1c5e; color: var(--cyan); border: 2px solid var(--cyan-deep); clip-path: none; height: 48px; font-size: 16px; }
+    .btn.ghost { background: #0c1c5e; color: var(--cyan); border: 2px solid var(--cyan-deep); clip-path: none; height: 46px; font-size: 16px; padding: 0 14px; }
     .btn:disabled { opacity: 0.5; }
+
+    /* Status bar shared by all modes */
+    .bar { display: flex; align-items: center; gap: 10px; font-size: 15px; }
+    .bar .grow { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .dot { width: 12px; height: 12px; border-radius: 50%; background: #56607f; flex: none; }
+    .dot.on { background: var(--ok); box-shadow: 0 0 10px var(--ok); }
+    .dot.wait { background: var(--gold); }
+    .dot.bad { background: var(--bad); }
+
+    /* Mode chooser */
+    .modes { display: flex; flex-direction: column; gap: 14px; }
+    .mode {
+      display: grid; grid-template-columns: 64px 1fr; gap: 4px 16px; align-items: center; text-align: left;
+      padding: 18px; border: 2px solid var(--cyan-deep); background: rgba(12, 28, 94, 0.92);
+    }
+    .mode:active, .mode.last { border-color: var(--pink); }
+    .mode svg { grid-row: span 2; width: 64px; height: 64px; }
+    .mode b { font-size: 22px; color: #fff; }
+    .mode span { font-size: 15px; color: var(--muted); }
+
+    /* Camera mode */
     .preview { position: relative; width: 100%; aspect-ratio: 4 / 3; background: #050a24; border: 2px solid var(--cyan-deep); overflow: hidden; }
     .preview video, .preview canvas { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
     .preview.mirror video, .preview.mirror canvas { transform: scaleX(-1); }
     .preview .empty { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; text-align: center; padding: 20px; color: var(--muted); }
-    .status { display: grid; grid-template-columns: auto 1fr; gap: 8px 12px; align-items: center; font-size: 17px; }
-    .dot { width: 12px; height: 12px; border-radius: 50%; background: #56607f; }
-    .dot.on { background: var(--ok); box-shadow: 0 0 10px var(--ok); }
-    .dot.wait { background: var(--gold); }
-    .dot.bad { background: var(--bad); }
+    .status { display: grid; grid-template-columns: auto 1fr; gap: 8px 12px; align-items: center; font-size: 16px; }
     .row { display: flex; gap: 10px; flex-wrap: wrap; }
-    .row .btn { flex: 1; }
-    .tips { background: rgba(12, 28, 94, 0.8); border-left: 4px solid var(--cyan); padding: 14px 16px; }
-    .tips p + p { margin-top: 8px; }
+    .row > * { flex: 1; }
+    .tips { background: rgba(12, 28, 94, 0.8); border-left: 4px solid var(--cyan); padding: 12px 14px; }
+    .tips p + p { margin-top: 6px; }
+
+    /* Game controls (gamepad and tilt) */
+    .ctl { flex-direction: column; height: 100dvh; min-height: 100%; padding: calc(env(safe-area-inset-top, 0px) + 10px) 14px calc(env(safe-area-inset-bottom, 0px) + 12px); gap: 10px; touch-action: none; }
+    .pbtn {
+      display: flex; align-items: center; justify-content: center; flex-direction: column; gap: 2px;
+      border: 2px solid var(--cyan-deep); background: #0c1c5e; color: var(--cyan); font-weight: 700; font-size: 16px; touch-action: none;
+      border-radius: 18px; min-height: 58px;
+    }
+    .pbtn small { font-size: 11px; font-weight: 400; color: var(--muted); }
+    .pbtn.down { background: #2150c4; color: #fff; transform: scale(0.96); }
+    .pbtn.fire { border-radius: 50%; border: 0; background: radial-gradient(circle at 40% 35%, #ffb3e8, var(--pink) 45%, #9b4fd1); color: #fff; font-size: 26px; box-shadow: 0 0 30px rgba(255, 138, 216, 0.5); }
+    .pbtn.fire.down { filter: brightness(1.2); }
+    .pbtn.grenade { color: var(--pink); }
+    .pbtn.shield { color: var(--mint); }
+
+    /* Gamepad: joystick area and buttons; side by side in landscape, stacked in portrait */
+    .pad-main { flex: 1; display: flex; gap: 14px; min-height: 0; }
+    .stick-zone { flex: 1.2; position: relative; border: 2px dashed rgba(98, 240, 255, 0.35); border-radius: 22px; touch-action: none; display: flex; align-items: center; justify-content: center; }
+    .stick-zone .hint { color: var(--muted); font-size: 15px; text-align: center; padding: 10px; pointer-events: none; }
+    .stick-base, .stick-knob { position: absolute; border-radius: 50%; pointer-events: none; display: none; }
+    .stick-base { width: 150px; height: 150px; margin: -75px 0 0 -75px; border: 3px solid rgba(98, 240, 255, 0.6); background: rgba(98, 240, 255, 0.08); }
+    .stick-knob { width: 70px; height: 70px; margin: -35px 0 0 -35px; background: radial-gradient(circle at 40% 35%, #d4fbff, var(--cyan) 60%, var(--cyan-deep)); box-shadow: 0 0 18px var(--cyan); }
+    .pad-buttons { flex: 1; display: grid; grid-template-columns: 1fr 1fr 1fr; grid-template-rows: auto 1fr auto; gap: 10px; }
+    .pad-buttons .fire { grid-column: 1 / span 3; justify-self: center; align-self: center; width: min(46vw, 46vh, 190px); aspect-ratio: 1; }
+    @media (orientation: portrait) {
+      .pad-main { flex-direction: column; }
+      .pad-buttons .fire { width: min(40vw, 30vh, 170px); }
+    }
+
+    /* Tilt */
+    .tilt-top { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 10px; text-align: center; min-height: 0; }
+    .tilt-top .fire { width: min(62vw, 36vh, 240px); aspect-ratio: 1; }
+    .grid3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 10px; }
+    .grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+    .mini { display: flex; gap: 8px; align-items: center; justify-content: center; font-size: 14px; color: var(--muted); flex-wrap: wrap; }
+    .mini button { border: 1px solid var(--cyan-deep); background: #0c1c5e; color: var(--cyan); height: 38px; min-width: 42px; padding: 0 10px; font-size: 15px; }
     .hidden { display: none !important; }
   </style>
 </head>
 <body>
-<main>
+
+<!-- 1. Connect -->
+<section class="screen col active" id="s-connect">
   <h1>Star Voyager controller</h1>
+  <p>Enter the code shown on the TV, or scan the QR code on the TV to fill it in automatically.</p>
+  <label for="code">Code shown on the TV</label>
+  <input id="code" maxlength="6" autocomplete="off" autocapitalize="characters" spellcheck="false" placeholder="ABC123">
+  <button class="btn big" id="connect">Connect</button>
+  <div class="bar"><i class="dot" data-conn-dot></i><span class="grow" data-conn-text>Not connected</span></div>
+</section>
 
-  <section id="setup">
-    <label for="code">Code shown on the TV</label>
-    <div class="code-row">
-      <input id="code" maxlength="6" autocomplete="off" autocapitalize="characters" spellcheck="false" placeholder="ABC123">
-    </div>
-  </section>
+<!-- 2. Choose how to play -->
+<section class="screen col" id="s-modes">
+  <div class="bar"><i class="dot" data-conn-dot></i><span class="grow" data-conn-text>Connected</span></div>
+  <h1>How do you want to play?</h1>
+  <p>You can switch at any time with the "Change" button.</p>
+  <div class="modes">
+    <button class="mode" data-mode="tilt">
+      <svg viewBox="0 0 64 64" fill="none" stroke="#62f0ff" stroke-width="3"><rect x="20" y="8" width="24" height="44" rx="5"/><path d="M8 20c-4 6-4 14 0 20M56 20c4 6 4 14 0 20"/><circle cx="32" cy="44" r="3" fill="#62f0ff"/></svg>
+      <b>Tilt</b><span>Point the phone at the TV like a remote. Tap Fire to shoot.</span>
+    </button>
+    <button class="mode" data-mode="pad">
+      <svg viewBox="0 0 64 64" fill="none" stroke="#ff8ad8" stroke-width="3"><rect x="6" y="18" width="52" height="30" rx="12"/><circle cx="22" cy="33" r="6"/><circle cx="44" cy="29" r="3" fill="#ff8ad8"/><circle cx="50" cy="36" r="3" fill="#ff8ad8"/></svg>
+      <b>Gamepad</b><span>A joystick and buttons on the phone screen.</span>
+    </button>
+    <button class="mode" data-mode="cam">
+      <svg viewBox="0 0 64 64" fill="none" stroke="#8ff0c8" stroke-width="3"><circle cx="32" cy="14" r="6"/><path d="M32 22v18M20 30l12-4 14-10M32 40l-8 16M32 40l8 16"/></svg>
+      <b>Camera</b><span>Prop the phone up and aim with your arm. The most active way to play.</span>
+    </button>
+  </div>
+</section>
 
-  <button class="btn big" id="start">Start camera and connect</button>
-
+<!-- 3a. Camera mode -->
+<section class="screen col" id="s-cam">
+  <div class="bar"><i class="dot" data-conn-dot></i><span class="grow" data-conn-text>Connected</span><button class="btn ghost" data-change>Change</button></div>
   <div class="preview mirror" id="preview">
     <video id="video" playsinline muted></video>
     <canvas id="overlay"></canvas>
-    <div class="empty" id="empty">The camera preview appears here. Point the phone at yourself so your head, shoulders and arms are visible.</div>
+    <div class="empty" id="empty">Starting the camera…</div>
   </div>
-
-  <div class="status">
-    <i class="dot" id="dot-conn"></i><span id="txt-conn">Not connected</span>
-    <i class="dot" id="dot-track"></i><span id="txt-track">Camera off</span>
-  </div>
-
+  <div class="status"><i class="dot" id="dot-track"></i><span id="txt-track">Camera off</span></div>
   <div class="row">
-    <button class="btn ghost" id="flip" disabled>Switch camera</button>
+    <button class="btn ghost" id="flip">Switch camera</button>
     <button class="btn ghost" id="saver">Battery saver: off</button>
     <button class="btn ghost" id="quality">Accuracy: standard</button>
   </div>
-
   <div class="tips">
     <p>Prop the phone up near the TV, facing you, about 2–3 metres away.</p>
     <p>Aim with one arm. Raise your other hand above your head to reload.</p>
-    <p>Keep this page open while you play. The screen stays on automatically.</p>
   </div>
-</main>
+</section>
+
+<!-- 3b. Gamepad mode -->
+<section class="screen ctl" id="s-pad">
+  <div class="bar"><i class="dot" data-conn-dot></i><span class="grow" data-conn-text>Connected</span><button class="btn ghost" data-change>Change</button></div>
+  <div class="pad-main">
+    <div class="stick-zone" id="stick-zone">
+      <div class="hint">Put your thumb here and slide to aim</div>
+      <div class="stick-base" id="stick-base"></div>
+      <div class="stick-knob" id="stick-knob"></div>
+    </div>
+    <div class="pad-buttons">
+      <button class="pbtn" data-press="reload">Reload</button>
+      <button class="pbtn" data-press="menu">Menu</button>
+      <button class="pbtn" data-press="gun">Blaster</button>
+      <button class="pbtn fire" data-press="fire">FIRE</button>
+      <button class="pbtn grenade" data-press="grenade">Net<small>grenade</small></button>
+      <button class="pbtn shield" data-press="shield">Shield</button>
+      <div></div>
+    </div>
+  </div>
+</section>
+
+<!-- 3c. Tilt mode -->
+<section class="screen ctl" id="s-tilt">
+  <div class="bar"><i class="dot" data-conn-dot></i><span class="grow" data-conn-text>Connected</span><button class="btn ghost" data-change>Change</button></div>
+  <div class="tilt-top">
+    <p id="tilt-msg">Point the phone at the TV and press Center.</p>
+    <button class="pbtn fire" data-press="fire">FIRE</button>
+  </div>
+  <div class="grid2">
+    <button class="pbtn" data-press="reload">Reload<small>or flick the phone up</small></button>
+    <button class="pbtn" id="recenter">Center<small>aim at the middle</small></button>
+  </div>
+  <div class="grid3">
+    <button class="pbtn" data-press="gun">Blaster</button>
+    <button class="pbtn grenade" data-press="grenade">Net<small>grenade</small></button>
+    <button class="pbtn shield" data-press="shield">Shield</button>
+  </div>
+  <button class="pbtn" data-press="menu">Menu</button>
+  <div class="mini">
+    Speed <button id="tilt-slower">−</button><span id="tilt-speed">5</span><button id="tilt-faster">+</button>
+    <button id="tilt-flipx">Flip ↔</button><button id="tilt-flipy">Flip ↕</button>
+  </div>
+</section>
 
 <script src="https://unpkg.com/peerjs@1.5.4/dist/peerjs.min.js"></script>
 <script type="module" src="js/controller.js"></script>

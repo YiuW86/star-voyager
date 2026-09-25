@@ -231,7 +231,12 @@
       Level.pause('Phone disconnected. Reconnect the phone, then resume.');
     }
   };
-  Net.onData = (d) => Input.onPose(d);
+  // Camera controller sends body points; gamepad and tilt controllers send a pointer and buttons
+  Net.onData = (d) => {
+    if (!d) return;
+    if (d.m === 'pad' || d.m === 'tilt' || d.m === 'hello') Input.onPointer(d);
+    else Input.onPose(d);
+  };
 
   // ---------------- HUD ----------------
   function buildHud() {
@@ -325,11 +330,12 @@
     }
     if (kind === 'go') {
       $('#ov-count').classList.remove('show');
-      showToast(lastMode === 'phone' ? 'Hold the circle on a monster to fire' : 'Click a monster to fire');
+      showToast(lastMode !== 'phone' ? 'Click a monster to fire' : Input.isCam() ? 'Hold the circle on a monster to fire' : 'Aim and press Fire');
     }
     if (kind === 'pause') {
       $('#pause-reason').textContent = value || 'Take a breather.';
       $('#pause-hint').style.display = lastMode === 'phone' ? 'block' : 'none';
+      $('#pause-hint').textContent = Input.isCam() ? 'Point at a button and hold to choose it.' : 'Move the circle to a button and press Fire. Menu returns to the game.';
       $('#ov-pause').classList.add('show');
       setTimeout(focusFirst, 30);
     }
@@ -364,7 +370,7 @@
     Level.start({ level, mode, save, options: save.options, onEnd: endLevel, onHud, getMenuButtons });
     buildCatches();
     onHud('all', null, Level);
-    if (mode === 'phone') onHud('cal', 'Looking for you…', Level);
+    if (mode === 'phone' && Input.isCam()) onHud('cal', 'Looking for you…', Level);
     else onHud('countdown', 3, Level);
   }
 
@@ -447,7 +453,7 @@
       const dt = Math.min(0.05, (now - mp.last) / 1000);
       mp.last = now;
       if (Input.hasAim) {
-        const k = Math.min(1, dt * 14);
+        const k = Math.min(1, dt * (Input.isCam() ? 14 : 40));
         mp.pos.x += (Input.aim.x * 1920 - mp.pos.x) * k;
         mp.pos.y += (Input.aim.y * 1080 - mp.pos.y) * k;
       }
@@ -471,11 +477,20 @@
       cur.classList.toggle('show', fresh);
       cur.style.left = mp.pos.x + 'px'; cur.style.top = mp.pos.y + 'px';
       cur.style.setProperty('--p', el ? Math.min(1, mp.t / mp.DWELL).toFixed(3) : 0);
-      if (el && mp.t >= mp.DWELL) {
+      // Camera: hold still on a button. Gamepad/tilt: press Fire to choose, Menu to go back.
+      const cam = Input.isCam();
+      if (!cam) cur.style.setProperty('--p', 0);
+      const events = Input.takeEvents();
+      if (cam && el && mp.t >= mp.DWELL) {
         el.classList.remove('pointed');
         mp.target = null; mp.t = -0.6;
         Sfx.select();
         el.click();
+      } else if (!cam) {
+        for (const e of events) {
+          if (e === 'fire' && el) { el.classList.remove('pointed'); mp.target = null; Sfx.select(); el.click(); break; }
+          if (e === 'menu') { document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape' })); break; }
+        }
       }
       requestAnimationFrame(mp.loop);
     },

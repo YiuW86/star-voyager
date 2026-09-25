@@ -33,7 +33,14 @@ GitHub Pages serves everything over HTTPS, which the phone needs for camera acce
 4. Prop the phone up near the screen, facing you, 2–3 metres away, so your head, shoulders and arms are visible.
 5. On the TV, choose **Start level**. Point at the screen and hold still for a moment to calibrate.
 
-Controls with the phone:
+After connecting, the phone asks how you want to play. You can switch at any time with **Change**:
+- **Tilt:** point the phone at the TV like a remote. Tap **Fire** to shoot (hold it to keep firing at a target), **Reload** or flick the phone up to reload, **Center** if the circle drifts. Blaster, Net grenade and Shield buttons switch gear; **Menu** opens the in-game menu. Speed and Flip buttons adjust the feel.
+- **Gamepad:** slide your thumb in the joystick area to move the circle; the same buttons as Tilt. Works in portrait and landscape.
+- **Camera:** the motion controls described below.
+
+In the menus with Tilt or Gamepad: move the circle to a button and press **Fire**; **Menu** goes back.
+
+Camera controls:
 - **Aim:** move your aiming arm (right by default; change it in Options).
 - **Fire the blaster:** hold the circle on a monster or a flying rock until the ring fills up.
 - **Reload:** raise your other hand above your head.

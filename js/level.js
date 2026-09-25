@@ -102,6 +102,39 @@
     tSign: false,                   // time-out T made with both forearms
     mouseFire: false,
     mouseReload: false,
+    // Phone controller type: 'cam' (camera body tracking), 'pad' (touch gamepad) or 'tilt' (point the phone like a remote)
+    device: 'cam',
+    events: [],            // button presses from the phone: fire, reload, gun, grenade, shield, menu
+    fireHeld: false,
+    counters: null, session: null,
+
+    isCam() { return this.mode === 'phone' && this.device === 'cam'; },
+    // Devices with a real button: aiming and clicking instead of holding still
+    isClicky() { return this.mode === 'mouse' || (this.mode === 'phone' && this.device !== 'cam'); },
+    usesDwell() { return this.mode === 'mouse' || this.isCam(); },
+
+    // Message from the gamepad or tilt controller: absolute pointer position plus button press counters.
+    // Counters (instead of single "pressed" messages) mean a lost network packet never loses a button press.
+    onPointer(d) {
+      if (d.m === 'hello') { this.device = d.mode; return; }
+      if (this.mode !== 'phone') return;
+      this.device = d.m;
+      this.aim.x = clamp(d.x, 0, 1);
+      this.aim.y = clamp(d.y, 0, 1);
+      this.hasAim = true;
+      this.lastPose = performance.now();
+      this.fireHeld = !!d.hold;
+      if (d.c) {
+        if (this.counters && this.session === d.s) {
+          for (const k of Object.keys(d.c)) {
+            const n = d.c[k] - (this.counters[k] || 0);
+            for (let i = 0; i < Math.min(n, 3); i++) this.events.push(k);
+          }
+        }
+        this.counters = { ...d.c }; this.session = d.s;
+      }
+    },
+    takeEvents() { const e = this.events; this.events = []; return e; },
     smoothing: 'normal',
     // Separate filters: the wrist moves fast (adaptive filter), the shoulder and body size barely move (heavy filter).
     // This removes most of the jitter that the shoulder used to add to the aim.
@@ -125,7 +158,9 @@
     // Message from the phone: { t, a: aspect ratio, p: [x,y,visibility] x 7 }
     // Landmark order: nose, left shoulder, right shoulder, left elbow, right elbow, left wrist, right wrist
     onPose(d) {
+      if (d && d.m === 'cam') this.device = 'cam';
       if (this.mode !== 'phone' || !d || !d.p) return;
+      this.device = 'cam';
       const now = performance.now();
       // Use the phone's own clock for filtering, so network hiccups don't affect the smoothing
       const t = typeof d.t === 'number' ? d.t : now;
@@ -259,7 +294,7 @@
       this.cursor = { target: null, t: 0 };
 
       this.paused = false;
-      this.state = mode === 'phone' ? 'calibrate' : 'countdown';
+      this.state = Input.isCam() ? 'calibrate' : 'countdown';
       this.stateT = 0;
       this.calSamples = [];
       this.running = true;
@@ -308,7 +343,7 @@
 
     followAim(dt) {
       const target = Input.hasAim ? { x: Input.aim.x * W, y: Input.aim.y * H } : { x: W / 2, y: H / 2 };
-      const k = Input.mode === 'mouse' ? 1 : Math.min(1, dt * 30);
+      const k = Input.mode === 'mouse' ? 1 : Math.min(1, dt * (Input.isCam() ? 30 : 45));
       this.smoothAim.x = lerp(this.smoothAim.x, target.x, k);
       this.smoothAim.y = lerp(this.smoothAim.y, target.y, k);
     },
@@ -317,6 +352,7 @@
     update(dt) {
       this.stateT += dt;
       this.followAim(dt);
+      if (this.state !== 'play') Input.takeEvents();   // ignore presses during countdown and the end
 
       if (this.state === 'calibrate') return this.updateCalibration();
       if (this.state === 'countdown') {
@@ -355,6 +391,8 @@
       this.updateRocks(gdt);
       this.updateFlying(dt);
 
+      this.handlePhoneButtons();
+      if (this.paused) return;
       this.updatePauseGestures(dt);
       if (this.paused) return;
       this.updateBelt(dt);
@@ -362,7 +400,7 @@
       this.updateReload(dt);
       this.updateEffects(dt);
 
-      if (!Input.poseFresh()) this.setPrompt('Step into view of the phone camera', 0.3);
+      if (!Input.poseFresh()) this.setPrompt(Input.isCam() ? 'Step into view of the phone camera' : 'Waiting for your phone…', 0.3);
 
       if (TYPES.every((t) => this.caught[t] >= GOAL)) {
         this.state = 'ending'; this.stateT = 0; this.won = true;
@@ -392,9 +430,25 @@
       }
     },
 
+    // Buttons pressed on the gamepad or tilt controller
+    handlePhoneButtons() {
+      for (const e of Input.takeEvents()) {
+        if (e === 'menu') { this.pause(); return; }
+        if (e === 'fire') {
+          const p = this.smoothAim;
+          const onMenu = p.x > MENU_BTN.x && p.x < MENU_BTN.x + MENU_BTN.w && p.y > MENU_BTN.y && p.y < MENU_BTN.y + MENU_BTN.h + 20;
+          if (onMenu) { this.pause(); return; }
+          Input.mouseFire = true;
+        }
+        if (e === 'reload') Input.mouseReload = true;
+        if (e === 'gun' || e === 'grenade' || e === 'shield') this.keyEquip(e);
+      }
+    },
+
     // ---------------- Pause: time-out T, or holding the circle on the Menu button ----------------
     updatePauseGestures(dt) {
-      if (Input.mode === 'phone') {
+      if (Input.isClicky()) { this.menuHold = 0; return; }   // gamepad/tilt/mouse use their Menu button
+      if (Input.isCam()) {
         if (Input.tSign && Input.poseFresh()) {
           if (!this.tLatch) {
             this.tHold += dt;
@@ -419,6 +473,15 @@
       const buttons = this.getMenuButtons();
       const over = buttons.find((b) => p.x >= b.x && p.x <= b.x + b.w && p.y >= b.y && p.y <= b.y + b.h);
       const el = over ? over.el : null;
+      if (!Input.isCam()) {
+        // Gamepad / tilt: move the circle and press Fire to choose; Menu returns to the game
+        this.hud('cursor', { x: p.x, y: p.y, p: 0, show: Input.poseFresh() });
+        for (const e of Input.takeEvents()) {
+          if (e === 'fire' && el) { Sfx.select(); el.click(); break; }
+          if (e === 'menu' && this.paused) { this.resume(); break; }
+        }
+        return;
+      }
       if (el !== this.cursor.target) { this.cursor = { target: el, t: 0 }; if (el) Sfx.lock(); }
       else if (el) this.cursor.t += dt;
       const progress = el ? Math.min(1, this.cursor.t / MENU_DWELL) : 0;
@@ -624,7 +687,7 @@
       this.dwell = 0; this.dwellTarget = null;
       this.still = { x: this.smoothAim.x, y: this.smoothAim.y, t: 0 };
       Sfx.reload();
-      if (id === 'grenade') this.setPrompt('Hold the circle still to throw', 2);
+      if (id === 'grenade') this.setPrompt(Input.usesDwell() ? 'Hold the circle still to throw' : 'Press Fire to throw', 2);
       if (id === 'shield') this.setPrompt('Shield up: it blocks rocks and attacks', 2);
       if (id === 'gun') this.setPrompt('', 0);
       this.hud('gear');
@@ -645,7 +708,7 @@
         else this.still.t += dt;
         const clickThrow = Input.mouseFire && !blocked;
         Input.mouseFire = false;
-        if (clickThrow || this.still.t >= GRENADE_STILL) this.throwGrenade(clickThrow ? raw : this.still);
+        if (clickThrow || (Input.usesDwell() && this.still.t >= GRENADE_STILL)) this.throwGrenade(clickThrow ? raw : this.still);
       } else {
         Input.mouseFire = false;
       }
@@ -688,14 +751,15 @@
       if (target && !this.reloading) this.dwell += dt; else this.dwell = Math.max(0, this.dwell - dt * 2);
 
       if (Input.mouseFire) { Input.mouseFire = false; if (!blocked) this.fire(target); }
-      else if (target && this.dwell >= DWELL_TIME && this.cooldown <= 0) { this.fire(target); this.dwell = 0; }
+      else if (Input.usesDwell() && target && this.dwell >= DWELL_TIME && this.cooldown <= 0) { this.fire(target); this.dwell = 0; }
+      else if (!Input.usesDwell() && Input.fireHeld && target && this.cooldown <= 0.0 && this.dwell > 0.12) { this.fire(target); this.cooldown = 0.32; }
     },
 
     fire(target) {
       if (this.reloading) return;
       if (this.ammo <= 0) {
         Sfx.empty();
-        this.setPrompt(Input.mode === 'phone' ? 'Raise your free hand to reload' : 'Right-click or press R to reload', 1.2);
+        this.setPrompt(this.reloadHint(), 1.2);
         return;
       }
       this.ammo--; this.shots++;
@@ -707,7 +771,7 @@
       Sfx.laser();
       if (target && target.rock) { this.hits++; this.smashRock(target); }
       else if (target) this.catchMonster(target);
-      if (this.ammo === 0) this.setPrompt(Input.mode === 'phone' ? 'Raise your free hand to reload' : 'Right-click or press R to reload', 2);
+      if (this.ammo === 0) this.setPrompt(this.reloadHint(), 2);
       this.hud('ammo');
     },
 
@@ -765,7 +829,7 @@
         return;
       }
       let want = false;
-      if (Input.mode === 'mouse') { want = Input.mouseReload; Input.mouseReload = false; }
+      if (Input.isClicky()) { want = Input.mouseReload; Input.mouseReload = false; }
       else if (Input.freeHandUp && Input.poseFresh()) {
         this.reloadHold += dt;
         if (this.reloadHold > 0.3 && !this.reloadLatch) { want = true; this.reloadLatch = true; }
@@ -775,6 +839,12 @@
         Sfx.reload();
         this.setPrompt('Reloading…', this.reloadTime);
       }
+    },
+
+    reloadHint() {
+      if (Input.isCam()) return 'Raise your free hand to reload';
+      if (Input.mode === 'phone') return 'Press Reload on your phone';
+      return 'Right-click or press R to reload';
     },
 
     keyReload() { if (this.state === 'play' && !this.paused) Input.mouseReload = true; },
@@ -1118,7 +1188,7 @@
       const inBelt = playing && (this.belt.open || this.inBeltZone(this.smoothAim));
 
       // Where your hand actually is (before aim assist)
-      if (Input.mode === 'phone' && playing && this.equipped === 'gun') {
+      if (Input.isCam() && playing && this.equipped === 'gun') {
         c.save(); c.globalAlpha = 0.45; c.fillStyle = '#ffffff';
         c.beginPath(); c.arc(this.smoothAim.x, this.smoothAim.y, 7, 0, Math.PI * 2); c.fill(); c.restore();
       }
@@ -1129,7 +1199,7 @@
         c.setLineDash([16, 12]); c.lineWidth = 4; c.strokeStyle = '#ff8ad8'; c.globalAlpha = 0.85;
         c.beginPath(); c.arc(x, y, NET_R, 0, Math.PI * 2); c.stroke();
         c.restore();
-        this.ring(x, y, 58, this.still.t / GRENADE_STILL, '#ffffff', 9);
+        if (Input.usesDwell()) this.ring(x, y, 58, this.still.t / GRENADE_STILL, '#ffffff', 9);
       }
 
       const locked = !!this.dwellTarget && playing && this.equipped === 'gun';
@@ -1152,7 +1222,7 @@
       c.restore();
 
       // Dwell progress: the ring fills up, then the blaster fires
-      if (locked && this.dwell > 0) this.ring(x, y, R + 12, this.dwell / DWELL_TIME, '#ffffff', 9);
+      if (locked && this.dwell > 0 && Input.usesDwell()) this.ring(x, y, R + 12, this.dwell / DWELL_TIME, '#ffffff', 9);
     },
 
     // Small portrait of a monster for the HUD counters
