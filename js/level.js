@@ -4,11 +4,19 @@
   let GOAL = 10;                                     // goal of the level being played
   // Levels: background, which monsters appear, and how many of each to catch
   const LEVELS = {
-    1: { name: 'Crystal Shores',  bg: 'assets/level1.jpg', types: ['nebula', 'prism', 'solara', 'glide', 'vexa'], goal: 10 },
-    2: { name: 'Glowwood Forest', bg: 'assets/level2.jpg', types: ['pulsar', 'ember'], goal: 15 },
+    // boss: appears when all goals are reached; a giant crowned version of one of the level's monsters
+    1: { name: 'Crystal Shores',  bg: 'assets/level1.jpg', types: ['nebula', 'prism', 'solara', 'glide', 'vexa'], goal: 10,
+         boss: { name: 'King Nebula', sprite: 'nebula', hp: 20 } },
+    2: { name: 'Glowwood Forest', bg: 'assets/level2.jpg', types: ['pulsar', 'ember'], goal: 15,
+         boss: { name: 'Ember Lord', sprite: 'ember', hp: 26 } },
     // Underwater: aliens swim, bubbles rise, and after the goal the boss appears
     3: { name: 'Sunken Lagoon', bg: 'assets/level3.jpg', types: ['nimbus', 'echo', 'splash'], goal: 10, underwater: true,
          boss: { name: 'Tidequeen', sprite: 'splash', hp: 30 } },
+    // Levels 4 and 5 reuse the aliens of levels 1-3; each boss is an alien that was not a boss before
+    4: { name: 'Sunfire Dunes', bg: 'assets/level4.jpg', types: ['solara', 'prism', 'vexa', 'pulsar'], goal: 10,
+         boss: { name: 'Prism Empress', sprite: 'prism', hp: 32 } },
+    5: { name: 'Moonlit Cavern', bg: 'assets/level5.jpg', types: ['nimbus', 'echo', 'glide', 'nebula'], goal: 10,
+         boss: { name: 'Echo Monarch', sprite: 'echo', hp: 36 } },
   };
   const ALL_TYPES = ['nebula', 'prism', 'solara', 'glide', 'vexa', 'pulsar', 'ember', 'nimbus', 'echo', 'splash'];
   let TYPES = LEVELS[1].types;                       // types of the level being played
@@ -243,6 +251,14 @@
   // Everything a single player owns (gun, aim, ammo, gear) lives in a player object,
   // so a second phone simply adds a second player with their own gun.
   const PLAYER_COLORS = { 1: '#62f0ff', 2: '#ffd27a' };
+  const CROSSHAIR_SVG = '<svg xmlns="http://www.w3.org/2000/svg" width="64" height="64" viewBox="0 0 64 64">'
+    + '<g fill="none" stroke-linecap="round">'
+    + '<circle cx="32" cy="32" r="20" stroke="#0a1440" stroke-width="7" opacity="0.55"/>'
+    + '<circle cx="32" cy="32" r="20" stroke="#62f0ff" stroke-width="3.5"/>'
+    + '<path d="M32 6v10M32 48v10M6 32h10M48 32h10" stroke="#0a1440" stroke-width="6" opacity="0.55"/>'
+    + '<path d="M32 6v10M32 48v10M6 32h10M48 32h10" stroke="#62f0ff" stroke-width="3"/></g>'
+    + '<circle cx="32" cy="32" r="3" fill="#62f0ff"/></svg>';
+  const CROSSHAIR_CURSOR = `url("data:image/svg+xml,${encodeURIComponent(CROSSHAIR_SVG)}") 32 32, crosshair`;
 
   const Level = {
     canvas: null, ctx: null, scale: 1,
@@ -305,6 +321,8 @@
       this.menuSuspended = false;
       Input.mode = mode;
       inputs[1].mode = 'phone';
+      // With a mouse, the crosshair is the real mouse cursor: it moves without any delay
+      this.canvas.style.cursor = mode === 'mouse' ? CROSSHAIR_CURSOR : 'none';
       for (const inp of inputs) {
         inp.hand = options.hand;
         inp.sens = options.sens;
@@ -798,25 +816,29 @@
       this.shake = 0.5;
       Sfx.lose();
       this.hud('toast', `The ${cfg.name} appears!`);
-      this.setPrompt('Catch the ' + cfg.name + ': shoot her or throw net grenades', 3);
+      this.setPrompt('Catch the ' + cfg.name + ': hit it with the blaster or net grenades', 3);
     },
 
     updateBoss(gdt, dt) {
       const b = this.boss, s = SPR[b.sprite];
       b.t += gdt;
       b.flash = Math.max(0, b.flash - dt);
+      // Jellyfish bosses swim in strokes; the others float and bob, Ember flickers like a flame
+      const jelly = !!s.push;
       const ph = (b.t * 0.55) % 1;
-      const stroke = Math.pow(Math.max(0, Math.sin(ph * Math.PI * 2)), 2);
+      const stroke = jelly ? Math.pow(Math.max(0, Math.sin(ph * Math.PI * 2)), 2)
+        : b.sprite === 'ember' ? 0.25 + 0.2 * Math.sin(b.t * 9) * Math.sin(b.t * 3.7)
+        : 0.3 * (0.5 + 0.5 * Math.sin(b.t * 2.2));
       if (b.state === 'enter') {
         const k = Math.min(1, b.t / 2.5), e = 1 - Math.pow(1 - k, 3);
-        b.size = lerp(120, 560, e);
-        b.y = lerp(H * 0.24, H * 0.36, e);
+        b.size = lerp(120, 520, e);
+        b.y = lerp(H * 0.3, H * 0.43, e);
         if (k >= 1) { b.state = 'fight'; b.t = 0; }
       } else if (b.state === 'fight') {
         const nx = W / 2 + Math.sin(b.t * 0.3) * W * 0.26;
         b.rot = clamp((nx - b.x) / Math.max(gdt, 0.001) * 0.0008, -0.25, 0.25);
         b.x = nx;
-        b.y = H * 0.36 + Math.sin(b.t * 0.7) * 30 - stroke * 24;
+        b.y = H * 0.43 + Math.sin(b.t * 0.7) * 30 - stroke * 24;
         // Bubble rocks at the players, and small helpers joining the fight
         b.throwT -= gdt;
         if (b.throwT <= 0) {
@@ -836,7 +858,8 @@
       }
       b.r = b.size * 0.3;
       b.sx = 1 + 0.07 * stroke; b.sy = 1 - 0.1 * stroke;
-      b.frame = stroke > 0.45 ? s.push[0] : s.front[Math.floor(b.t * 1.5) % s.front.length];
+      b.frame = jelly ? (stroke > 0.45 ? s.push[0] : s.front[Math.floor(b.t * 1.5) % s.front.length])
+        : s.front[Math.floor(b.t * 3) % s.front.length];
     },
 
     bossHit(dmg, x, y) {
@@ -988,9 +1011,12 @@
       const targets = [...alive, ...this.rocks.map((r) => ({ ...r, ref: r, px: r.x, py: r.y }))];
       if (this.boss && this.boss.state === 'fight') targets.push({ px: this.boss.x, py: this.boss.y, r: this.boss.r, ref: this.boss });
 
-      // Aim assist: gently pull the circle toward the nearest target within reach
+      // Aim assist. Camera aiming is shaky, so there the circle is gently pulled toward the nearest target.
+      // Mouse, gamepad and tilt are precise: the circle stays exactly where you point (pulling it made it
+      // feel laggy and jumpy) and assist instead makes the targets easier to hit.
+      const pullAim = inp.isCam();
       let pos = { x: raw.x, y: raw.y };
-      if (this.assist > 0 && !blocked) {
+      if (pullAim && this.assist > 0 && !blocked) {
         let best = null, bestD = Infinity, bestR = 0;
         for (const m of targets) {
           const reach = m.r * (1.6 + this.assist * 1.6);
@@ -1009,7 +1035,7 @@
       if (!blocked) {
         for (const m of targets) {
           const d = Math.hypot(m.px - pos.x, m.py - pos.y);
-          if (d < m.r * (1 + 0.3 * this.assist) && d < td) { target = m.ref || m; td = d; }
+          if (d < m.r * (1 + (pullAim ? 0.3 : 0.7) * this.assist) && d < td) { target = m.ref || m; td = d; }
         }
       }
       if (target !== p.dwellTarget) {
@@ -1406,7 +1432,7 @@
       // royal glow behind her
       c.save();
       const g = c.createRadialGradient(b.x, b.y, b.size * 0.1, b.x, b.y, b.size * 0.7);
-      g.addColorStop(0, 'rgba(255, 210, 122, 0.45)'); g.addColorStop(1, 'rgba(255, 138, 216, 0)');
+      g.addColorStop(0, 'rgba(255, 210, 122, 0.45)'); g.addColorStop(0.55, s.color + '55'); g.addColorStop(1, 'rgba(255, 138, 216, 0)');
       c.globalAlpha = alpha; c.fillStyle = g;
       c.beginPath(); c.arc(b.x, b.y, b.size * 0.7, 0, Math.PI * 2); c.fill();
       c.restore();
@@ -1418,7 +1444,7 @@
       }
       // a little golden crown
       if (b.state !== 'caught') {
-        const cx = b.x, cy = b.y - b.size * 0.47 * b.sy, w = b.size * 0.22;
+        const cx = b.x, cy = b.y - b.size * 0.43 * b.sy, w = b.size * 0.22;
         c.save(); c.globalAlpha = alpha;
         c.translate(cx, cy); c.rotate(b.rot);
         c.fillStyle = '#ffd27a'; c.strokeStyle = '#fff4c9'; c.lineWidth = 3; c.shadowColor = '#ffd27a'; c.shadowBlur = this.glow(20);
@@ -1642,6 +1668,18 @@
       const locked = !!p.dwellTarget && playing && p.equipped === 'gun';
       const col = inBelt ? '#ffffff' : p.equipped === 'shield' ? '#8ff0c8' : locked ? '#ff8ad8' : p.color;
       const R = p.equipped === 'gun' || inBelt ? 44 : 30;
+
+      if (p.input.mode === 'mouse') {
+        // The crosshair itself is the mouse cursor (drawn by the computer, so it never lags).
+        // Here we only mark a locked target and show the dwell progress.
+        if (locked) {
+          const t = p.dwellTarget, tx = t.rock || t.isBoss ? t.x : t.px, ty = t.rock || t.isBoss ? t.y : t.py;
+          c.save(); c.strokeStyle = '#ff8ad8'; c.lineWidth = 4; c.setLineDash([10, 8]);
+          c.beginPath(); c.arc(tx, ty, (t.r || 40) * 1.1, 0, Math.PI * 2); c.stroke(); c.restore();
+          if (p.dwell > 0) this.ring(x, y, R + 12, p.dwell / DWELL_TIME, '#ffffff', 9);
+        }
+        return;
+      }
 
       c.save();
       if (this.lowFx) {

@@ -38,6 +38,8 @@ After connecting, the phone asks how you want to play. You can switch at any tim
 - **Gamepad:** hold the phone sideways. Push the round d-pad on the left in any direction to move the circle: a small push moves it slowly, pushing to the edge moves it faster, and holding at the edge speeds up further. Fire and the other buttons are on the right.
 - **Camera:** the motion controls described below.
 
+**Remapping the gamepad:** press **Remap** at the top of the gamepad screen, tap any button and choose what it should do (Fire, Reload, Menu, Blaster, Net grenade, Shield or Time grenade). If another button already had that action, the two swap. **Swap sides** puts the d-pad on the right, **Reset** restores the original layout, **Done** finishes. The layout is saved on the phone.
+
 In the menus with Tilt or Gamepad: move the circle to a button and press **Fire**; **Menu** goes back.
 
 Camera controls:
@@ -54,8 +56,8 @@ Controls without the phone (for testing): mouse to aim, click to fire, right-cli
 Prism and Vexa throw rocks from a distance. Shoot them down or block them with the shield.
 
 Levels:
-- **Level 1, Crystal Shores:** catch 10 each of Nebula, Prism, Solara, Glide and Vexa.
-- **Level 2, Glowwood Forest:** catch 15 each of Pulsar and Ember. Pulsar moves in bursts; Ember is quick and throws fire rocks.
+- **Level 1, Crystal Shores:** catch 10 each of Nebula, Prism, Solara, Glide and Vexa, then the boss **King Nebula**.
+- **Level 2, Glowwood Forest:** catch 15 each of Pulsar and Ember, then the boss **Ember Lord**. Pulsar moves in bursts; Ember is quick and throws fire rocks.
 - **Level 3, Sunken Lagoon (underwater):** catch 10 each of Nimbus, Echo and Splash. Nimbus and Splash swim like jellyfish (a squeeze, then a glide), Echo glides like a manta ray and throws bubble rocks. Bubbles rise all around. When all goals are reached the boss, the **Tidequeen**, appears: shoot her (1 point) or hit her with a net grenade (4 points) until her bar is empty. She throws bubble rocks and calls small helpers.
 
 Menus with the phone: scan the QR code on the start screen, then point at any button and hold for 1 second. Once the phone is connected, choosing a level starts it straight away.
@@ -63,6 +65,13 @@ Menus with the phone: scan the QR code on the start screen, then point at any bu
 In a level, the **Menu** button (or the time-out T) opens the in-game menu: Return to game, Options, Restart level, Main menu.
 
 Aiming: Options has **Aim sensitivity** and **Aim smoothing** (Fast, Normal, Extra smooth). On the phone, **Accuracy: high** uses a larger tracking model: more precise, but the phone gets warmer. Each monster that reaches you costs 5% health.
+
+- **Level 4, Sunfire Dunes:** catch 10 each of Solara, Prism, Vexa and Pulsar, then the boss **Prism Empress**.
+- **Level 5, Moonlit Cavern:** catch 10 each of Nimbus, Echo, Glide and Nebula, then the boss **Echo Monarch**.
+
+The **Home** button on the level select screen shows your home base. For now it is only the picture; more will be added later.
+
+Every boss is a giant, crowned version of one of the level's monsters. Blaster hits fill 1 point of the boss bar, net grenades 4. Boss strength per level is the `hp` value in `LEVELS` in `js/level.js`.
 
 ## Time grenades
 

@@ -120,6 +120,21 @@
       .pad-buttons .fire { width: min(40vw, 30vh, 170px); }
     }
 
+    /* Gamepad remapping */
+    .pad-main.swapped { flex-direction: row-reverse; }
+    .remap-bar {
+      position: fixed; left: 0; right: 0; top: 0; z-index: 6; display: flex; gap: 8px; align-items: center; flex-wrap: wrap;
+      padding: calc(env(safe-area-inset-top, 0px) + 6px) 12px 6px; background: rgba(10, 20, 64, 0.96); border-bottom: 2px solid var(--pink);
+    }
+    .remap-bar span { flex: 1; min-width: 140px; color: var(--gold); font-weight: 600; }
+    body.remapping #s-pad [data-slot] { outline: 2px dashed var(--gold); outline-offset: 2px; }
+    body.remapping .dpad-zone { opacity: 0.5; }
+    .remap-pick { position: fixed; inset: 0; z-index: 7; display: flex; align-items: center; justify-content: center; background: rgba(4, 8, 30, 0.8); }
+    .remap-box { background: var(--panel); border: 2px solid var(--cyan-deep); padding: 18px; display: flex; flex-direction: column; gap: 12px; max-width: 520px; width: 92vw; }
+    .remap-actions { display: grid; grid-template-columns: repeat(auto-fill, minmax(120px, 1fr)); gap: 8px; }
+    .remap-actions button { height: 48px; border: 1px solid var(--cyan-deep); background: #0c1c5e; color: var(--cyan); font-weight: 600; font-size: 16px; }
+    .remap-actions button.current { background: var(--cyan); color: var(--space); }
+
     /* Tilt */
     .tilt-top { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 10px; text-align: center; min-height: 0; }
     .tilt-top .fire { width: min(62vw, 36vh, 240px); aspect-ratio: 1; }
@@ -187,7 +202,7 @@
 
 <!-- 3b. Gamepad mode -->
 <section class="screen ctl" id="s-pad">
-  <div class="bar"><i class="dot" data-conn-dot></i><span class="badge hidden" data-badge></span><span class="grow" data-conn-text>Connected</span><button class="btn ghost" data-change>Change</button></div>
+  <div class="bar"><i class="dot" data-conn-dot></i><span class="badge hidden" data-badge></span><span class="grow" data-conn-text>Connected</span><button class="btn ghost" id="remap">Remap</button><button class="btn ghost" data-change>Change</button></div>
   <div class="rotate">
     <svg viewBox="0 0 64 64" fill="none" stroke="#62f0ff" stroke-width="3"><rect x="10" y="20" width="44" height="26" rx="5"/><path d="M22 10a22 22 0 0 1 26 4M48 14l1-7M48 14l-7 1"/></svg>
     <h2>Turn your phone sideways</h2>
@@ -198,17 +213,31 @@
       <div class="dpad" id="dpad"><i class="u"></i><i class="d"></i><i class="l"></i><i class="r"></i><div class="knob" id="stick-knob"></div></div>
     </div>
     <div class="pad-buttons">
-      <button class="pbtn" data-press="reload">Reload</button>
-      <button class="pbtn" data-press="menu">Menu</button>
-      <button class="pbtn" data-press="gun">Blaster</button>
-      <button class="pbtn fire" data-press="fire">FIRE</button>
-      <button class="pbtn grenade" data-press="grenade">Net<small>grenade</small></button>
-      <button class="pbtn shield" data-press="shield">Shield</button>
-      <button class="pbtn time" data-press="time">Time<small>grenade</small></button>
+      <button class="pbtn" data-slot="s1" data-press="reload">Reload</button>
+      <button class="pbtn" data-slot="s2" data-press="menu">Menu</button>
+      <button class="pbtn" data-slot="s3" data-press="gun">Blaster</button>
+      <button class="pbtn fire" data-slot="s4" data-press="fire">FIRE</button>
+      <button class="pbtn grenade" data-slot="s5" data-press="grenade">Net<small>grenade</small></button>
+      <button class="pbtn shield" data-slot="s6" data-press="shield">Shield</button>
+      <button class="pbtn time" data-slot="s7" data-press="time">Time<small>grenade</small></button>
     </div>
   </div>
 </section>
 
+<!-- Remapping the gamepad: a banner while remapping, and a list of actions to pick from -->
+<div class="remap-bar hidden" id="remap-bar">
+  <span>Tap a button to choose what it does</span>
+  <button class="btn ghost" id="remap-swap">Swap sides</button>
+  <button class="btn ghost" id="remap-reset">Reset</button>
+  <button class="btn ghost" id="remap-done">Done</button>
+</div>
+<div class="remap-pick hidden" id="remap-pick">
+  <div class="remap-box">
+    <h2>This button does…</h2>
+    <div class="remap-actions" id="remap-actions"></div>
+    <button class="btn ghost" id="remap-cancel">Cancel</button>
+  </div>
+</div>
 <!-- shown when the gamepad is held upright -->
 <!-- 3c. Tilt mode -->
 <section class="screen ctl" id="s-tilt">

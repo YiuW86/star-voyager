@@ -106,7 +106,7 @@ async function chooseMode(m) {
 }
 
 function stopMode() {
-  if (mode === 'pad') leaveLandscape();
+  if (mode === 'pad') { leaveLandscape(); setRemapping(false); }
   stopCamera();
   stopTilt();
   pointerRunning = false;
@@ -126,19 +126,80 @@ function press(name) {
 }
 
 $$('[data-press]').forEach((b) => {
-  const name = b.dataset.press;
   b.addEventListener('pointerdown', (e) => {
     e.preventDefault();
+    if (remapping && b.dataset.slot) { openPicker(b); return; }   // remap mode: choose an action for this button
+    const name = b.dataset.press;
     b.classList.add('down');
     press(name);
     if (name === 'fire') fireHeld = true;
   });
-  const up = () => { b.classList.remove('down'); if (name === 'fire') fireHeld = false; };
+  const up = () => { b.classList.remove('down'); if (b.dataset.press === 'fire') fireHeld = false; };
   b.addEventListener('pointerup', up);
   b.addEventListener('pointercancel', up);
   b.addEventListener('pointerleave', up);
   b.addEventListener('contextmenu', (e) => e.preventDefault());
 });
+
+// ---------------- Gamepad remapping ----------------
+// Every gamepad button (a "slot") can be given any action. Choosing an action that another button
+// already has swaps the two, so every action stays available. Saved on the phone.
+const ACTIONS = { fire: 'FIRE', reload: 'Reload', menu: 'Menu', gun: 'Blaster', grenade: 'Net grenade', shield: 'Shield', time: 'Time grenade' };
+const PAD_DEFAULT = { s1: 'reload', s2: 'menu', s3: 'gun', s4: 'fire', s5: 'grenade', s6: 'shield', s7: 'time' };
+let padMap = { ...PAD_DEFAULT }, padSwap = false, remapping = false, pickSlot = null;
+try {
+  const saved = JSON.parse(localStorage.getItem('sv-padmap') || 'null');
+  if (saved && saved.map) { padMap = { ...PAD_DEFAULT, ...saved.map }; padSwap = !!saved.swap; }
+} catch (e) {}
+function savePad() { try { localStorage.setItem('sv-padmap', JSON.stringify({ map: padMap, swap: padSwap })); } catch (e) {} }
+
+function applyPadMap() {
+  $$('#s-pad [data-slot]').forEach((b) => {
+    const action = padMap[b.dataset.slot];
+    b.dataset.press = action;
+    const label = ACTIONS[action];
+    const [first, ...rest] = label.split(' ');
+    b.innerHTML = rest.length && action !== 'fire' ? `${first}<small>${rest.join(' ')}</small>` : label;
+    b.classList.toggle('grenade', action === 'grenade');
+    b.classList.toggle('shield', action === 'shield');
+    b.classList.toggle('time', action === 'time');
+  });
+  document.querySelector('#s-pad .pad-main').classList.toggle('swapped', padSwap);
+}
+applyPadMap();
+
+function setRemapping(on) {
+  remapping = on;
+  document.body.classList.toggle('remapping', on);
+  $('remap-bar').classList.toggle('hidden', !on);
+  $('remap').textContent = on ? 'Remapping…' : 'Remap';
+  if (!on) { $('remap-pick').classList.add('hidden'); pickSlot = null; }
+}
+function openPicker(btn) {
+  pickSlot = btn.dataset.slot;
+  const box = $('remap-actions');
+  box.innerHTML = '';
+  for (const [id, label] of Object.entries(ACTIONS)) {
+    const b = document.createElement('button');
+    b.textContent = label;
+    if (padMap[pickSlot] === id) b.classList.add('current');
+    b.addEventListener('click', () => {
+      const other = Object.keys(padMap).find((s) => padMap[s] === id);
+      if (other && other !== pickSlot) padMap[other] = padMap[pickSlot];   // swap
+      padMap[pickSlot] = id;
+      savePad(); applyPadMap();
+      $('remap-pick').classList.add('hidden');
+      if (navigator.vibrate) navigator.vibrate(15);
+    });
+    box.appendChild(b);
+  }
+  $('remap-pick').classList.remove('hidden');
+}
+$('remap').addEventListener('click', () => setRemapping(!remapping));
+$('remap-done').addEventListener('click', () => setRemapping(false));
+$('remap-cancel').addEventListener('click', () => $('remap-pick').classList.add('hidden'));
+$('remap-reset').addEventListener('click', () => { padMap = { ...PAD_DEFAULT }; padSwap = false; savePad(); applyPadMap(); });
+$('remap-swap').addEventListener('click', () => { padSwap = !padSwap; savePad(); applyPadMap(); });
 
 // ---------------- Pointer loop: sends aim position + buttons ----------------
 const aim = { x: 0.5, y: 0.5 };

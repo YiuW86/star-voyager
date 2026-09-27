@@ -442,7 +442,7 @@
       }
       if (current === 'dex' && Dex.detailOpen()) { e.preventDefault(); Dex.hide(); setTimeout(focusFirst, 30); return; }
       if (current === 'options') { e.preventDefault(); closeOptions(); return; }
-      const back = { options: 'start', levels: 'start', shop: 'levels', connect: 'levels', quit: 'start', dex: 'levels' }[current];
+      const back = { options: 'start', levels: 'start', shop: 'levels', connect: 'levels', quit: 'start', dex: 'levels', home: 'levels' }[current];
       if (back) { e.preventDefault(); go(back); }
       return;
     }
