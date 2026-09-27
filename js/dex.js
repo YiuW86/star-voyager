@@ -153,7 +153,7 @@
       const n = this.caught(id);
       const panel = $('#dex-detail');
       const levels = (window.SV && window.SV.LEVELS) || {};
-      const where = a.level && levels[a.level] ? `${levels[a.level].name} (level ${a.level})` : 'Not spotted yet';
+      const where = a.level && levels[a.level] ? levels[a.level].name : 'Not spotted yet';
       if (!n) {
         panel.innerHTML = `
           <img class="dex-big" src="assets/dex/${a.id}-locked.png" alt="">

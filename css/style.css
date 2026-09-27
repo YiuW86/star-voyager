@@ -347,3 +347,91 @@ input[type=range] { width: 100%; accent-color: var(--cyan); height: 40px; }
 .home-back { position: absolute; left: 40px; top: 40px; }
 .level-card .label b { font-size: 28px; }
 .level-card .label small { font-size: 19px; }
+
+/* ---------- Worlds and their 5 levels ---------- */
+.level-card .label .card-stars { display: flex; align-items: center; gap: 6px; margin-top: 4px; font-size: 20px; color: var(--gold); font-weight: 600; }
+.level-card .label .card-stars .star { width: 22px; height: 22px; }
+.level-card.locked .face::after {
+  content: ""; position: absolute; inset: 0; background: rgba(6, 12, 44, 0.45);
+}
+.lock-ico { position: absolute; left: 50%; top: 38%; transform: translate(-50%, -50%); width: 70px; height: 70px; z-index: 1; opacity: 0.9; }
+
+/* Stars: warm gold, glowing like the crystals in the artwork */
+.star { display: inline-block; width: 30px; height: 30px; }
+.star path { fill: rgba(255, 255, 255, 0.10); stroke: rgba(159, 183, 232, 0.55); stroke-width: 1.4; stroke-linejoin: round; }
+.star.on path { fill: url(#starGold); stroke: #fff4c9; }
+.star.on { filter: drop-shadow(0 0 6px rgba(255, 210, 122, 0.85)); }
+
+.world-view { display: none; background: none; }
+.world-view.show { display: block; }
+.world-bg { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
+.world-view.show .world-bg { animation: world-zoom 0.8s cubic-bezier(0.2, 0.8, 0.2, 1); }
+@keyframes world-zoom { from { transform: scale(1.18); opacity: 0.3; } to { transform: scale(1); opacity: 1; } }
+.world-shade { position: absolute; inset: 0; background: radial-gradient(ellipse at 50% 55%, rgba(8, 16, 56, 0.35), rgba(6, 12, 44, 0.8) 75%); }
+.world-head { position: absolute; left: 0; right: 0; top: 60px; text-align: center; }
+.world-head .title { font-size: 76px; }
+.world-stars { margin-top: 10px; display: inline-flex; align-items: center; gap: 10px; font-size: 30px; font-weight: 700; color: var(--gold); padding: 6px 20px; background: rgba(10, 20, 72, 0.7); }
+.world-stars .star { width: 32px; height: 32px; }
+.world-actions { position: absolute; left: 0; right: 0; bottom: 60px; display: flex; justify-content: center; }
+
+.stage-path { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; }
+.stage-path path { fill: none; stroke: rgba(191, 249, 255, 0.75); stroke-width: 6; stroke-linecap: round; stroke-dasharray: 2 20; opacity: 0; transition: opacity 0.6s ease 0.55s; }
+.world-view.show .stage-path path.on { opacity: 1; }
+.stage-map { position: absolute; inset: 0; }
+
+.stage-node {
+  position: absolute; transform: translate(-50%, -50%); border: 0; background: none; padding: 0; cursor: pointer;
+  display: flex; flex-direction: column; align-items: center; gap: 10px;
+  transition: transform 0.6s cubic-bezier(0.34, 1.56, 0.64, 1), opacity 0.35s ease;
+}
+.stage-node.pre { transform: translate(calc(-50% + var(--fx)), calc(-50% + var(--fy))) scale(0.12); opacity: 0; }
+.stage-node .hex {
+  position: relative; width: 170px; height: 170px; padding: 5px;
+  background: linear-gradient(160deg, var(--cyan), var(--cyan-deep) 60%, var(--violet));
+  clip-path: polygon(25% 3%, 75% 3%, 100% 50%, 75% 97%, 25% 97%, 0 50%);
+  transition: transform 0.15s ease;
+}
+.stage-node .hex > div {
+  position: absolute; inset: 5px; clip-path: inherit; display: flex; align-items: center; justify-content: center;
+  background: radial-gradient(circle at 50% 35%, #2a58d8, #0c1c5e 70%);
+  font-size: 64px; font-weight: 700; color: #fff; text-shadow: 0 0 14px var(--cyan);
+}
+.stage-node:hover .hex, .stage-node:focus-visible .hex, .stage-node.pointed .hex { transform: scale(1.08); }
+.stage-node:focus-visible { outline: none; }
+.stage-node .node-stars { display: flex; gap: 6px; }
+.stage-node .node-label { font-size: 22px; font-weight: 600; color: var(--cyan-soft); text-shadow: 0 2px 6px #000; }
+.stage-node.cleared .hex { background: linear-gradient(160deg, #ffe7a3, var(--gold) 55%, #d98a2b); }
+.stage-node.locked { cursor: default; }
+.stage-node.locked .hex { background: linear-gradient(160deg, #5a6690, #2c355e); }
+.stage-node.locked .hex > div { background: #141b40; color: #7c88b8; text-shadow: none; }
+.stage-node.locked .hex svg { width: 64px; height: 64px; }
+
+/* The boss level: bigger, red-gold, with a pulsing warning */
+.stage-node.boss .hex { width: 210px; height: 210px; background: linear-gradient(160deg, #ffd27a, #ff5a7e 60%, #9b2d6e); }
+.stage-node.boss .hex > div { background: radial-gradient(circle at 50% 35%, #7a1f4f, #2a0c2e 75%); text-shadow: 0 0 14px #ff5a7e; flex-direction: column; font-size: 56px; }
+.stage-node.boss.locked .hex { background: linear-gradient(160deg, #a0606e, #4a2440); }
+.boss-crown { width: 64px; height: 40px; margin-bottom: -6px; }
+.boss-warn {
+  position: absolute; top: -18px; left: 50%; transform: translateX(-50%); z-index: 2; white-space: nowrap;
+  padding: 6px 16px; font-size: 22px; font-weight: 700; letter-spacing: 2px; color: #2a0c2e;
+  background: linear-gradient(180deg, #ffe7a3, #ffb74d); clip-path: polygon(10px 0, calc(100% - 10px) 0, 100% 50%, calc(100% - 10px) 100%, 10px 100%, 0 50%);
+  animation: boss-pulse 1.1s ease-in-out infinite;
+}
+@keyframes boss-pulse { 50% { filter: brightness(1.35) drop-shadow(0 0 10px #ff5a7e); transform: translateX(-50%) scale(1.08); } }
+.stage-node.boss .node-label { color: #ffb4c6; }
+
+/* End screen stars */
+.end-stars { display: flex; gap: 26px; align-items: flex-end; margin-top: -6px; }
+.end-stars .star { width: 96px; height: 96px; transform: scale(0); animation: star-pop 0.5s cubic-bezier(0.34, 1.56, 0.64, 1) forwards; }
+.end-stars .star:nth-child(2) { width: 120px; height: 120px; }
+.end-stars .star:nth-child(1) { animation-delay: 0.25s; }
+.end-stars .star:nth-child(2) { animation-delay: 0.6s; }
+.end-stars .star:nth-child(3) { animation-delay: 0.95s; }
+@keyframes star-pop { to { transform: scale(1); } }
+.end-tip { font-size: 24px; color: var(--muted); margin: -10px 0 0; text-align: center; }
+#btn-next[hidden] { display: none; }
+@media (prefers-reduced-motion: reduce) {
+  .stage-node, .stage-node.pre { transition: none; }
+  .end-stars .star { animation: none; transform: none; }
+  .boss-warn { animation: none; }
+}

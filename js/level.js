@@ -18,6 +18,31 @@
     5: { name: 'Moonlit Cavern', bg: 'assets/level5.jpg', types: ['nimbus', 'echo', 'glide', 'nebula'], goal: 10,
          boss: { name: 'Echo Monarch', sprite: 'echo', hp: 36 } },
   };
+  // Each world (environment) has 5 levels. Levels 1-4 are regular, level 5 ends with the world's boss.
+  // Later levels bring more alien types, more catches and faster aliens.
+  const STAGES = 5;
+  function stageConfig(world, stage) {
+    const w = LEVELS[world];
+    const n = w.types.length;
+    const typeCount = n <= 2 ? n : Math.min(n, stage === 1 ? 2 : stage === 2 ? 3 : n);
+    const types = w.types.slice(0, typeCount);
+    const goal = Math.round([4, 5, 6, 8, 6][stage - 1] * w.goal / 10);
+    const boss = stage === STAGES ? w.boss : null;
+    // target time for 3 stars: about 3 seconds per catch, plus time for the boss
+    const par = Math.round(goal * types.length * 3 + (boss ? boss.hp * 1.8 + 8 : 0));
+    return { ...w, world, stage, types, goal, boss, par, speedMul: 1 + 0.07 * (stage - 1) + 0.04 * (world - 1) };
+  }
+
+  // Stars (1-3) for a cleared level: health left counts most, then accuracy, then time
+  function starRating({ won, time, accuracy, health, par }) {
+    if (!won) return { stars: 0, score: 0 };
+    const hp = clamp(health / 100, 0, 1);
+    const acc = clamp((accuracy - 40) / 50, 0, 1);            // 90% or better = full points
+    const tm = clamp(1 - (time - par) / par, 0, 1);            // at or under the target time = full points
+    const score = 0.4 * hp + 0.35 * acc + 0.25 * tm;
+    return { stars: score >= 0.85 ? 3 : score >= 0.6 ? 2 : 1, score, parts: { health: hp, accuracy: acc, time: tm } };
+  }
+
   const ALL_TYPES = ['nebula', 'prism', 'solara', 'glide', 'vexa', 'pulsar', 'ember', 'nimbus', 'echo', 'splash'];
   let TYPES = LEVELS[1].types;                       // types of the level being played
   const DWELL_TIME = 0.45;       // seconds the circle must rest on a target to fire the blaster
@@ -311,12 +336,13 @@
       }
     },
 
-    start({ level = 1, mode, players = 1, save, options, onEnd, onHud, getMenuButtons }) {
+    start({ level = 1, stage = 1, mode, players = 1, save, options, onEnd, onHud, getMenuButtons }) {
       Object.assign(this, { save, options, onEnd, onHud, getMenuButtons });
       this.levelId = level;
-      this.levelCfg = LEVELS[level];
-      TYPES = LEVELS[level].types;
-      GOAL = LEVELS[level].goal;
+      this.stage = stage;
+      this.levelCfg = stageConfig(level, stage);
+      TYPES = this.levelCfg.types;
+      GOAL = this.levelCfg.goal;
       this.types = TYPES; this.goal = GOAL;
       this.menuSuspended = false;
       Input.mode = mode;
@@ -635,7 +661,7 @@
         const type = this.pickType();
         if (type) this.spawn(type);
       }
-      this.spawnTimer = rand(0.9, 1.7) - progress * 0.35;
+      this.spawnTimer = (rand(0.9, 1.7) - progress * 0.35) / (this.levelCfg.speedMul || 1);
     },
 
     pickType() {
@@ -654,7 +680,7 @@
         type, state: 'alive', t: 0, age: 0, z: 0, gone: false,
         x0: rand(0.14, 0.86), phase: rand(0, Math.PI * 2),
         freq: rand(0.6, 1.2), amp: rand(50, 150),
-        dur: rand(s.speed[0], s.speed[1]),
+        dur: rand(s.speed[0], s.speed[1]) / (this.levelCfg.speedMul || 1),
         throwT: rand(2, 4),
         px: 0, py: 0, size: 0, r: 0, vx: 0, flip: false, frame: s.front[0],
       });
@@ -1181,6 +1207,7 @@
         accuracy: this.shots ? Math.round((this.hits / this.shots) * 100) : 0,
         earned: this.earned, caught: { ...this.caught }, health: this.health,
         boss: this.levelCfg.boss ? { name: this.levelCfg.boss.name, caught: this.bossDefeated } : null,
+        world: this.levelId, stage: this.stage, par: this.levelCfg.par,
       });
     },
 
@@ -1720,5 +1747,5 @@
     },
   };
 
-  window.SV = { Assets, Input, inputs, Level, SPR, LEVELS, ALL_TYPES, GEAR, TIME_GEAR, SHIELD_MAX, get TYPES() { return TYPES; }, get GOAL() { return GOAL; } };
+  window.SV = { Assets, Input, inputs, Level, SPR, LEVELS, STAGES, stageConfig, starRating, ALL_TYPES, GEAR, TIME_GEAR, SHIELD_MAX, get TYPES() { return TYPES; }, get GOAL() { return GOAL; } };
 })();

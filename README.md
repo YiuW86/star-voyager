@@ -55,21 +55,15 @@ Controls without the phone (for testing): mouse to aim, click to fire, right-cli
 
 Prism and Vexa throw rocks from a distance. Shoot them down or block them with the shield.
 
-Levels:
-- **Level 1, Crystal Shores:** catch 10 each of Nebula, Prism, Solara, Glide and Vexa, then the boss **King Nebula**.
-- **Level 2, Glowwood Forest:** catch 15 each of Pulsar and Ember, then the boss **Ember Lord**. Pulsar moves in bursts; Ember is quick and throws fire rocks.
-- **Level 3, Sunken Lagoon (underwater):** catch 10 each of Nimbus, Echo and Splash. Nimbus and Splash swim like jellyfish (a squeeze, then a glide), Echo glides like a manta ray and throws bubble rocks. Bubbles rise all around. When all goals are reached the boss, the **Tidequeen**, appears: shoot her (1 point) or hit her with a net grenade (4 points) until her bar is empty. She throws bubble rocks and calls small helpers.
+Worlds and levels:
 
-Menus with the phone: scan the QR code on the start screen, then point at any button and hold for 1 second. Once the phone is connected, choosing a level starts it straight away.
+The game has 5 worlds (environments): Crystal Shores, Glowwood Forest, Sunken Lagoon, Sunfire Dunes and Moonlit Cavern. Choosing a world opens its map with **5 levels**. Levels 1–4 are regular levels; **level 5 ends with the world's boss** (King Nebula, Ember Lord, Tidequeen, Prism Empress, Echo Monarch) and is marked with a pulsing ⚠ BOSS sign. Later levels bring more alien types, more catches and faster aliens.
 
-In a level, the **Menu** button (or the time-out T) opens the in-game menu: Return to game, Options, Restart level, Main menu.
+A level can only be played when the level before it is cleared, and a world only opens when every level of the previous world is cleared.
 
-Aiming: Options has **Aim sensitivity** and **Aim smoothing** (Fast, Normal, Extra smooth). On the phone, **Accuracy: high** uses a larger tracking model: more precise, but the phone gets warmer. Each monster that reaches you costs 5% health.
+Every cleared level earns **1 to 3 stars**, based on health left (counts most), accuracy and time compared with the level's target time. The best result is kept, and the world card shows the stars collected (out of 15). The end screen gives a tip on how to get more stars, and **Next level** goes straight on.
 
-- **Level 4, Sunfire Dunes:** catch 10 each of Solara, Prism, Vexa and Pulsar, then the boss **Prism Empress**.
-- **Level 5, Moonlit Cavern:** catch 10 each of Nimbus, Echo, Glide and Nebula, then the boss **Echo Monarch**.
-
-The **Home** button on the level select screen shows your home base. For now it is only the picture; more will be added later.
+World settings (background, aliens, boss) are in `LEVELS` at the top of `js/level.js`; how the 5 levels of a world get harder is in `stageConfig`, and the star rules in `starRating`.
 
 Every boss is a giant, crowned version of one of the level's monsters. Blaster hits fill 1 point of the boss bar, net grenades 4. Boss strength per level is the `hp` value in `LEVELS` in `js/level.js`.
 

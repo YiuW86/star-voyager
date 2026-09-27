@@ -10,6 +10,11 @@
   <link rel="stylesheet" href="css/style.css">
 </head>
 <body>
+<svg width="0" height="0" style="position:absolute" aria-hidden="true"><defs>
+  <linearGradient id="starGold" x1="0" y1="0" x2="0" y2="1">
+    <stop offset="0" stop-color="#fff4c9"/><stop offset="0.45" stop-color="#ffd27a"/><stop offset="1" stop-color="#f0a13a"/>
+  </linearGradient>
+</defs></svg>
 <div id="stage">
 
   <!-- Loading -->
@@ -40,44 +45,8 @@
   <section id="screen-levels" class="screen dim-bg">
     <img class="fill" src="assets/level1.jpg" alt="">
     <div class="center-col">
-      <h1 class="title">Choose a level</h1>
-      <div class="levels">
-        <button class="level-card" id="level-1-card" data-level="1">
-          <div class="face">
-            <img src="assets/level1.jpg" alt="">
-            <span class="num">1</span>
-            <div class="label"><b>Crystal Shores</b><small id="level-1-best">Catch 10 of each monster</small></div>
-          </div>
-        </button>
-        <button class="level-card" id="level-2-card" data-level="2">
-          <div class="face">
-            <img src="assets/level2.jpg" alt="">
-            <span class="num">2</span>
-            <div class="label"><b>Glowwood Forest</b><small id="level-2-best">Catch 15 of each monster</small></div>
-          </div>
-        </button>
-        <button class="level-card" id="level-3-card" data-level="3">
-          <div class="face">
-            <img src="assets/level3.jpg" alt="">
-            <span class="num">3</span>
-            <div class="label"><b>Sunken Lagoon</b><small id="level-3-best">Catch 10 of each, then the boss</small></div>
-          </div>
-        </button>
-        <button class="level-card" id="level-4-card" data-level="4">
-          <div class="face">
-            <img src="assets/level4.jpg" alt="">
-            <span class="num">4</span>
-            <div class="label"><b>Sunfire Dunes</b><small id="level-4-best">Catch 10 of each, then the boss</small></div>
-          </div>
-        </button>
-        <button class="level-card" id="level-5-card" data-level="5">
-          <div class="face">
-            <img src="assets/level5.jpg" alt="">
-            <span class="num">5</span>
-            <div class="label"><b>Moonlit Cavern</b><small id="level-5-best">Catch 10 of each, then the boss</small></div>
-          </div>
-        </button>
-      </div>
+      <h1 class="title">Choose a world</h1>
+      <div class="levels" id="worlds"></div>
       <div class="row">
         <button class="btn" data-go="start"><span>Back</span></button>
         <button class="btn" data-go="home"><span>Home</span></button>
@@ -86,6 +55,20 @@
         <button class="btn" data-action="connect"><span>Connect phone</span></button>
       </div>
       <div class="phone-status"><i class="dot" data-phone-dot></i><span data-phone-text>Phone not connected</span></div>
+    </div>
+      <!-- The 5 levels of a world pop out of the world card -->
+    <div class="overlay world-view" id="ov-world">
+      <img class="world-bg" id="world-bg" alt="">
+      <div class="world-shade"></div>
+      <div class="world-head">
+        <h1 class="title" id="world-title"></h1>
+        <div class="world-stars" id="world-stars"></div>
+      </div>
+      <svg class="stage-path" id="stage-path" viewBox="0 0 1920 1080" preserveAspectRatio="none"><path id="stage-path-line" d=""/></svg>
+      <div class="stage-map" id="stage-map"></div>
+      <div class="world-actions">
+        <button class="btn" data-action="world-close"><span>All worlds</span></button>
+      </div>
     </div>
   </section>
 
@@ -228,9 +211,12 @@
     <div class="overlay" id="ov-end">
       <div class="center-col">
         <h1 class="title" id="end-title">Level clear</h1>
+        <div class="end-stars" id="end-stars"></div>
+        <p class="end-tip" id="end-tip"></p>
         <div class="stats" id="end-stats"></div>
         <div class="row">
-          <button class="btn pink" data-action="again"><span>Play again</span></button>
+          <button class="btn pink" data-action="next" id="btn-next"><span>Next level</span></button>
+          <button class="btn" data-action="again"><span>Play again</span></button>
           <button class="btn" data-action="to-levels"><span>Level select</span></button>
         </div>
       </div>

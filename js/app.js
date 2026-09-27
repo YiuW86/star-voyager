@@ -1,6 +1,6 @@
 // Screens, menus, shop, options, saving and the connection between UI and gameplay.
 (function () {
-  const { Assets, Input, Level, SPR, LEVELS, GEAR, SHIELD_MAX } = window.SV;
+  const { Assets, Input, Level, SPR, LEVELS, STAGES, stageConfig, starRating, GEAR, SHIELD_MAX } = window.SV;
   const types = () => window.SV.TYPES;   // monsters of the level being played
   const goal = () => window.SV.GOAL;
   const $ = (s, root = document) => root.querySelector(s);
@@ -11,6 +11,7 @@
     crystals: 10,
     owned: {},
     best: {},
+    stages: {},     // 'w1s3' -> { stars, time } for every cleared level
     dex: {},        // alien id -> times caught (all time)
     dexNew: {},     // aliens caught but not yet viewed in the guide
     options: { sound: 'on', assist: 2, hand: 'right', sens: 1, smoothing: 'normal', quality: 'auto', fps: 'off' },
@@ -95,18 +96,25 @@
     },
     connect() { go('connect'); },
     'connect-back'() { go('levels'); },
-    'play-phone'() { startLevel('phone', pendingLevel); },
-    'play-mouse'() { startLevel('mouse', pendingLevel); },
+    'play-phone'() { startLevel('phone', pending.world, pending.stage); },
+    'play-mouse'() { startLevel('mouse', pending.world, pending.stage); },
+    'world-close'() { $('#ov-world').classList.remove('show'); openWorldId = null; setTimeout(focusFirst, 30); },
+    next() {
+      const n = nextStage(lastWorld, lastStage);
+      if (!n) return;
+      hideOverlays();
+      startLevel(lastMode, n.world, n.stage);
+    },
     'options-game'() { optionsFromGame = true; Level.menuSuspended = true; go('options'); },
     'options-back'() { closeOptions(); },
     'skip-cal'() { Level.skipCalibration(); },
     menu() { Level.pause(); },
     'dex-close'() { Dex.hide(); setTimeout(focusFirst, 30); },
     resume() { Level.resume(); },
-    restart() { hideOverlays(); startLevel(lastMode, lastLevel); },
+    restart() { hideOverlays(); startLevel(lastMode, lastWorld, lastStage); },
     abandon() { Level.stop(); hideOverlays(); go('start'); },
-    again() { hideOverlays(); startLevel(lastMode, lastLevel); },
-    'to-levels'() { Level.stop(); hideOverlays(); go('levels'); },
+    again() { hideOverlays(); startLevel(lastMode, lastWorld, lastStage); },
+    'to-levels'() { Level.stop(); hideOverlays(); go('levels'); openWorld(lastWorld); },
     reset(el) {
       if (!resetArmed) {
         resetArmed = true;
@@ -125,13 +133,14 @@
   };
 
   // Choosing a level: with a phone connected the level starts right away, otherwise show the pairing screen
-  let pendingLevel = 1;
-  $$('.level-card[data-level]').forEach((card) => card.addEventListener('click', () => {
+  let pending = { world: 1, stage: 1 };
+  function chooseStage(world, stage) {
+    if (!stageUnlocked(world, stage)) return;
     Sfx.select();
-    pendingLevel = Number(card.dataset.level);
-    if (Net.isConnected()) startLevel('phone', pendingLevel);
+    pending = { world, stage };
+    if (Net.isConnected()) startLevel('phone', world, stage);
     else go('connect');
-  }));
+  }
 
   // Options can be opened from the title screen or from the in-game menu
   let optionsFromGame = false;
@@ -145,15 +154,94 @@
     } else go('start');
   }
 
-  // ---------------- Level select ----------------
+  // ---------------- Worlds and levels ----------------
+  // A world is unlocked when every level of the previous world is cleared;
+  // a level is unlocked when the level before it is cleared.
+  const WORLD_IDS = Object.keys(LEVELS).map(Number);
+  const key = (w, s) => `w${w}s${s}`;
+  const stageStars = (w, s) => ((save.stages || {})[key(w, s)] || {}).stars || 0;
+  const stageCleared = (w, s) => stageStars(w, s) > 0;
+  const worldCleared = (w) => Array.from({ length: STAGES }, (_, i) => i + 1).every((s) => stageCleared(w, s));
+  const worldUnlocked = (w) => w === WORLD_IDS[0] || worldCleared(w - 1);
+  const stageUnlocked = (w, s) => worldUnlocked(w) && (s === 1 || stageCleared(w, s - 1));
+  const worldStars = (w) => Array.from({ length: STAGES }, (_, i) => stageStars(w, i + 1)).reduce((a, b) => a + b, 0);
+  function nextStage(w, s) {
+    if (s < STAGES) return stageUnlocked(w, s + 1) ? { world: w, stage: s + 1 } : null;
+    return LEVELS[w + 1] && stageUnlocked(w + 1, 1) ? { world: w + 1, stage: 1 } : null;
+  }
+
+  const STAR_PATH = 'M12 2.2l2.95 6.2 6.75.8-5 4.7 1.35 6.7L12 17.3l-6.05 3.3 1.35-6.7-5-4.7 6.75-.8z';
+  const starSvg = (on) => `<svg class="star${on ? ' on' : ''}" viewBox="0 0 24 24" aria-hidden="true"><path d="${STAR_PATH}"/></svg>`;
+  const starsHtml = (n) => [1, 2, 3].map((i) => starSvg(i <= n)).join('');
+  const LOCK_SVG = '<svg class="lock-ico" viewBox="0 0 24 24" fill="none" stroke="#bff9ff" stroke-width="1.8"><rect x="5" y="11" width="14" height="10" rx="2"/><path d="M8 11V8a4 4 0 0 1 8 0v3"/></svg>';
+  const CROWN_SVG = '<svg class="boss-crown" viewBox="0 0 64 40"><path d="M4 36V10l14 12L32 4l14 18 14-12v26z" fill="#ffd27a" stroke="#fff4c9" stroke-width="2.5" stroke-linejoin="round"/></svg>';
+
   function renderLevels() {
-    for (const id of Object.keys(LEVELS)) {
-      const best = save.best['level' + id];
-      const el = $('#level-' + id + '-best');
-      if (el) el.textContent = best ? `Cleared · best time ${fmtTime(best.time)}` : `Catch ${LEVELS[id].goal} of each${LEVELS[id].boss ? ', then the boss' : ' monster'}`;
+    const box = $('#worlds');
+    box.innerHTML = '';
+    for (const w of WORLD_IDS) {
+      const cfg = LEVELS[w];
+      const open = worldUnlocked(w);
+      const b = document.createElement('button');
+      b.className = 'level-card' + (open ? '' : ' locked');
+      b.disabled = !open;
+      b.dataset.world = w;
+      const sub = open ? `<span class="card-stars">${starSvg(true)} ${worldStars(w)}/${STAGES * 3}</span>` : `<small>Clear ${LEVELS[w - 1].name} first</small>`;
+      b.innerHTML = `<div class="face"><img src="${cfg.bg}" alt="">${open ? '' : LOCK_SVG}<div class="label"><b>${cfg.name}</b>${sub}</div></div>`;
+      b.setAttribute('aria-label', open ? `${cfg.name}, ${worldStars(w)} of ${STAGES * 3} stars` : `${cfg.name}, locked`);
+      b.addEventListener('click', () => { if (worldUnlocked(w)) { Sfx.select(); openWorld(w); } });
+      box.appendChild(b);
     }
     updatePhoneUi();
   }
+
+  // Opening a world: its background zooms in and the 5 levels pop out of the centre along a dotted path
+  let openWorldId = null;
+  const NODE_POS = [[300, 640], [630, 500], [960, 650], [1290, 500], [1610, 590]];
+  function openWorld(w) {
+    if (!LEVELS[w]) return;
+    openWorldId = w;
+    const cfg = LEVELS[w];
+    const ov = $('#ov-world');
+    $('#world-bg').src = cfg.bg;
+    $('#world-title').textContent = cfg.name;
+    $('#world-stars').innerHTML = `${starSvg(true)} ${worldStars(w)}/${STAGES * 3}`;
+    const map = $('#stage-map');
+    map.innerHTML = '';
+    const line = $('#stage-path-line');
+    line.setAttribute('d', 'M' + NODE_POS.map(([x, y]) => `${x} ${y}`).join(' L'));
+    line.classList.remove('on');
+    for (let s = 1; s <= STAGES; s++) {
+      const [x, y] = NODE_POS[s - 1];
+      const unlocked = stageUnlocked(w, s), stars = stageStars(w, s), boss = s === STAGES;
+      const n = document.createElement('button');
+      n.className = 'stage-node pre' + (boss ? ' boss' : '') + (unlocked ? '' : ' locked') + (stars ? ' cleared' : '');
+      n.disabled = !unlocked;
+      n.style.left = x + 'px'; n.style.top = y + 'px';
+      n.style.setProperty('--fx', (960 - x) + 'px'); n.style.setProperty('--fy', (560 - y) + 'px');
+      n.style.transitionDelay = (0.12 + (s - 1) * 0.11) + 's';
+      const inner = unlocked ? (boss ? CROWN_SVG + s : s) : LOCK_SVG.replace('lock-ico', '');
+      const sc = stageConfig(w, s);
+      const label = boss ? `Boss: ${cfg.boss.name}` : `Level ${s}`;
+      n.innerHTML = (boss ? '<span class="boss-warn">⚠ BOSS</span>' : '')
+        + `<div class="hex"><div>${inner}</div></div><div class="node-stars">${starsHtml(stars)}</div><div class="node-label">${label}</div>`;
+      n.setAttribute('aria-label', `${label}${unlocked ? '' : ', locked'}${stars ? `, ${stars} stars` : ''}. Catch ${sc.goal} of each.`);
+      n.addEventListener('click', () => chooseStage(w, s));
+      map.appendChild(n);
+    }
+    ov.classList.add('show');
+    // next frame: remove the start position so the levels fly out (the delays stagger them)
+    requestAnimationFrame(() => requestAnimationFrame(() => {
+      $$('#stage-map .stage-node').forEach((n) => n.classList.remove('pre'));
+      line.classList.add('on');
+    }));
+    setTimeout(() => {
+      $$('#stage-map .stage-node').forEach((n) => { n.style.transitionDelay = '0s'; });
+      const firstOpen = $$('#stage-map .stage-node:not([disabled])').pop();
+      if (firstOpen) firstOpen.focus({ preventScroll: true });
+    }, 900);
+  }
+
   function fmtTime(s) {
     const m = Math.floor(s / 60), r = Math.floor(s % 60);
     return `${m}:${String(r).padStart(2, '0')}`;
@@ -389,16 +477,18 @@
   function hideOverlays() { $$('#screen-game .overlay').forEach((o) => o.classList.remove('show')); }
 
   // ---------------- Level flow ----------------
-  let lastMode = 'mouse', lastLevel = 1;
-  function startLevel(mode, level = lastLevel) {
-    lastMode = mode; lastLevel = level;
+  let lastMode = 'mouse', lastWorld = 1, lastStage = 1;
+  function startLevel(mode, world = lastWorld, stage = lastStage) {
+    if (!stageUnlocked(world, stage)) return;
+    lastMode = mode; lastWorld = world; lastStage = stage;
+    $('#ov-world').classList.remove('show');
     optionsFromGame = false;
     hideOverlays();
     go('game');
     $('#cal-hand').textContent = save.options.hand;
     updatePhoneUi();
     $('#prompt').classList.remove('show');
-    Level.start({ level, mode, players: Net.isConnected(2) ? 2 : 1, save, options: save.options, onEnd: endLevel, onHud, getMenuButtons });
+    Level.start({ level: world, stage, mode, players: Net.isConnected(2) ? 2 : 1, save, options: save.options, onEnd: endLevel, onHud, getMenuButtons });
     buildCatches();
     onHud('all', null, Level);
     if (mode === 'phone' && Input.isCam()) onHud('cal', 'Looking for you…', Level);
@@ -408,22 +498,39 @@
   function endLevel(r) {
     const bonus = r.won ? 15 : 0;
     save.crystals += r.earned + bonus;
+    const rating = starRating(r);
     if (r.won) {
-      const key = 'level' + lastLevel;
-      const prev = save.best[key];
-      if (!prev || r.time < prev.time) save.best[key] = { time: r.time };
+      if (!save.stages) save.stages = {};
+      const k = key(r.world, r.stage);
+      const prev = save.stages[k] || { stars: 0 };
+      save.stages[k] = { stars: Math.max(prev.stars || 0, rating.stars), time: Math.min(prev.time || Infinity, r.time) };
     }
     persist();
-    $('#end-title').textContent = r.won ? 'Level clear' : 'Your shields are down';
+    $('#prompt').classList.remove('show');
+    const cfgName = LEVELS[r.world].name;
+    $('#end-title').textContent = r.won ? (r.stage === STAGES ? `${cfgName} cleared!` : `Level ${r.stage} clear`) : 'Your shields are down';
+    $('#end-stars').innerHTML = r.won ? starsHtml(rating.stars) : '';
+    // A friendly tip on what would give more stars
+    let tip = '';
+    if (r.won && rating.stars < 3) {
+      const p = rating.parts, weakest = Object.entries(p).sort((a, b) => a[1] - b[1])[0][0];
+      tip = { health: 'Tip: take less damage for more stars', accuracy: 'Tip: aim carefully, fewer missed shots give more stars', time: `Tip: be a bit quicker, the target time is ${fmtTime(r.par)}` }[weakest];
+    }
+    $('#end-tip').textContent = tip;
     const caught = types().map((t) => `<span>${SPR[t].name}</span><b>${r.caught[t]}/${goal()}</b>`).join('')
       + (r.boss ? `<span>${r.boss.name}</span><b>${r.boss.caught ? 'Caught!' : 'Got away'}</b>` : '');
     $('#end-stats').innerHTML = `
-      <span>Time</span><b>${fmtTime(r.time)}</b>
+      <span>Time</span><b>${fmtTime(r.time)} <small>(target ${fmtTime(r.par)})</small></b>
       ${caught}
       <span>Accuracy</span><b>${r.accuracy}%</b>
       <span>Health left</span><b>${r.health}%</b>
       <span>Crystals earned</span><b>${r.earned + bonus}</b>`;
+    const n = r.won ? nextStage(r.world, r.stage) : null;
+    const nb = $('#btn-next');
+    nb.hidden = !n;
+    if (n) nb.querySelector('span').textContent = n.world !== r.world ? 'Next world' : 'Next level';
     $('#ov-end').classList.add('show');
+    if (r.won) setTimeout(() => Sfx.select(), 300);
     setTimeout(focusFirst, 30);
   }
 
@@ -440,6 +547,7 @@
         if (Level.paused) Level.resume(); else Level.pause();
         return;
       }
+      if (current === 'levels' && $('#ov-world').classList.contains('show')) { e.preventDefault(); actions['world-close'](); return; }
       if (current === 'dex' && Dex.detailOpen()) { e.preventDefault(); Dex.hide(); setTimeout(focusFirst, 30); return; }
       if (current === 'options') { e.preventDefault(); closeOptions(); return; }
       const back = { options: 'start', levels: 'start', shop: 'levels', connect: 'levels', quit: 'start', dex: 'levels', home: 'levels' }[current];
