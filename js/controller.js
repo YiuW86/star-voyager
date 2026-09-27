@@ -156,7 +156,7 @@ function pointerLoop(now) {
   const dt = Math.min(0.05, (now - lastFrame) / 1000);
   lastFrame = now;
   if (mode === 'pad') updateStick(dt);
-  if (now - lastSend >= 25) {          // about 40 messages per second
+  if (now - lastSend >= 15) {          // about 60 messages per second
     lastSend = now;
     send({ t: Date.now(), m: mode, s: session, x: +aim.x.toFixed(4), y: +aim.y.toFixed(4), hold: fireHeld, c: counters });
   }

@@ -13,7 +13,7 @@
     best: {},
     dex: {},        // alien id -> times caught (all time)
     dexNew: {},     // aliens caught but not yet viewed in the guide
-    options: { sound: 'on', assist: 2, hand: 'right', sens: 1, smoothing: 'normal', quality: 'fast' },
+    options: { sound: 'on', assist: 2, hand: 'right', sens: 1, smoothing: 'normal', quality: 'auto', fps: 'off' },
   };
   let save = load();
 
@@ -320,6 +320,11 @@
         : 'Blaster';
       $('#gear-label').textContent = label;
       $('#pips').style.opacity = P1.equipped === 'gun' ? 1 : 0.25;
+    }
+    if (kind === 'fps') {
+      const el = $('#fps');
+      el.style.display = save.options.fps === 'on' ? 'block' : 'none';
+      el.textContent = `${value} FPS · ${L.quality}`;
     }
     if (kind === 'cursor') {
       const cur = $('#menu-cursor');

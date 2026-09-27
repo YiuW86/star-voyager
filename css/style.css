@@ -274,6 +274,7 @@ input[type=range] { width: 100%; accent-color: var(--cyan); height: 40px; }
 }
 
 .ammo.two .pips, .ammo.two .gear-label { display: none; }
+.fps { position: absolute; right: 40px; top: 124px; display: none; padding: 4px 12px; font-size: 22px; font-weight: 600; color: #5dffb0; background: rgba(0, 0, 0, 0.55); }
 .ammo.two { left: 40px; bottom: auto; top: 214px; }
 .menu-toast {
   position: absolute; left: 50%; top: 40px; transform: translateX(-50%); z-index: 30; padding: 12px 28px;

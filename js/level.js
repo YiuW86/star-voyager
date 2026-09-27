@@ -133,8 +133,17 @@
       if (d.m === 'hello') { this.device = d.mode; return; }
       if (this.mode !== 'phone') return;
       this.device = d.m;
-      this.aim.x = clamp(d.x, 0, 1);
-      this.aim.y = clamp(d.y, 0, 1);
+      // Estimate how fast the pointer moves and aim a little ahead (about 50 ms),
+      // which hides part of the network and TV delay
+      const now0 = performance.now();
+      if (this.lastPtr && now0 - this.lastPtr.t > 5 && now0 - this.lastPtr.t < 200) {
+        const dtp = (now0 - this.lastPtr.t) / 1000;
+        this.vel = { x: lerp(this.vel ? this.vel.x : 0, (d.x - this.lastPtr.x) / dtp, 0.5), y: lerp(this.vel ? this.vel.y : 0, (d.y - this.lastPtr.y) / dtp, 0.5) };
+      } else this.vel = { x: 0, y: 0 };
+      this.lastPtr = { x: d.x, y: d.y, t: now0 };
+      const LEAD = 0.05;
+      this.aim.x = clamp(d.x + this.vel.x * LEAD, 0, 1);
+      this.aim.y = clamp(d.y + this.vel.y * LEAD, 0, 1);
       this.hasAim = true;
       this.lastPose = performance.now();
       this.fireHeld = !!d.hold;
@@ -259,10 +268,31 @@
       canvas.addEventListener('contextmenu', (e) => e.preventDefault());
     },
 
+    // Graphics: sharp 1920x1080 with glow, fast 1280x720, low 960x540. Fast and low skip the
+    // canvas glow effect (shadow blur), which is by far the heaviest drawing work for TV browsers.
     setQuality(q) {
-      const w = q === 'sharp' ? 1920 : 1280;
+      if (q === 'auto') q = this.autoQuality || 'fast';
+      this.quality = q;
+      const w = q === 'sharp' ? 1920 : q === 'low' ? 960 : 1280;
       this.canvas.width = w; this.canvas.height = Math.round(w * 9 / 16);
       this.scale = w / W;
+      this.lowFx = q !== 'sharp';
+      this.bgCache = null;
+    },
+    glow(n) { return this.lowFx ? 0 : n; },
+
+    // Automatic graphics: if the game runs below ~45 frames per second, step down to lighter settings
+    trackSpeed(rawDt) {
+      this.fpsFrames = (this.fpsFrames || 0) + 1;
+      this.fpsTime = (this.fpsTime || 0) + rawDt;
+      if (this.fpsTime < 2) return;
+      this.fps = Math.round(this.fpsFrames / this.fpsTime);
+      this.fpsFrames = 0; this.fpsTime = 0;
+      this.hud('fps', this.fps);
+      if (this.options && this.options.quality === 'auto' && this.state === 'play' && this.fps < 45) {
+        const next = this.quality === 'sharp' ? 'fast' : this.quality === 'fast' ? 'low' : null;
+        if (next) { this.autoQuality = next; this.setQuality(next); this.hud('toast', 'Graphics lowered for smoother play'); }
+      }
     },
 
     start({ level = 1, mode, players = 1, save, options, onEnd, onHud, getMenuButtons }) {
@@ -318,8 +348,10 @@
       const id = ++this.loopId;
       const loop = (now) => {
         if (!this.running || id !== this.loopId) return;
-        const dt = Math.min(0.05, (now - this.last) / 1000);
+        const rawDt = (now - this.last) / 1000;
+        const dt = Math.min(0.05, rawDt);
         this.last = now;
+        this.trackSpeed(rawDt);
         if (this.paused || this.state === 'done') { if (!this.menuSuspended) this.updateMenuCursor(dt); }
         else this.update(dt);
         this.draw();
@@ -382,6 +414,7 @@
       const up = this.save.owned || {};
       this.assist = [0, 0.35, 0.6, 0.85][o.assist] + (up.steadyAim && o.assist > 0 ? 0.12 : 0);
       this.players.forEach((p) => this.closeBelt(p));
+      if (o.quality !== 'auto' || this.quality === undefined) this.setQuality(o.quality);
     },
 
     pause(reason, byPlayer) {
@@ -404,7 +437,7 @@
     followAim(p, dt) {
       const inp = p.input;
       const target = inp.hasAim ? { x: inp.aim.x * W, y: inp.aim.y * H } : { x: this.gunBase(p), y: H / 2 };
-      const k = inp.mode === 'mouse' ? 1 : Math.min(1, dt * (inp.isCam() ? 30 : 45));
+      const k = inp.mode === 'mouse' ? 1 : Math.min(1, dt * (inp.isCam() ? 30 : 70));
       p.smoothAim.x = lerp(p.smoothAim.x, target.x, k);
       p.smoothAim.y = lerp(p.smoothAim.y, target.y, k);
     },
@@ -828,7 +861,7 @@
     updateBubbles(dt) {
       this.bubbleT -= dt;
       if (this.bubbleT <= 0) {
-        this.bubbleT = 0.12;
+        this.bubbleT = this.quality === 'low' ? 0.3 : this.lowFx ? 0.18 : 0.12;
         this.bubbles.push({ x: rand(0, W), y: H + 20, r: rand(3, 11), vy: rand(60, 150), ph: rand(0, 6), life: 99 });
       }
       for (const b of this.bubbles) { b.y -= b.vy * dt; b.x += Math.sin(this.time * 2 + b.ph) * 20 * dt; b.life -= dt; }
@@ -1060,6 +1093,8 @@
     },
 
     burst(x, y, color, count) {
+      if (this.lowFx) count = Math.ceil(count / 2);
+      if (this.particles.length > 120) return;
       for (let i = 0; i < count; i++) {
         const a = rand(0, Math.PI * 2), sp = rand(150, 520);
         this.particles.push({ x, y, vx: Math.cos(a) * sp, vy: Math.sin(a) * sp, life: rand(0.4, 0.8), max: 0.8, r: rand(4, 10), color });
@@ -1181,7 +1216,14 @@
       const ay = this.players.reduce((a, p) => a + p.smoothAim.y, 0) / n || H / 2;
       const px = (ax / W - 0.5) * -36, py = (ay / H - 0.5) * -20;
       const bw = W * 1.06, bh = H * 1.06;
-      c.drawImage(img['bg' + this.levelId], (W - bw) / 2 + px, (H - bh) / 2 + py, bw, bh);
+      // The background is scaled once to the canvas size, so each frame is a cheap 1:1 copy
+      if (!this.bgCache || this.bgCacheKey !== this.levelId + '/' + this.scale) {
+        const bc = document.createElement('canvas');
+        bc.width = Math.round(bw * this.scale); bc.height = Math.round(bh * this.scale);
+        bc.getContext('2d').drawImage(img['bg' + this.levelId], 0, 0, bc.width, bc.height);
+        this.bgCache = bc; this.bgCacheKey = this.levelId + '/' + this.scale;
+      }
+      c.drawImage(this.bgCache, (W - bw) / 2 + px, (H - bh) / 2 + py, bw, bh);
 
       if (this.levelCfg.underwater) this.drawBubbles();
       if (this.boss) this.drawBoss();
@@ -1194,9 +1236,11 @@
           const q = m.t / 0.45;
           const grow = m.netted ? 1 - q * 0.6 : 1 + q * 0.5;    // netted monsters shrink into the net
           this.drawFrame(img[m.type], s, m.frame, m.px, m.py, m.size * grow, m.flip, 1 - q, m.rot || 0);
-          c.save(); c.globalCompositeOperation = 'lighter';
-          this.drawFrame(img[m.type], s, m.frame, m.px, m.py, m.size * grow, m.flip, (1 - q) * 0.8, m.rot || 0);
-          c.restore();
+          if (!this.lowFx) {
+            c.save(); c.globalCompositeOperation = 'lighter';
+            this.drawFrame(img[m.type], s, m.frame, m.px, m.py, m.size * grow, m.flip, (1 - q) * 0.8, m.rot || 0);
+            c.restore();
+          }
         } else if (m.state === 'attacking') {
           const q = Math.min(1, m.t / 0.3);
           this.drawFrame(img[m.type], s, m.frame, m.px, m.py + q * 80, m.size * (1 + q * 0.6), m.flip, m.t > 0.3 ? 1 - (m.t - 0.3) / 0.15 : 1);
@@ -1268,13 +1312,13 @@
         c.translate(r.x, r.y);
         c.rotate(r.t * r.spin);
         const s = r.size * 0.5;
-        c.shadowColor = r.color; c.shadowBlur = 24;
+        c.shadowColor = r.color; c.shadowBlur = this.glow(24);
         c.fillStyle = '#2a2f63';
         c.strokeStyle = r.color; c.lineWidth = Math.max(3, s * 0.1);
         c.beginPath();
         r.pts.forEach(([x, y], i) => (i ? c.lineTo(x * s, y * s) : c.moveTo(x * s, y * s)));
         c.closePath(); c.fill(); c.stroke();
-        c.shadowBlur = 0;
+        c.shadowBlur = this.glow(0);
         c.fillStyle = r.color; c.globalAlpha = 0.6;
         c.beginPath(); c.arc(-s * 0.2, -s * 0.2, s * 0.25, 0, Math.PI * 2); c.fill();
         c.restore();
@@ -1285,7 +1329,7 @@
       const c = this.ctx;
       c.save();
       c.globalAlpha = alpha;
-      c.strokeStyle = '#ff8ad8'; c.lineWidth = 4; c.shadowColor = '#ff8ad8'; c.shadowBlur = 16;
+      c.strokeStyle = '#ff8ad8'; c.lineWidth = 4; c.shadowColor = '#ff8ad8'; c.shadowBlur = this.glow(16);
       for (let i = 0; i < 12; i++) {
         const a = i / 12 * Math.PI * 2;
         c.beginPath(); c.moveTo(x, y); c.lineTo(x + Math.cos(a) * R, y + Math.sin(a) * R); c.stroke();
@@ -1316,10 +1360,10 @@
       const c = this.ctx;
       const col = kind === 'time' ? '#9fd8ff' : '#ff8ad8';
       c.save();
-      c.shadowColor = col; c.shadowBlur = 26;
+      c.shadowColor = col; c.shadowBlur = this.glow(26);
       c.fillStyle = kind === 'time' ? '#1d3f8f' : '#3a2a8f'; c.strokeStyle = col; c.lineWidth = 5;
       c.beginPath(); c.arc(x, y, r, 0, Math.PI * 2); c.fill(); c.stroke();
-      c.shadowBlur = 0; c.lineWidth = 2.5; c.strokeStyle = '#bff9ff';
+      c.shadowBlur = this.glow(0); c.lineWidth = 2.5; c.strokeStyle = '#bff9ff';
       if (kind === 'time') {
         // clock face
         for (let i = 0; i < 12; i++) { const a = i / 12 * Math.PI * 2; c.beginPath(); c.moveTo(x + Math.cos(a) * r * 0.72, y + Math.sin(a) * r * 0.72); c.lineTo(x + Math.cos(a) * r * 0.85, y + Math.sin(a) * r * 0.85); c.stroke(); }
@@ -1377,7 +1421,7 @@
         const cx = b.x, cy = b.y - b.size * 0.47 * b.sy, w = b.size * 0.22;
         c.save(); c.globalAlpha = alpha;
         c.translate(cx, cy); c.rotate(b.rot);
-        c.fillStyle = '#ffd27a'; c.strokeStyle = '#fff4c9'; c.lineWidth = 3; c.shadowColor = '#ffd27a'; c.shadowBlur = 20;
+        c.fillStyle = '#ffd27a'; c.strokeStyle = '#fff4c9'; c.lineWidth = 3; c.shadowColor = '#ffd27a'; c.shadowBlur = this.glow(20);
         c.beginPath();
         c.moveTo(-w / 2, 0); c.lineTo(-w / 2, -w * 0.45); c.lineTo(-w / 4, -w * 0.2); c.lineTo(0, -w * 0.55); c.lineTo(w / 4, -w * 0.2); c.lineTo(w / 2, -w * 0.45); c.lineTo(w / 2, 0);
         c.closePath(); c.fill(); c.stroke();
@@ -1390,9 +1434,9 @@
       const w = 640, h = 24, x = (W - w) / 2, y = 128;
       c.save();
       c.font = `700 28px ${FONT}`; c.textAlign = 'center'; c.textBaseline = 'bottom';
-      c.fillStyle = '#ffd27a'; c.shadowColor = '#000'; c.shadowBlur = 8;
+      c.fillStyle = '#ffd27a'; c.shadowColor = '#000'; c.shadowBlur = this.glow(8);
       c.fillText(b.name, W / 2, y - 6);
-      c.shadowBlur = 0;
+      c.shadowBlur = this.glow(0);
       c.fillStyle = 'rgba(12, 28, 94, 0.9)'; c.fillRect(x - 4, y - 4, w + 8, h + 8);
       c.strokeStyle = '#ffd27a'; c.lineWidth = 2; c.strokeRect(x - 4, y - 4, w + 8, h + 8);
       const k = b.hp / b.max;
@@ -1407,7 +1451,7 @@
       for (const wv of this.waves) {
         const k = wv.t / 1.2;
         c.save();
-        c.globalAlpha = 1 - k; c.strokeStyle = '#9fd8ff'; c.lineWidth = 8 * (1 - k) + 2; c.shadowColor = '#9fd8ff'; c.shadowBlur = 20;
+        c.globalAlpha = 1 - k; c.strokeStyle = '#9fd8ff'; c.lineWidth = 8 * (1 - k) + 2; c.shadowColor = '#9fd8ff'; c.shadowBlur = this.glow(20);
         c.beginPath(); c.arc(wv.x, wv.y, 40 + k * 900, 0, Math.PI * 2); c.stroke();
         c.beginPath(); c.arc(wv.x, wv.y, 20 + k * 500, 0, Math.PI * 2); c.stroke();
         c.restore();
@@ -1424,9 +1468,9 @@
       c.globalAlpha = Math.min(1, a);
       c.strokeStyle = p.shieldFlash > 0 ? '#ffffff' : '#8ff0c8';
       c.fillStyle = 'rgba(143, 240, 200, 0.10)';
-      c.lineWidth = 8; c.shadowColor = '#8ff0c8'; c.shadowBlur = 30;
+      c.lineWidth = 8; c.shadowColor = '#8ff0c8'; c.shadowBlur = this.glow(30);
       c.beginPath(); c.ellipse(cx, H * 1.25, rw, rh, 0, Math.PI, Math.PI * 2); c.fill(); c.stroke();
-      c.shadowBlur = 0; c.lineWidth = 2; c.globalAlpha *= 0.6;
+      c.shadowBlur = this.glow(0); c.lineWidth = 2; c.globalAlpha *= 0.6;
       for (let k = 1; k <= 3; k++) {
         c.beginPath(); c.ellipse(cx, H * 1.25, rw * (1 - k * 0.12), rh * (1 - k * 0.12), 0, Math.PI, Math.PI * 2); c.stroke();
       }
@@ -1512,18 +1556,18 @@
           if (it.id === 'shield') label = p.shieldHP > 0 ? `Shield ${p.shieldHP}/${SHIELD_MAX}` : `Shield ${Math.ceil(p.shieldRecharge)}s`;
           c.fillStyle = '#e8f7ff';
           c.textAlign = labelLeft ? 'right' : 'left';
-          c.shadowColor = '#000'; c.shadowBlur = 8;
+          c.shadowColor = '#000'; c.shadowBlur = this.glow(8);
           c.fillText(label, b.x + (labelLeft ? -1 : 1) * (BELT.itemR + 34), y);
-          c.shadowBlur = 0;
+          c.shadowBlur = this.glow(0);
         });
       }
 
       // Belt button, showing the gear in use
       c.globalAlpha = 1;
       c.fillStyle = belt.open ? '#2150c4' : 'rgba(12, 28, 94, 0.85)';
-      c.strokeStyle = p.color; c.lineWidth = 4; c.shadowColor = p.color; c.shadowBlur = 18;
+      c.strokeStyle = p.color; c.lineWidth = 4; c.shadowColor = p.color; c.shadowBlur = this.glow(18);
       c.beginPath(); c.arc(b.x, b.y, BELT.r, 0, Math.PI * 2); c.fill(); c.stroke();
-      c.shadowBlur = 0;
+      c.shadowBlur = this.glow(0);
       const eq = this.gearList().find((g) => g.id === p.equipped) || GEAR[0];
       this.drawGearIcon(eq.id, b.x, b.y - 4, 50, eq.color);
       c.fillStyle = '#9fb7e8'; c.font = `500 18px ${FONT}`; c.textAlign = 'center';
@@ -1547,10 +1591,10 @@
       c.textAlign = right ? 'right' : 'left';
       c.font = `700 26px ${FONT}`;
       c.fillStyle = p.color;
-      c.shadowColor = '#000'; c.shadowBlur = 8;
+      c.shadowColor = '#000'; c.shadowBlur = this.glow(8);
       const label = p.equipped === 'time' ? `P${p.id} · Time grenade` : p.equipped === 'grenade' ? `P${p.id} · Net grenade` : p.equipped === 'shield' ? `P${p.id} · Shield ${p.shieldHP}/${SHIELD_MAX}` : `P${p.id} · Blaster`;
       c.fillText(label, x0, b.y + 30);
-      c.shadowBlur = 0;
+      c.shadowBlur = this.glow(0);
       // ammo pips
       const pw = 12, gap = 6;
       for (let i = 0; i < this.magSize; i++) {
@@ -1600,10 +1644,16 @@
       const R = p.equipped === 'gun' || inBelt ? 44 : 30;
 
       c.save();
+      if (this.lowFx) {
+        // cheap glow: a wide see-through ring instead of a blur
+        c.globalAlpha = 0.3; c.lineWidth = 14; c.strokeStyle = col;
+        c.beginPath(); c.arc(x, y, R, 0, Math.PI * 2); c.stroke();
+        c.globalAlpha = 1;
+      }
       c.lineWidth = 4; c.strokeStyle = col;
-      c.shadowColor = col; c.shadowBlur = 16;
+      c.shadowColor = col; c.shadowBlur = this.glow(16);
       c.beginPath(); c.arc(x, y, R, 0, Math.PI * 2); c.stroke();
-      c.shadowBlur = 0;
+      c.shadowBlur = this.glow(0);
       for (let i = 0; i < 4; i++) {
         const a = i * Math.PI / 2;
         c.beginPath();
@@ -1614,7 +1664,7 @@
       c.fillStyle = col; c.beginPath(); c.arc(x, y, 5, 0, Math.PI * 2); c.fill();
       if (two) {
         c.font = `700 24px ${FONT}`; c.textAlign = 'left'; c.textBaseline = 'middle';
-        c.fillStyle = p.color; c.shadowColor = '#000'; c.shadowBlur = 6;
+        c.fillStyle = p.color; c.shadowColor = '#000'; c.shadowBlur = this.glow(6);
         c.fillText('P' + p.id, x + R + 10, y - R + 4);
       }
       c.restore();
