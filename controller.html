@@ -128,7 +128,14 @@
     }
     .remap-bar span { flex: 1; min-width: 140px; color: var(--gold); font-weight: 600; }
     body.remapping #s-pad [data-slot] { outline: 2px dashed var(--gold); outline-offset: 2px; }
-    body.remapping .dpad-zone { opacity: 0.5; }
+    body.remapping #stick-zone { outline: 2px dashed var(--gold); outline-offset: 2px; }
+    body.remapping #s-pad [data-slot], body.remapping #stick-zone { touch-action: none; cursor: grab; }
+    .dragging { opacity: 0.8; z-index: 4; }
+    /* free layout: every piece is placed at its own spot inside the gamepad area */
+    .pad-main { position: relative; }
+    .pad-main.custom .pad-buttons, .pad-main.custom { display: block; }
+    .pad-main.custom [data-slot], .pad-main.custom #stick-zone { position: absolute; transform: translate(-50%, -50%); margin: 0; }
+    .pad-main.custom #stick-zone { display: flex; }
     .remap-pick { position: fixed; inset: 0; z-index: 7; display: flex; align-items: center; justify-content: center; background: rgba(4, 8, 30, 0.8); }
     .remap-box { background: var(--panel); border: 2px solid var(--cyan-deep); padding: 18px; display: flex; flex-direction: column; gap: 12px; max-width: 520px; width: 92vw; }
     .remap-actions { display: grid; grid-template-columns: repeat(auto-fill, minmax(120px, 1fr)); gap: 8px; }
@@ -145,6 +152,10 @@
     .mini { display: flex; gap: 8px; align-items: center; justify-content: center; font-size: 14px; color: var(--muted); flex-wrap: wrap; }
     .mini button { border: 1px solid var(--cyan-deep); background: #0c1c5e; color: var(--cyan); height: 38px; min-width: 42px; padding: 0 10px; font-size: 15px; }
     .hidden { display: none !important; }
+    .cast-box { display: flex; flex-direction: column; gap: 8px; }
+    .cast-btn { display: flex; align-items: center; justify-content: center; gap: 12px; background: linear-gradient(180deg, var(--cyan), var(--cyan-deep)); color: var(--space); }
+    .cast-note { font-size: 14px; }
+    .or { text-align: center; color: var(--gold); font-weight: 700; margin: 4px 0; }
   </style>
 </head>
 <body>
@@ -152,6 +163,11 @@
 <!-- 1. Connect -->
 <section class="screen col active" id="s-connect">
   <h1>Star Voyager controller</h1>
+  <div class="cast-box hidden" id="cast-box">
+    <button class="btn big cast-btn" id="cast-btn"><svg viewBox="0 0 24 24" width="28" height="28" fill="none" stroke="currentColor" stroke-width="2"><path d="M2 16a6 6 0 0 1 6 6M2 12a10 10 0 0 1 10 10M2 8a14 14 0 0 1 14 14"/><path d="M4 4h16a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2h-4"/></svg> Start on the TV</button>
+    <p class="cast-note">For Google TV, Android TV and Chromecast: the game opens on the TV by itself.</p>
+    <p class="or">or</p>
+  </div>
   <p>Enter the code shown on the TV, or scan the QR code on the TV to fill it in automatically.</p>
   <label for="code">Code shown on the TV</label>
   <input id="code" maxlength="6" autocomplete="off" autocapitalize="characters" spellcheck="false" placeholder="ABC123">
@@ -226,17 +242,9 @@
 
 <!-- Remapping the gamepad: a banner while remapping, and a list of actions to pick from -->
 <div class="remap-bar hidden" id="remap-bar">
-  <span>Tap a button to choose what it does</span>
-  <button class="btn ghost" id="remap-swap">Swap sides</button>
+  <span>Drag any button or the d-pad to where you want it</span>
   <button class="btn ghost" id="remap-reset">Reset</button>
   <button class="btn ghost" id="remap-done">Done</button>
-</div>
-<div class="remap-pick hidden" id="remap-pick">
-  <div class="remap-box">
-    <h2>This button does…</h2>
-    <div class="remap-actions" id="remap-actions"></div>
-    <button class="btn ghost" id="remap-cancel">Cancel</button>
-  </div>
 </div>
 <!-- shown when the gamepad is held upright -->
 <!-- 3c. Tilt mode -->
@@ -264,6 +272,17 @@
 </section>
 
 <script src="https://unpkg.com/peerjs@1.5.4/dist/peerjs.min.js"></script>
+<script src="js/config.js"></script>
+<script src="js/i18n.js"></script>
+<!-- Google Cast (only used when a Cast App ID is set in js/config.js) -->
+<script>
+  window.__onGCastApiAvailable = (ok) => { window.__castOk = ok; document.dispatchEvent(new Event('cast-ready')); };
+  if (window.SV_CONFIG && window.SV_CONFIG.castAppId) {
+    const s = document.createElement('script');
+    s.src = 'https://www.gstatic.com/cv/js/sender/v1/cast_sender.js?loadCastFramework=1';
+    document.head.appendChild(s);
+  }
+</script>
 <script type="module" src="js/controller.js"></script>
 </body>
 </html>

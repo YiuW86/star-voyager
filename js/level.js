@@ -17,12 +17,15 @@
          boss: { name: 'Prism Empress', sprite: 'prism', hp: 32 } },
     5: { name: 'Moonlit Cavern', bg: 'assets/level5.jpg', types: ['nimbus', 'echo', 'glide', 'nebula'], goal: 10,
          boss: { name: 'Echo Monarch', sprite: 'echo', hp: 36 } },
+    // Experimental: a side-scrolling platformer level (see js/platformer.js)
+    6: { name: 'Skyline Run', bg: 'assets/plat_bgA.jpg', types: [], goal: 0, plat: true, experimental: true },
   };
   // Each world (environment) has 5 levels. Levels 1-4 are regular, level 5 ends with the world's boss.
   // Later levels bring more alien types, more catches and faster aliens.
   const STAGES = 5;
   function stageConfig(world, stage) {
     const w = LEVELS[world];
+    if (w.plat) return { ...w, world, stage, types: [], goal: 0, boss: null, par: 140, speedMul: 1 };
     const n = w.types.length;
     const typeCount = n <= 2 ? n : Math.min(n, stage === 1 ? 2 : stage === 2 ? 3 : n);
     const types = w.types.slice(0, typeCount);
@@ -103,7 +106,9 @@
   const Assets = {
     images: {},
     load(onProgress) {
-      const list = [...Object.entries(LEVELS).map(([id, l]) => ['bg' + id, l.bg]), ...['gun', ...ALL_TYPES].map((k) => [k, SPR[k].src])];
+      const list = [...Object.entries(LEVELS).map(([id, l]) => ['bg' + id, l.bg]), ...['gun', ...ALL_TYPES].map((k) => [k, SPR[k].src]),
+        ['robot', 'assets/robot.png'], ['blast', 'assets/blast.png'],
+        ['platA', 'assets/plat_bgA.jpg'], ['platB', 'assets/plat_bgB.jpg'], ['platC', 'assets/plat_bgC.jpg']];
       let done = 0;
       return Promise.all(list.map(([key, src]) => new Promise((resolve, reject) => {
         const img = new Image();
@@ -180,6 +185,10 @@
       this.hasAim = true;
       this.lastPose = performance.now();
       this.fireHeld = !!d.hold;
+      // gamepad extras used by the platformer level: raw d-pad direction and held buttons
+      if (d.sx != null) this.stick = { x: d.sx, y: d.sy };
+      this.jumpHeld = !!d.jh;
+      this.runHeld = !!d.rh;
       if (d.c) {
         if (this.counters && this.session === d.s) {
           for (const k of Object.keys(d.c)) {
@@ -348,7 +357,8 @@
       Input.mode = mode;
       inputs[1].mode = 'phone';
       // With a mouse, the crosshair is the real mouse cursor: it moves without any delay
-      this.canvas.style.cursor = mode === 'mouse' ? CROSSHAIR_CURSOR : 'none';
+      this.plat = !!LEVELS[level].plat;
+      this.canvas.style.cursor = this.plat ? 'default' : mode === 'mouse' ? CROSSHAIR_CURSOR : 'none';
       for (const inp of inputs) {
         inp.hand = options.hand;
         inp.sens = options.sens;
@@ -373,17 +383,19 @@
       this.medkitUsed = false;
       this.shake = 0;
       this.boss = null; this.bossDefeated = false;
+      this.reviveUsed = false; this.drone = null;
       this.bubbles = []; this.bubbleT = 0;
       this.slowT = 0; this.waves = [];
       this.promptText = ''; this.promptUntil = 0;
 
       this.players = [this.makePlayer(1)];
-      if (players > 1) this.players.push(this.makePlayer(2));
+      if (players > 1 && !this.plat) this.players.push(this.makePlayer(2));
       this.menuPlayer = null;
       this.cursor = { target: null, t: 0 };
 
       this.paused = false;
-      this.state = this.players.some((p) => p.input.isCam()) ? 'calibrate' : 'countdown';
+      this.state = !this.plat && this.players.some((p) => p.input.isCam()) ? 'calibrate' : 'countdown';
+      if (this.plat) this.platInit();
       this.stateT = 0;
       this.running = true;
       this.last = performance.now();
@@ -427,6 +439,7 @@
 
     // A second phone joins or leaves during a level
     addPlayer(id) {
+      if (this.plat) return;
       if (!this.running || this.state === 'done' || this.player(id)) return;
       const p = this.makePlayer(id);
       p.input.mode = 'phone';
@@ -488,6 +501,7 @@
 
     // ---------------- Update ----------------
     update(dt) {
+      if (this.plat) return this.platUpdate(dt);
       this.stateT += dt;
       for (const p of this.players) this.followAim(p, dt);
       if (this.state !== 'play') this.players.forEach((p) => p.input.takeEvents());   // ignore presses before and after play
@@ -540,6 +554,7 @@
         this.updateWeapon(p, dt);
         this.updateReload(p, dt);
       }
+      this.updateDrone(dt);
       this.updateEffects(dt);
 
       const stale = this.players.find((p) => !p.input.poseFresh());
@@ -819,6 +834,7 @@
         this.hud('toast', 'Medkit used: +30%');
       }
       this.hud('health');
+      if (this.health <= 0 && this.tryRevive()) return;
       if (this.health <= 0) {
         this.state = 'ending'; this.stateT = 0; this.won = false;
         this.players.forEach((p) => { p.belt.open = false; });
@@ -827,6 +843,72 @@
     },
 
     totalCaught() { return TYPES.reduce((a, t) => a + this.caught[t], 0); },
+
+    // ---------------- Star upgrades (bought with stars in the shop) ----------------
+    owns(id) { return !!((this.save && this.save.owned) || {})[id]; },
+    // Second chance: once per level, come back with half health instead of losing
+    tryRevive() {
+      if (!this.owns('secondChance') || this.reviveUsed) return false;
+      this.reviveUsed = true;
+      this.health = 50;
+      this.hud('health');
+      this.hud('toast', 'Second chance! Back to 50%');
+      Sfx.win();
+      return true;
+    },
+    crystalValue() { return this.owns('crystalMagnet') ? 2 : 1; },
+    laserColor(p) { return this.owns('rainbowLaser') ? `hsl(${(this.time * 240) % 360}, 100%, 65%)` : p.color; },
+    // Golden blaster: a gold-tinted copy of the gun sheet, made once
+    gunImage() {
+      const img = Assets.images.gun;
+      if (!this.owns('goldBlaster')) return img;
+      if (!Assets.images.gunGold) {
+        const cv = document.createElement('canvas');
+        cv.width = img.width; cv.height = img.height;
+        const g = cv.getContext('2d');
+        g.drawImage(img, 0, 0);
+        g.globalCompositeOperation = 'source-atop';
+        g.fillStyle = 'rgba(255, 196, 77, 0.5)';
+        g.fillRect(0, 0, cv.width, cv.height);
+        Assets.images.gunGold = cv;
+      }
+      return Assets.images.gunGold;
+    },
+    // Helper drone: floats above Player 1's gun and catches a monster by itself every 10 seconds
+    updateDrone(dt) {
+      if (!this.owns('helperDrone')) return;
+      const p = this.players[0];
+      if (!this.drone) this.drone = { cd: 6, x: this.gunBase(p) - 260, y: H - 420 };
+      const d = this.drone;
+      d.x = lerp(d.x, this.gunBase(p) - 260, Math.min(1, dt * 3));
+      d.y = H - 420 + Math.sin(this.time * 2.4) * 18;
+      d.cd -= dt;
+      if (d.cd <= 0) {
+        const alive = this.monsters.filter((m) => m.state === 'alive');
+        if (alive.length) {
+          const m = alive.sort((a, b) => b.z - a.z)[0];     // the closest one
+          this.lasers.push({ x1: d.x, y1: d.y, x2: m.px, y2: m.py, t: 0.16, color: '#ffd27a' });
+          Sfx.laser();
+          this.catchMonster(m);
+          d.cd = 10;
+        } else d.cd = 1;
+      }
+    },
+    drawDrone() {
+      if (!this.drone || !this.owns('helperDrone')) return;
+      const c = this.ctx, d = this.drone;
+      c.save();
+      c.fillStyle = '#e8f7ff'; c.strokeStyle = '#ffd27a'; c.lineWidth = 4;
+      c.beginPath(); c.ellipse(d.x, d.y, 34, 24, 0, 0, Math.PI * 2); c.fill(); c.stroke();
+      c.fillStyle = '#62f0ff';
+      c.beginPath(); c.arc(d.x + 8, d.y - 2, 10, 0, Math.PI * 2); c.fill();
+      c.strokeStyle = '#9fb7e8'; c.lineWidth = 3;
+      c.beginPath(); c.moveTo(d.x - 30, d.y - 26); c.lineTo(d.x + 30, d.y - 26); c.stroke();
+      // recharge ring
+      const k = 1 - Math.max(0, this.drone.cd) / 10;
+      this.ring(d.x, d.y, 44, k, '#ffd27a', 4);
+      c.restore();
+    },
 
     tag(p) { return this.players.length > 1 && p ? `Player ${p.id}: ` : ''; },
 
@@ -1088,7 +1170,7 @@
       p.recoil = 1;
       const muzzle = this.muzzle(p);
       const end = target ? { x: target.rock || target.isBoss ? target.x : target.px, y: target.rock || target.isBoss ? target.y : target.py } : p.reticle;
-      this.lasers.push({ x1: muzzle.x, y1: muzzle.y, x2: end.x, y2: end.y, t: 0.16, color: p.color });
+      this.lasers.push({ x1: muzzle.x, y1: muzzle.y, x2: end.x, y2: end.y, t: 0.16, color: this.laserColor(p) });
       Sfx.laser();
       if (target && target.rock) { this.hits++; this.smashRock(target); }
       else if (target && target.isBoss) { this.hits++; this.bossHit(1, end.x, end.y); }
@@ -1135,7 +1217,7 @@
 
     catchMonster(m, netted) {
       m.state = 'dying'; m.t = 0; m.netted = !!netted;
-      this.hits++; this.earned++;
+      this.hits++; this.earned += this.crystalValue();
       if (this.caught[m.type] < GOAL) this.caught[m.type]++;
       this.hud('caught', m.type);
       if (!netted) Sfx.pop();
@@ -1255,6 +1337,7 @@
     },
 
     draw() {
+      if (this.plat) return this.platDraw();
       const c = this.ctx, img = Assets.images;
       c.setTransform(this.scale, 0, 0, this.scale, 0, 0);
 
@@ -1307,6 +1390,7 @@
       }
 
       this.drawRocks();
+      this.drawDrone();
       this.drawNets();
       this.drawFlying();
       this.drawWaves();
@@ -1338,7 +1422,7 @@
         c.translate(g.x, g.y);
         c.rotate(g.rot);
         if (g.mirror) c.scale(-1, 1);
-        c.drawImage(img.gun, (g.idx % 5) * SPR.gun.fw, Math.floor(g.idx / 5) * SPR.gun.fh, SPR.gun.fw, SPR.gun.fh, -g.gw / 2, -g.gh, g.gw, g.gh);
+        c.drawImage(this.gunImage(), (g.idx % 5) * SPR.gun.fw, Math.floor(g.idx / 5) * SPR.gun.fh, SPR.gun.fw, SPR.gun.fh, -g.gw / 2, -g.gh, g.gw, g.gh);
         c.restore();
         if ((p.equipped === 'grenade' || p.equipped === 'time') && this.state === 'play') {
           const side = g.mirror ? -1 : 1;
@@ -1603,10 +1687,10 @@
           this.drawGearIcon(it.id, b.x, y, 52, it.color);
           if (belt.sel === i) this.ring(b.x, y, BELT.itemR + 12, belt.selT / BELT.selectTime, '#ffffff', 8);
 
-          let label = it.name;
+          let label = window.t ? t(it.name) : it.name;
           if (it.id === 'grenade') label += ` ×${p.grenades}`;
           if (it.id === 'time') label += ` ×${p.timeGrenades}`;
-          if (it.id === 'shield') label = p.shieldHP > 0 ? `Shield ${p.shieldHP}/${SHIELD_MAX}` : `Shield ${Math.ceil(p.shieldRecharge)}s`;
+          if (it.id === 'shield') label = (window.t ? t('Shield') : 'Shield') + (p.shieldHP > 0 ? ` ${p.shieldHP}/${SHIELD_MAX}` : ` ${Math.ceil(p.shieldRecharge)}s`);
           c.fillStyle = '#e8f7ff';
           c.textAlign = labelLeft ? 'right' : 'left';
           c.shadowColor = '#000'; c.shadowBlur = this.glow(8);
@@ -1624,7 +1708,7 @@
       const eq = this.gearList().find((g) => g.id === p.equipped) || GEAR[0];
       this.drawGearIcon(eq.id, b.x, b.y - 4, 50, eq.color);
       c.fillStyle = '#9fb7e8'; c.font = `500 18px ${FONT}`; c.textAlign = 'center';
-      c.fillText(this.players.length > 1 ? `P${p.id} gear` : 'Gear', b.x, b.y + BELT.r + 20);
+      c.fillText(this.players.length > 1 ? `P${p.id}` : (window.t ? t('Gear') : 'Gear'), b.x, b.y + BELT.r + 20);
       // Grenade count badge
       c.fillStyle = '#ff8ad8';
       c.beginPath(); c.arc(b.x + BELT.r * 0.72, b.y - BELT.r * 0.72, 20, 0, Math.PI * 2); c.fill();

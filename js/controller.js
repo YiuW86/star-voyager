@@ -59,7 +59,16 @@ function openConn(code) {
   conn.on('data', (d) => {
     if (!d) return;
     if (d.m === 'welcome') {
+      if (d.lang && window.I18N) { I18N.setLang(d.lang); I18N.watch(); }
       $$('[data-badge]').forEach((b) => { b.textContent = 'Player ' + d.player; b.classList.remove('hidden'); b.classList.toggle('p2', d.player === 2); });
+    }
+    if (d.m === 'layout' && LAYOUTS[d.mode]) {
+      layout = d.mode;
+      applyPadMap();
+      if (mode === 'tilt' || mode === 'cam') {
+        const note = layout === 'plat' ? 'Level 6 is a platformer: choose Gamepad to play it.' : '';
+        if (note) setConn('on', note);
+      }
     }
     if (d.m === 'full') {
       wantConnection = false;
@@ -101,7 +110,7 @@ async function chooseMode(m) {
   send({ m: 'hello', mode: m });
   keepAwake();
   if (m === 'cam') { show('s-cam'); startCamera(); }
-  if (m === 'pad') { show('s-pad'); landscapeMode(); startPointerLoop(); }
+  if (m === 'pad') { show('s-pad'); landscapeMode(); startPointerLoop(); setTimeout(applyPadPos, 300); }
   if (m === 'tilt') { show('s-tilt'); await startTilt(); startPointerLoop(); }
 }
 
@@ -117,8 +126,8 @@ function stopMode() {
 // ---------------- Buttons (gamepad and tilt) ----------------
 // Each press increases a counter. The game compares counters, so a lost message never loses a press.
 const session = Math.random().toString(36).slice(2, 8);
-const counters = { fire: 0, reload: 0, gun: 0, grenade: 0, shield: 0, time: 0, menu: 0 };
-let fireHeld = false;
+const counters = { fire: 0, reload: 0, gun: 0, grenade: 0, shield: 0, time: 0, menu: 0, jump: 0 };
+let fireHeld = false, jumpHeld = false, runHeld = false;
 
 function press(name) {
   counters[name]++;
@@ -128,78 +137,121 @@ function press(name) {
 $$('[data-press]').forEach((b) => {
   b.addEventListener('pointerdown', (e) => {
     e.preventDefault();
-    if (remapping && b.dataset.slot) { openPicker(b); return; }   // remap mode: choose an action for this button
+    if (remapping && b.dataset.slot) { startDrag(b, e); return; }   // remap mode: drag the button somewhere else
     const name = b.dataset.press;
     b.classList.add('down');
-    press(name);
+    if (name !== 'run') press(name);
     if (name === 'fire') fireHeld = true;
+    if (name === 'jump') jumpHeld = true;
+    if (name === 'run') runHeld = true;
   });
-  const up = () => { b.classList.remove('down'); if (b.dataset.press === 'fire') fireHeld = false; };
+  const up = () => {
+    b.classList.remove('down');
+    const name = b.dataset.press;
+    if (name === 'fire') fireHeld = false;
+    if (name === 'jump') jumpHeld = false;
+    if (name === 'run') runHeld = false;
+  };
   b.addEventListener('pointerup', up);
   b.addEventListener('pointercancel', up);
   b.addEventListener('pointerleave', up);
   b.addEventListener('contextmenu', (e) => e.preventDefault());
 });
 
-// ---------------- Gamepad remapping ----------------
-// Every gamepad button (a "slot") can be given any action. Choosing an action that another button
-// already has swaps the two, so every action stays available. Saved on the phone.
-const ACTIONS = { fire: 'FIRE', reload: 'Reload', menu: 'Menu', gun: 'Blaster', grenade: 'Net grenade', shield: 'Shield', time: 'Time grenade' };
-const PAD_DEFAULT = { s1: 'reload', s2: 'menu', s3: 'gun', s4: 'fire', s5: 'grenade', s6: 'shield', s7: 'time' };
-let padMap = { ...PAD_DEFAULT }, padSwap = false, remapping = false, pickSlot = null;
-try {
-  const saved = JSON.parse(localStorage.getItem('sv-padmap') || 'null');
-  if (saved && saved.map) { padMap = { ...PAD_DEFAULT, ...saved.map }; padSwap = !!saved.swap; }
-} catch (e) {}
-function savePad() { try { localStorage.setItem('sv-padmap', JSON.stringify({ map: padMap, swap: padSwap })); } catch (e) {} }
+// ---------------- Gamepad layouts and moving buttons ----------------
+// Each gamepad button is a "slot". The game decides which layout is shown:
+// 'normal' for the shooter levels, 'plat' for the platformer level (Jump, Blast, Run).
+// Remap lets you drag every button (and the d-pad) to wherever you like; its function stays the same.
+const ACTIONS = { fire: 'FIRE', reload: 'Reload', menu: 'Menu', gun: 'Blaster', grenade: 'Net grenade', shield: 'Shield', time: 'Time grenade', jump: 'JUMP', run: 'Run', blast: 'Blast' };
+const LAYOUTS = {
+  normal: { s1: 'reload', s2: 'menu', s3: 'gun', s4: 'fire', s5: 'grenade', s6: 'shield', s7: 'time' },
+  plat:   { s1: 'fire', s2: 'menu', s3: 'run', s4: 'jump', s5: null, s6: null, s7: null },
+};
+let layout = 'normal', remapping = false;
+let padPos = {};      // slot or 'dpad' -> { x, y } centre as a fraction of the gamepad area, plus w, h in px
+try { padPos = JSON.parse(localStorage.getItem('sv-padpos') || '{}') || {}; } catch (e) { padPos = {}; }
+function savePadPos() { try { localStorage.setItem('sv-padpos', JSON.stringify(padPos)); } catch (e) {} }
 
 function applyPadMap() {
+  const map = LAYOUTS[layout];
   $$('#s-pad [data-slot]').forEach((b) => {
-    const action = padMap[b.dataset.slot];
+    const action = map[b.dataset.slot];
+    b.classList.toggle('hidden', !action);
+    if (!action) return;
     b.dataset.press = action;
-    const label = ACTIONS[action];
+    const label = layout === 'plat' && action === 'fire' ? 'Blast' : ACTIONS[action];
     const [first, ...rest] = label.split(' ');
-    b.innerHTML = rest.length && action !== 'fire' ? `${first}<small>${rest.join(' ')}</small>` : label;
+    b.innerHTML = rest.length ? `${first}<small>${rest.join(' ')}</small>` : label;
     b.classList.toggle('grenade', action === 'grenade');
     b.classList.toggle('shield', action === 'shield');
     b.classList.toggle('time', action === 'time');
   });
-  document.querySelector('#s-pad .pad-main').classList.toggle('swapped', padSwap);
+  applyPadPos();
 }
-applyPadMap();
+
+// Free positions: once anything has been moved, every piece is placed absolutely
+const padArea = () => document.querySelector('#s-pad .pad-main');
+const movables = () => [...$$('#s-pad [data-slot]'), $('stick-zone')];
+const keyOf = (el) => el.dataset.slot || 'dpad';
+// Where pieces go in a free layout if they were never moved (e.g. buttons hidden while you rearranged)
+const PAD_DEFAULT_POS = {
+  dpad: { x: 0.22, y: 0.52, w: 230, h: 230 }, s4: { x: 0.76, y: 0.52, w: 170, h: 170 },
+  s1: { x: 0.6, y: 0.1, w: 120, h: 56 }, s2: { x: 0.76, y: 0.1, w: 120, h: 56 }, s3: { x: 0.92, y: 0.1, w: 120, h: 56 },
+  s5: { x: 0.6, y: 0.92, w: 120, h: 56 }, s6: { x: 0.76, y: 0.92, w: 120, h: 56 }, s7: { x: 0.92, y: 0.92, w: 120, h: 56 },
+};
+function applyPadPos() {
+  const custom = Object.keys(padPos).length > 0;
+  padArea().classList.toggle('custom', custom);
+  for (const el of movables()) {
+    const p = padPos[keyOf(el)] || (custom ? PAD_DEFAULT_POS[keyOf(el)] : null);
+    if (custom && p) {
+      el.style.left = (p.x * 100) + '%'; el.style.top = (p.y * 100) + '%';
+      el.style.width = p.w + 'px'; el.style.height = p.h + 'px';
+    } else { el.style.left = el.style.top = el.style.width = el.style.height = ''; }
+  }
+}
+// Take a snapshot of the current (grid) layout so pieces can be dragged from where they are
+function freezePositions() {
+  const area = padArea().getBoundingClientRect();
+  if (!area.width) return;
+  for (const el of movables()) {
+    if (padPos[keyOf(el)]) continue;
+    // the d-pad's area is only as big as the d-pad itself (plus a little margin)
+    const r = el.id === 'stick-zone' ? (() => { const d = $('dpad').getBoundingClientRect(); const m = 14; return { left: d.left - m, top: d.top - m, width: d.width + 2 * m, height: d.height + 2 * m }; })() : el.getBoundingClientRect();
+    if (!r.width) continue;
+    padPos[keyOf(el)] = { x: (r.left + r.width / 2 - area.left) / area.width, y: (r.top + r.height / 2 - area.top) / area.height, w: Math.round(r.width), h: Math.round(r.height) };
+  }
+}
+let drag = null;
+function startDrag(el, e) {
+  freezePositions(); savePadPos(); applyPadPos();
+  drag = { el, id: e.pointerId };
+  try { el.setPointerCapture(e.pointerId); } catch (err) {}
+  el.classList.add('dragging');
+}
+document.addEventListener('pointermove', (e) => {
+  if (!drag || e.pointerId !== drag.id) return;
+  const area = padArea().getBoundingClientRect();
+  const p = padPos[keyOf(drag.el)];
+  p.x = clamp((e.clientX - area.left) / area.width, 0.03, 0.97);
+  p.y = clamp((e.clientY - area.top) / area.height, 0.03, 0.97);
+  drag.el.style.left = (p.x * 100) + '%'; drag.el.style.top = (p.y * 100) + '%';
+});
+const endDrag = (e) => { if (drag && e.pointerId === drag.id) { drag.el.classList.remove('dragging'); drag = null; savePadPos(); } };
+document.addEventListener('pointerup', endDrag);
+document.addEventListener('pointercancel', endDrag);
 
 function setRemapping(on) {
   remapping = on;
   document.body.classList.toggle('remapping', on);
   $('remap-bar').classList.toggle('hidden', !on);
-  $('remap').textContent = on ? 'Remapping…' : 'Remap';
-  if (!on) { $('remap-pick').classList.add('hidden'); pickSlot = null; }
-}
-function openPicker(btn) {
-  pickSlot = btn.dataset.slot;
-  const box = $('remap-actions');
-  box.innerHTML = '';
-  for (const [id, label] of Object.entries(ACTIONS)) {
-    const b = document.createElement('button');
-    b.textContent = label;
-    if (padMap[pickSlot] === id) b.classList.add('current');
-    b.addEventListener('click', () => {
-      const other = Object.keys(padMap).find((s) => padMap[s] === id);
-      if (other && other !== pickSlot) padMap[other] = padMap[pickSlot];   // swap
-      padMap[pickSlot] = id;
-      savePad(); applyPadMap();
-      $('remap-pick').classList.add('hidden');
-      if (navigator.vibrate) navigator.vibrate(15);
-    });
-    box.appendChild(b);
-  }
-  $('remap-pick').classList.remove('hidden');
+  $('remap').textContent = on ? 'Moving…' : 'Remap';
 }
 $('remap').addEventListener('click', () => setRemapping(!remapping));
 $('remap-done').addEventListener('click', () => setRemapping(false));
-$('remap-cancel').addEventListener('click', () => $('remap-pick').classList.add('hidden'));
-$('remap-reset').addEventListener('click', () => { padMap = { ...PAD_DEFAULT }; padSwap = false; savePad(); applyPadMap(); });
-$('remap-swap').addEventListener('click', () => { padSwap = !padSwap; savePad(); applyPadMap(); });
+$('remap-reset').addEventListener('click', () => { padPos = {}; savePadPos(); applyPadPos(); });
+addEventListener('resize', () => applyPadPos());
+applyPadMap();
 
 // ---------------- Pointer loop: sends aim position + buttons ----------------
 const aim = { x: 0.5, y: 0.5 };
@@ -219,7 +271,8 @@ function pointerLoop(now) {
   if (mode === 'pad') updateStick(dt);
   if (now - lastSend >= 15) {          // about 60 messages per second
     lastSend = now;
-    send({ t: Date.now(), m: mode, s: session, x: +aim.x.toFixed(4), y: +aim.y.toFixed(4), hold: fireHeld, c: counters });
+    send({ t: Date.now(), m: mode, s: session, x: +aim.x.toFixed(4), y: +aim.y.toFixed(4), hold: fireHeld, c: counters,
+      sx: +stick.x.toFixed(3), sy: +stick.y.toFixed(3), jh: jumpHeld, rh: runHeld });
   }
   requestAnimationFrame(pointerLoop);
 }
@@ -240,6 +293,7 @@ function stickFrom(e) {
   knob.style.transform = `translate(calc(-50% + ${dx}px), calc(-50% + ${dy}px))`;
 }
 zone.addEventListener('pointerdown', (e) => {
+  if (remapping) { e.preventDefault(); startDrag(zone, e); return; }
   if (stick.id !== null) return;
   e.preventDefault();
   try { zone.setPointerCapture(e.pointerId); } catch (err) {}
@@ -524,5 +578,47 @@ document.addEventListener('visibilitychange', () => {
   if (document.visibilityState === 'visible' && mode) keepAwake();
 });
 
+// ---------------- Casting to Google TV / Android TV / Chromecast ----------------
+// "Start on the TV" opens the game on the TV (a registered Cast receiver), sends it a new room code,
+// and then connects this phone to that room, so no QR code is needed.
+function makeRoomCode() {
+  const chars = 'abcdefghjkmnpqrstuvwxyz23456789';
+  let s = '';
+  for (let i = 0; i < 6; i++) s += chars[Math.floor(Math.random() * chars.length)];
+  return s;
+}
+function castInit() {
+  const appId = window.SV_CONFIG && window.SV_CONFIG.castAppId;
+  if (!window.__castOk || !appId || !window.cast || !cast.framework) return;
+  cast.framework.CastContext.getInstance().setOptions({
+    receiverApplicationId: appId,
+    autoJoinPolicy: chrome.cast.AutoJoinPolicy.ORIGIN_SCOPED,
+  });
+  $('cast-box').classList.remove('hidden');
+}
+if (window.__castOk) castInit(); else document.addEventListener('cast-ready', castInit);
+
+$('cast-btn').addEventListener('click', async () => {
+  const ctx = cast.framework.CastContext.getInstance();
+  try {
+    setConn('wait', 'Opening the game on the TV…');
+    await ctx.requestSession();                    // the phone shows its list of TVs
+    const session = ctx.getCurrentSession();
+    const room = makeRoomCode();
+    // send the room code a few times while the game is still loading on the TV
+    let n = 0;
+    const tell = () => { try { session.sendMessage(window.SV_CAST_NS, { room }); } catch (e) {} if (++n < 8) setTimeout(tell, 1500); };
+    tell();
+    $('code').value = room.toUpperCase();
+    setTimeout(connect, 2500);                     // connecting retries until the TV is ready
+  } catch (e) {
+    if (e === 'cancel' || (e && e.code === 'cancel')) setConn('', 'Not connected');
+    else setConn('bad', 'Could not start the game on the TV');
+  }
+});
+
 // Came from the QR code: connect straight away
 if ($('code').value) connect();
+
+// Small hook for testing the layouts in a desktop browser
+window.__svPad = { setLayout(m) { if (LAYOUTS[m]) { layout = m; applyPadMap(); } } };

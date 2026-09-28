@@ -64,6 +64,7 @@
     if (name === 'start') updatePhoneUi();
     // Hand pointer works on every menu screen; inside a level the game handles it
     if (name !== 'game' && name !== 'loading') MenuPointer.start(); else MenuPointer.stop();
+    if (name !== 'game') Net.setLayout('normal');
     setTimeout(focusFirst, 30);
   }
 
@@ -162,10 +163,11 @@
   const stageStars = (w, s) => ((save.stages || {})[key(w, s)] || {}).stars || 0;
   const stageCleared = (w, s) => stageStars(w, s) > 0;
   const worldCleared = (w) => Array.from({ length: STAGES }, (_, i) => i + 1).every((s) => stageCleared(w, s));
-  const worldUnlocked = (w) => w === WORLD_IDS[0] || worldCleared(w - 1);
+  const worldUnlocked = (w) => w === WORLD_IDS[0] || !!LEVELS[w].experimental || worldCleared(w - 1);
   const stageUnlocked = (w, s) => worldUnlocked(w) && (s === 1 || stageCleared(w, s - 1));
   const worldStars = (w) => Array.from({ length: STAGES }, (_, i) => stageStars(w, i + 1)).reduce((a, b) => a + b, 0);
   function nextStage(w, s) {
+    if (LEVELS[w].plat || (LEVELS[w + 1] && LEVELS[w + 1].experimental && s === STAGES)) return null;
     if (s < STAGES) return stageUnlocked(w, s + 1) ? { world: w, stage: s + 1 } : null;
     return LEVELS[w + 1] && stageUnlocked(w + 1, 1) ? { world: w + 1, stage: 1 } : null;
   }
@@ -186,10 +188,13 @@
       b.className = 'level-card' + (open ? '' : ' locked');
       b.disabled = !open;
       b.dataset.world = w;
-      const sub = open ? `<span class="card-stars">${starSvg(true)} ${worldStars(w)}/${STAGES * 3}</span>` : `<small>Clear ${LEVELS[w - 1].name} first</small>`;
+      const maxStars = cfg.plat ? 3 : STAGES * 3;
+      const sub = cfg.experimental ? `<small>Experimental · Level 6</small><span class="card-stars">${starSvg(true)} ${worldStars(w)}/${maxStars}</span>`
+        : open ? `<span class="card-stars">${starSvg(true)} ${worldStars(w)}/${maxStars}</span>` : `<small>Clear ${LEVELS[w - 1].name} first</small>`;
       b.innerHTML = `<div class="face"><img src="${cfg.bg}" alt="">${open ? '' : LOCK_SVG}<div class="label"><b>${cfg.name}</b>${sub}</div></div>`;
       b.setAttribute('aria-label', open ? `${cfg.name}, ${worldStars(w)} of ${STAGES * 3} stars` : `${cfg.name}, locked`);
-      b.addEventListener('click', () => { if (worldUnlocked(w)) { Sfx.select(); openWorld(w); } });
+      // the experimental platformer is a single level: start it right away
+      b.addEventListener('click', () => { if (!worldUnlocked(w)) return; Sfx.select(); if (cfg.plat) chooseStage(w, 1); else openWorld(w); });
       box.appendChild(b);
     }
     updatePhoneUi();
@@ -198,6 +203,30 @@
   // Opening a world: its background zooms in and the 5 levels pop out of the centre along a dotted path
   let openWorldId = null;
   const NODE_POS = [[300, 640], [630, 500], [960, 650], [1290, 500], [1610, 590]];
+  // A flowing, curved path through the levels: extra bends between the levels, then a smooth
+  // curve (Catmull-Rom) through all points
+  function smoothPath(nodes) {
+    const pts = [];
+    nodes.forEach(([x, y], i) => {
+      pts.push([x, y]);
+      const n = nodes[i + 1];
+      if (n) {
+        const mx = (x + n[0]) / 2, my = (y + n[1]) / 2;
+        const dx = n[0] - x, dy = n[1] - y, len = Math.hypot(dx, dy) || 1;
+        const side = i % 2 ? 1 : -1;                  // bend alternately up and down
+        pts.push([mx - (dy / len) * 70 * side, my + (dx / len) * 70 * side]);
+      }
+    });
+    let d = `M${pts[0][0]} ${pts[0][1]}`;
+    for (let i = 0; i < pts.length - 1; i++) {
+      const p0 = pts[i - 1] || pts[i], p1 = pts[i], p2 = pts[i + 1], p3 = pts[i + 2] || p2;
+      const c1 = [p1[0] + (p2[0] - p0[0]) / 6, p1[1] + (p2[1] - p0[1]) / 6];
+      const c2 = [p2[0] - (p3[0] - p1[0]) / 6, p2[1] - (p3[1] - p1[1]) / 6];
+      d += ` C${c1[0].toFixed(1)} ${c1[1].toFixed(1)}, ${c2[0].toFixed(1)} ${c2[1].toFixed(1)}, ${p2[0]} ${p2[1]}`;
+    }
+    return d;
+  }
+
   function openWorld(w) {
     if (!LEVELS[w]) return;
     openWorldId = w;
@@ -209,7 +238,7 @@
     const map = $('#stage-map');
     map.innerHTML = '';
     const line = $('#stage-path-line');
-    line.setAttribute('d', 'M' + NODE_POS.map(([x, y]) => `${x} ${y}`).join(' L'));
+    line.setAttribute('d', smoothPath(NODE_POS));
     line.classList.remove('on');
     for (let s = 1; s <= STAGES; s++) {
       const [x, y] = NODE_POS[s - 1];
@@ -248,24 +277,45 @@
   }
 
   // ---------------- Shop ----------------
+  // Star items: special upgrades bought with the stars you earn on levels
+  const STAR_SHOP = [
+    { id: 'goldBlaster',  name: 'Golden blaster',  text: 'Your blaster turns shiny gold.', price: 3 },
+    { id: 'rainbowLaser', name: 'Rainbow lasers',  text: 'Every shot sparkles in all colours.', price: 2 },
+    { id: 'crystalMagnet', name: 'Crystal magnet', text: 'Every alien you catch gives 2 crystals instead of 1.', price: 4 },
+    { id: 'secondChance', name: 'Second chance',   text: 'Once per level: when your health runs out, come back with 50%.', price: 5 },
+    { id: 'helperDrone',  name: 'Helper drone',    text: 'A little drone that catches an alien for you every 10 seconds.', price: 8 },
+  ];
+  const totalStars = () => Object.values(save.stages || {}).reduce((a, s) => a + (s.stars || 0), 0);
+  const starsLeft = () => totalStars() - (save.starSpent || 0);
+  let shopTab = 'crystal';
+  actions['shop-crystal'] = () => { shopTab = 'crystal'; renderShop(); };
+  actions['shop-star'] = () => { shopTab = 'star'; renderShop(); };
+
   function renderShop() {
-    $('#shop-crystals').textContent = save.crystals;
+    const star = shopTab === 'star';
+    $('#tab-crystal').classList.toggle('pink', !star);
+    $('#tab-star').classList.toggle('pink', star);
+    $('#shop-wallet').innerHTML = star
+      ? `${starSvg(true)} <span>${starsLeft()}</span> ${t('stars to spend')}`
+      : `<i class="crystal"></i><span>${save.crystals}</span> ${t('crystals')}`;
     const grid = $('#shop-grid');
     grid.innerHTML = '';
-    for (const item of SHOP) {
+    for (const item of star ? STAR_SHOP : SHOP) {
       if (item.needs && !save.owned[item.needs]) continue;     // shown once the first item is bought
       const owned = !!save.owned[item.id];
+      const money = star ? starsLeft() : save.crystals;
       const div = document.createElement('div');
-      div.className = 'item' + (owned ? ' owned' : '');
-      div.innerHTML = `<b>${item.name}</b><p>${item.text}</p>`;
+      div.className = 'item' + (owned ? ' owned' : '') + (star ? ' star-item' : '');
+      div.innerHTML = `<b>${t(item.name)}</b><p>${t(item.text)}</p>`;
       const btn = document.createElement('button');
       btn.className = 'btn small' + (owned ? '' : ' pink');
-      btn.innerHTML = `<span>${owned ? 'Owned' : '<i class="crystal"></i> ' + item.price}</span>`;
-      btn.disabled = owned || save.crystals < item.price;
-      btn.setAttribute('aria-label', owned ? item.name + ', owned' : `Buy ${item.name} for ${item.price} crystals`);
+      btn.innerHTML = `<span>${owned ? t('Owned') : (star ? starSvg(true) : '<i class="crystal"></i>') + ' ' + item.price}</span>`;
+      btn.disabled = owned || money < item.price;
+      btn.setAttribute('aria-label', owned ? item.name + ', owned' : `Buy ${item.name} for ${item.price} ${star ? 'stars' : 'crystals'}`);
       btn.addEventListener('click', () => {
-        if (owned || save.crystals < item.price) return;
-        save.crystals -= item.price;
+        if (owned || (star ? starsLeft() : save.crystals) < item.price) return;
+        if (star) save.starSpent = (save.starSpent || 0) + item.price;
+        else save.crystals -= item.price;
         save.owned[item.id] = true;
         persist();
         Sfx.reload();
@@ -294,6 +344,7 @@
     if (key === 'assist' || key === 'sens') v = Number(v);
     save.options[key] = v;
     if (key === 'sound') Sfx.enabled = v === 'on';
+    if (key === 'lang') { I18N.setLang(v); [1, 2].forEach((pl) => Net.sendTo(pl, { m: 'welcome', player: pl, lang: v })); }
     persist(); renderOptions(); Sfx.select();
   }));
 
@@ -449,7 +500,7 @@
     }
     if (kind === 'go') {
       $('#ov-count').classList.remove('show');
-      showToast(lastMode !== 'phone' ? 'Click a monster to fire' : Input.isCam() ? 'Hold the circle on a monster to fire' : 'Aim and press Fire');
+      if (!Level.plat) showToast(lastMode !== 'phone' ? 'Click a monster to fire' : Input.isCam() ? 'Hold the circle on a monster to fire' : 'Aim and press Fire');
     }
     if (kind === 'pause') {
       $('#pause-reason').textContent = value || 'Take a breather.';
@@ -491,6 +542,8 @@
     Level.start({ level: world, stage, mode, players: Net.isConnected(2) ? 2 : 1, save, options: save.options, onEnd: endLevel, onHud, getMenuButtons });
     buildCatches();
     onHud('all', null, Level);
+    $('#screen-game').classList.toggle('plat', !!Level.plat);
+    Net.setLayout(Level.plat ? 'plat' : 'normal');
     if (mode === 'phone' && Input.isCam()) onHud('cal', 'Looking for you…', Level);
     else onHud('countdown', 3, Level);
   }
@@ -508,7 +561,7 @@
     persist();
     $('#prompt').classList.remove('show');
     const cfgName = LEVELS[r.world].name;
-    $('#end-title').textContent = r.won ? (r.stage === STAGES ? `${cfgName} cleared!` : `Level ${r.stage} clear`) : 'Your shields are down';
+    $('#end-title').textContent = !r.won ? 'Your shields are down' : LEVELS[r.world].plat ? 'Level 6 clear' : r.stage === STAGES ? `${cfgName} cleared!` : `Level ${r.stage} clear`;
     $('#end-stars').innerHTML = r.won ? starsHtml(rating.stars) : '';
     // A friendly tip on what would give more stars
     let tip = '';
@@ -554,6 +607,7 @@
       if (back) { e.preventDefault(); go(back); }
       return;
     }
+    if (inGame && Level.plat) return;     // the platformer uses the arrow keys for moving
     const dir = { ArrowDown: 1, ArrowRight: 1, ArrowUp: -1, ArrowLeft: -1 }[e.key];
     if (dir && !(document.activeElement && document.activeElement.type === 'range' && Math.abs(dir) && (e.key === 'ArrowLeft' || e.key === 'ArrowRight'))) {
       const f = focusables();
@@ -639,6 +693,9 @@
 
   // ---------------- Boot ----------------
   Sfx.enabled = save.options.sound === 'on';
+  if (!save.options.lang) save.options.lang = I18N.guess();
+  I18N.setLang(save.options.lang);
+  I18N.watch();
   Dex.init({ save, persist });
   Level.init($('#game-canvas'));
   Assets.load((p) => { $('#load-text').textContent = `Loading artwork… ${Math.round(p * 100)}%`; })

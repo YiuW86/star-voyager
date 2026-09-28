@@ -14,6 +14,10 @@ js/net.js           WebRTC host (receives data from the phone)
 js/controller.js    Phone side: MediaPipe pose tracking + WebRTC sending
 js/audio.js         Synthesized sound effects
 js/dex.js           Alien guide: facts about every alien and the guide screen
+js/platformer.js    Experimental level 6: the side-scrolling platformer
+js/i18n.js          Languages: all translations of the game's texts
+js/config.js        Your settings (the Google Cast App ID)
+js/cast-receiver.js Makes the game work as a Google Cast receiver on the TV
 assets/             Your artwork (spritesheets sliced into even frames)
 ```
 
@@ -38,7 +42,7 @@ After connecting, the phone asks how you want to play. You can switch at any tim
 - **Gamepad:** hold the phone sideways. Push the round d-pad on the left in any direction to move the circle: a small push moves it slowly, pushing to the edge moves it faster, and holding at the edge speeds up further. Fire and the other buttons are on the right.
 - **Camera:** the motion controls described below.
 
-**Remapping the gamepad:** press **Remap** at the top of the gamepad screen, tap any button and choose what it should do (Fire, Reload, Menu, Blaster, Net grenade, Shield or Time grenade). If another button already had that action, the two swap. **Swap sides** puts the d-pad on the right, **Reset** restores the original layout, **Done** finishes. The layout is saved on the phone.
+**Moving the gamepad buttons:** press **Remap** at the top of the gamepad screen and drag any button or the d-pad to wherever you like; the buttons keep their functions. **Reset** restores the original layout, **Done** finishes. The layout is saved on the phone.
 
 In the menus with Tilt or Gamepad: move the circle to a button and press **Fire**; **Menu** goes back.
 
@@ -67,9 +71,36 @@ World settings (background, aliens, boss) are in `LEVELS` at the top of `js/leve
 
 Every boss is a giant, crowned version of one of the level's monsters. Blaster hits fill 1 point of the boss bar, net grenades 4. Boss strength per level is the `hp` value in `LEVELS` in `js/level.js`.
 
+## Level 6 (experimental platformer)
+
+The sixth card on the world screen, **Skyline Run**, is a side-scrolling platformer. The robot runs from left to right through three backgrounds (the dome base, the floating rocks and the crystal pillar); a glowing portal at the end of each one leads to the next. On the floating rocks you have to jump from rock to rock, and at the end jump from the last rock into the portal. The level ends at the great crystal. Aliens walk or float toward you and throw glowing orbs; blast them (or their orbs) to catch them.
+
+Controls: phone **Gamepad** (the phone switches to Jump, Blast, Run and Menu buttons automatically; push the d-pad far to run), or keyboard: arrows or A/D to move, Shift to run, Space to jump, J or a click to blast. Platforms, aliens and portals are set in `SECTIONS` at the top of `js/platformer.js`.
+
+## Star shop
+
+The shop has two tabs. The **Star shop** sells special upgrades paid with the stars earned on levels: Golden blaster (3★), Rainbow lasers (2★), Crystal magnet (4★, 2 crystals per catch), Second chance (5★, once per level come back with 50% health) and Helper drone (8★, catches an alien for you every 10 seconds).
+
+## Languages
+
+Options → Language: English, Nederlands, Deutsch, Français, Español, Português. The phone follows the game's language. The alien guide's descriptions are still in English.
+
 ## Time grenades
 
 Buy **Time grenades** in the shop (2 per level, or 4 with the Time grenade pouch). Throw one like a net grenade: everything (aliens, rocks and the boss) moves at a quarter of its speed for 3 seconds. Choose it on the gear belt, with the **Time** button on the phone, or key `4`.
+
+## Casting to Google TV, Android TV and Chromecast
+
+The phone page has a **Start on the TV** button: it opens the game on the TV and connects the phone automatically, without scanning a QR code. It works from Chrome on Android phones, on TVs and devices with Google Cast built in. It stays hidden until you have set up a Cast App ID:
+
+1. Go to the Google Cast SDK Developer Console (cast.google.com/publish), sign in and pay the one-time registration fee.
+2. Click **Add New Application** → **Custom Receiver**. Name: Star Voyager. Receiver Application URL: your game address followed by `index.html?cast=1`, for example `https://yourname.github.io/star-voyager/index.html?cast=1`.
+3. Copy the **Application ID** you get and paste it in `js/config.js` between the quotes of `castAppId`. Upload `js/config.js` to GitHub.
+4. While the app is not yet published, only registered devices can open it: under **Devices**, add your Google TV / Chromecast with its serial number (on Google TV: Settings → System → About). It can take about 15 minutes, and restarting the TV helps.
+5. Open `controller.html` on the phone (same Wi-Fi as the TV) and press **Start on the TV**.
+6. When everything works, press **Publish** in the console so every Cast device can use it.
+
+Amazon Fire TV does not support Google Cast; for Fire TV the route is an app in the Amazon Appstore.
 
 ## Two players
 

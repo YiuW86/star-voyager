@@ -96,12 +96,33 @@ window.Net = {
 
   // Tell a phone which player it is (sent a few times, the channel may drop a message)
   welcome(p) {
-    [0, 400, 1500].forEach((ms) => setTimeout(() => this.sendTo(p, { m: 'welcome', player: p }), ms));
+    [0, 400, 1500].forEach((ms) => setTimeout(() => {
+      this.sendTo(p, { m: 'welcome', player: p, lang: window.I18N ? window.I18N.lang : 'en' });
+      this.sendTo(p, { m: 'layout', mode: this.layout });
+    }, ms));
+  },
+
+  // Which button layout the phones should show: 'normal' or 'plat' (platformer level)
+  layout: 'normal',
+  setLayout(mode) {
+    if (mode === this.layout) return;
+    this.layout = mode;
+    [1, 2].forEach((p) => [0, 500].forEach((ms) => setTimeout(() => this.sendTo(p, { m: 'layout', mode }), ms)));
   },
 
   sendTo(p, msg) {
     const c = this.slots[p];
     if (c && c.open) { try { c.send(msg); } catch (e) {} }
+  },
+
+  // Casting: the phone chose the room code and sent it to the TV; switch this game to that code
+  useRoom(code) {
+    code = String(code).toLowerCase().replace(/[^a-z0-9]/g, '').slice(0, 12);
+    if (!code || code === this.roomCode) return;
+    try { sessionStorage.setItem('sv-room', code); } catch (e) {}
+    if (this.peer) { try { this.peer.destroy(); } catch (e) {} this.peer = null; }
+    document.querySelectorAll('[data-qr]').forEach((b) => { delete b.dataset.made; });
+    this.start();
   },
 
   isConnected(p = 1) { return !!(this.slots[p] && this.slots[p].open); },

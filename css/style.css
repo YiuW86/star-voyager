@@ -100,7 +100,7 @@ p { margin: 0; font-size: 28px; line-height: 1.45; color: var(--text); }
 /* ---------- Level select ---------- */
 .levels { display: flex; gap: 24px; }
 .level-card {
-  --cut: 26px; width: 330px; height: 300px; border: 0; padding: 3px; cursor: pointer; position: relative;
+  --cut: 26px; width: 292px; height: 290px; border: 0; padding: 3px; cursor: pointer; position: relative;
   background: linear-gradient(180deg, var(--cyan), var(--cyan-deep));
   clip-path: polygon(26px 0, calc(100% - 26px) 0, 100% 26px, 100% 100%, 0 100%, 0 26px);
   transition: transform 0.12s ease;
@@ -435,3 +435,15 @@ input[type=range] { width: 100%; accent-color: var(--cyan); height: 40px; }
   .end-stars .star { animation: none; transform: none; }
   .boss-warn { animation: none; }
 }
+
+#screen-game.plat .catches, #screen-game.plat .ammo .pips, #screen-game.plat .ammo .gear-label { display: none; }
+
+/* Shop tabs and star items */
+.shop-tabs { gap: 18px; }
+#shop-wallet { display: flex; align-items: center; gap: 12px; font-size: 34px; font-weight: 600; color: var(--gold); }
+#shop-wallet .star { width: 34px; height: 34px; }
+.item.star-item { border-left-color: var(--gold); background: linear-gradient(90deg, rgba(255, 210, 122, 0.14), rgba(12, 28, 94, 0.92) 40%); }
+.item .btn .star { width: 24px; height: 24px; vertical-align: -4px; }
+
+.seg.lang-seg { flex-wrap: wrap; }
+.seg.lang-seg button { flex: 1 1 30%; height: 54px; font-size: 22px; }
