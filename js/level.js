@@ -1,7 +1,9 @@
 // Level 1 gameplay. Everything is drawn in a 1920x1080 coordinate space.
 (function () {
   const W = 1920, H = 1080;
-  let GOAL = 10;                                     // goal of the level being played
+  let GOAL = 10;                                     // goal of the level being played (largest per kind)
+  let GOALMAP = {};                                  // how many of each kind this level asks for
+  const goalOf = (t) => (GOALMAP[t] != null ? GOALMAP[t] : GOAL);
   // Worlds (environments): background, the (at most 3) kinds of aliens, and the boss of the last level.
   // Every boss is a giant crowned version of an alien that has not been a boss before.
   const LEVELS = {
@@ -22,20 +24,24 @@
     7: { name: 'Skyline Run', bg: 'assets/plat_bgA.jpg', types: [], plat: true, experimental: true },
   };
   // Each world has 10 levels. Levels 1-9 are regular, level 10 ends with the world's boss.
-  // Early levels have fewer kinds of aliens and fewer catches; at most 10 of each kind (so at most 30).
+  // Every level asks for 15 to 20 aliens in total, spread over its kinds of aliens.
+  // Early levels have 2 kinds of aliens, later ones 3; the boss level asks for 15 plus the boss.
   const STAGES = 10;
-  const GOALS = [4, 5, 5, 6, 7, 7, 8, 9, 10, 6];
+  const TOTALS = [15, 15, 16, 16, 17, 17, 18, 19, 20, 15];
   function stageConfig(world, stage) {
     const w = LEVELS[world];
     if (w.plat) return { ...w, world, stage, types: [], goal: 0, boss: null, par: 140, speedMul: 1 };
     const n = w.types.length;
     const typeCount = Math.min(n, stage <= 2 ? 2 : 3);
     const types = w.types.slice(0, typeCount);
-    const goal = Math.min(10, GOALS[stage - 1]);
+    const total = TOTALS[stage - 1];
+    const goals = {};
+    types.forEach((t, i) => { goals[t] = Math.floor(total / types.length) + (i < total % types.length ? 1 : 0); });
+    const goal = Math.max(...Object.values(goals));
     const boss = stage === STAGES ? w.boss : null;
     // target time for 3 stars: about 3 seconds per catch, plus time for the boss
-    const par = Math.round(goal * types.length * 3 + (boss ? boss.hp * 1.8 + 8 : 0));
-    return { ...w, world, stage, types, goal, boss, par, speedMul: 1 + 0.035 * (stage - 1) + 0.04 * (world - 1) };
+    const par = Math.round(total * 3 + (boss ? boss.hp * 1.8 + 8 : 0));
+    return { ...w, world, stage, types, goals, goal, total, boss, par, speedMul: 1 + 0.035 * (stage - 1) + 0.04 * (world - 1) };
   }
 
   // Stars (1-3) for a cleared level: health left counts most, then accuracy, then time
@@ -113,7 +119,7 @@
     images: {},
     load(onProgress) {
       const list = [...Object.entries(LEVELS).map(([id, l]) => ['bg' + id, l.bg]), ...['gun', ...ALL_TYPES].map((k) => [k, SPR[k].src]),
-        ['robot', 'assets/robot.png'], ['blast', 'assets/blast.png'],
+        ['robot', 'assets/robot.png'], ['blast', 'assets/blast.png'], ['drone1', 'assets/drone1.png'], ['drone2', 'assets/drone2.png'],
         ['platA', 'assets/plat_bgA.jpg'], ['platB', 'assets/plat_bgB.jpg'], ['platC', 'assets/plat_bgC.jpg']];
       let done = 0;
       return Promise.all(list.map(([key, src]) => new Promise((resolve, reject) => {
@@ -358,6 +364,7 @@
       this.levelCfg = stageConfig(level, stage);
       TYPES = this.levelCfg.types;
       GOAL = this.levelCfg.goal;
+      GOALMAP = this.levelCfg.goals || {};
       this.types = TYPES; this.goal = GOAL;
       this.menuSuspended = false;
       Input.mode = mode;
@@ -389,7 +396,7 @@
       this.medkitUsed = false;
       this.shake = 0;
       this.boss = null; this.bossDefeated = false;
-      this.reviveUsed = false; this.drone = null;
+      this.reviveUsed = false; this.drones = null;
       this.bubbles = []; this.bubbleT = 0;
       this.slowT = 0; this.waves = [];
       this.promptText = ''; this.promptUntil = 0;
@@ -566,7 +573,7 @@
       const stale = this.players.find((p) => !p.input.poseFresh());
       if (stale) this.setPrompt(stale.input.isCam() ? 'Step into view of the phone camera' : 'Waiting for your phone…', 0.3, stale);
 
-      const goalsDone = TYPES.every((t) => this.caught[t] >= GOAL);
+      const goalsDone = TYPES.every((t) => this.caught[t] >= goalOf(t));
       if (goalsDone && this.levelCfg.boss && !this.boss && !this.bossDefeated) this.spawnBoss();
       if (goalsDone && (!this.levelCfg.boss || this.bossDefeated)) {
         this.state = 'ending'; this.stateT = 0; this.won = true;
@@ -675,7 +682,7 @@
     updateSpawning(dt) {
       this.spawnTimer -= dt;
       if (this.spawnTimer > 0) return;
-      const progress = this.totalCaught() / (GOAL * TYPES.length);
+      const progress = this.totalCaught() / Math.max(1, TYPES.reduce((a, t) => a + goalOf(t), 0));
       const alive = this.monsters.filter((m) => m.state === 'alive').length;
       const maxAlive = 4 + Math.floor(progress * 3);
       if (alive < maxAlive) {
@@ -687,7 +694,7 @@
 
     pickType() {
       // Only spawn types that still need catching, weighted by how many are left
-      const weights = TYPES.map((t) => Math.max(0, GOAL - this.caught[t] - this.monsters.filter((m) => m.type === t && m.state === 'alive').length));
+      const weights = TYPES.map((t) => Math.max(0, goalOf(t) - this.caught[t] - this.monsters.filter((m) => m.type === t && m.state === 'alive').length));
       const total = weights.reduce((a, b) => a + b, 0);
       if (!total) return null;
       let r = Math.random() * total;
@@ -880,40 +887,73 @@
       }
       return Assets.images.gunGold;
     },
-    // Helper drone: floats above Player 1's gun and catches a monster by itself every 10 seconds
+    // Helper drones (star items): each flies around on its own half of the screen and catches an alien
+    // by itself every 10 seconds. It faces you while idle and turns its back to you when it fires.
+    // Sheets: 5x5 frames. Row 1 and 5 = face to you, row 2 = turned to the side, row 3 = back, row 4 = other side.
     updateDrone(dt) {
-      if (!this.owns('helperDrone')) return;
-      const p = this.players[0];
-      if (!this.drone) this.drone = { cd: 6, x: this.gunBase(p) - 260, y: H - 420 };
-      const d = this.drone;
-      d.x = lerp(d.x, this.gunBase(p) - 260, Math.min(1, dt * 3));
-      d.y = H - 420 + Math.sin(this.time * 2.4) * 18;
-      d.cd -= dt;
-      if (d.cd <= 0) {
-        const alive = this.monsters.filter((m) => m.state === 'alive');
-        if (alive.length) {
-          const m = alive.sort((a, b) => b.z - a.z)[0];     // the closest one
-          this.lasers.push({ x1: d.x, y1: d.y, x2: m.px, y2: m.py, t: 0.16, color: '#ffd27a' });
-          Sfx.laser();
-          this.catchMonster(m);
-          d.cd = 10;
-        } else d.cd = 1;
+      const owned = [['helperDrone', 'drone1'], ['droneTwo', 'drone2']].filter(([id]) => this.owns(id));
+      if (!owned.length) return;
+      if (!this.drones) {
+        this.drones = owned.map(([, img], i) => {
+          const zone = i === 0 ? { x0: 220, x1: 860 } : { x0: 1060, x1: 1700 };
+          return { img, zone, x: (zone.x0 + zone.x1) / 2, y: 520, tx: (zone.x0 + zone.x1) / 2, ty: 520,
+                   vx: 0, cd: 5 + i * 5, state: 'idle', t: 0, wander: 0, target: null, animT: rand(0, 3) };
+        });
+      }
+      for (const d of this.drones) {
+        d.t += dt; d.animT += dt;
+        // wander to a new spot now and then (both drones independently)
+        d.wander -= dt;
+        if (d.wander <= 0 && d.state === 'idle') {
+          d.tx = rand(d.zone.x0, d.zone.x1); d.ty = rand(300, 700); d.wander = rand(1.8, 3.6);
+        }
+        const px = d.x;
+        const k = Math.min(1, dt * (d.state === 'idle' ? 1.6 : 0.6));
+        d.x = lerp(d.x, d.tx, k);
+        d.y = lerp(d.y, d.ty, k) + Math.sin(this.time * 2.6 + d.cd) * 0.6;
+        d.vx = (d.x - px) / Math.max(dt, 0.001);
+        d.cd -= dt;
+        if (d.state === 'idle' && d.cd <= 0) {
+          const alive = this.monsters.filter((m) => m.state === 'alive' && !m.droneTarget);
+          if (alive.length) {
+            d.target = alive.sort((a, b) => b.z - a.z)[0];
+            d.target.droneTarget = true;
+            d.state = 'turn'; d.t = 0;               // turn around, back to us, before firing
+          } else d.cd = 1;
+        } else if (d.state === 'turn' && d.t > 0.35) {
+          const m = d.target;
+          if (m && m.state === 'alive') {
+            this.lasers.push({ x1: d.x, y1: d.y - 10, x2: m.px, y2: m.py, t: 0.16, color: d.img === 'drone2' ? '#b99bff' : '#62f0ff' });
+            Sfx.laser();
+            this.catchMonster(m);
+          }
+          d.state = 'fire'; d.t = 0;
+        } else if (d.state === 'fire' && d.t > 0.45) {
+          d.state = 'idle'; d.t = 0; d.cd = 10; d.target = null;
+        }
       }
     },
     drawDrone() {
-      if (!this.drone || !this.owns('helperDrone')) return;
-      const c = this.ctx, d = this.drone;
-      c.save();
-      c.fillStyle = '#e8f7ff'; c.strokeStyle = '#ffd27a'; c.lineWidth = 4;
-      c.beginPath(); c.ellipse(d.x, d.y, 34, 24, 0, 0, Math.PI * 2); c.fill(); c.stroke();
-      c.fillStyle = '#62f0ff';
-      c.beginPath(); c.arc(d.x + 8, d.y - 2, 10, 0, Math.PI * 2); c.fill();
-      c.strokeStyle = '#9fb7e8'; c.lineWidth = 3;
-      c.beginPath(); c.moveTo(d.x - 30, d.y - 26); c.lineTo(d.x + 30, d.y - 26); c.stroke();
-      // recharge ring
-      const k = 1 - Math.max(0, this.drone.cd) / 10;
-      this.ring(d.x, d.y, 44, k, '#ffd27a', 4);
-      c.restore();
+      if (!this.drones) return;
+      const c = this.ctx;
+      for (const d of this.drones) {
+        const img = Assets.images[d.img];
+        if (!img) continue;
+        const meta = d.img === 'drone2' ? { fw: 176, fh: 188 } : { fw: 181, fh: 179 };
+        const step = Math.floor(d.animT * 7) % 5;
+        let row, flip = false;
+        if (d.state !== 'idle') row = 2;                                   // back to us while firing
+        else if (Math.abs(d.vx) > 60) { row = 1; flip = d.vx < 0; }        // moving sideways
+        else row = Math.floor(d.animT / 3) % 2 ? 4 : 0;                    // idle: face to us
+        const h = 150, w = h * meta.fw / meta.fh;
+        c.save();
+        c.translate(d.x, d.y);
+        if (flip) c.scale(-1, 1);
+        c.drawImage(img, step * meta.fw, row * meta.fh, meta.fw, meta.fh, -w / 2, -h / 2, w, h);
+        c.restore();
+        // recharge ring
+        if (d.state === 'idle') this.ring(d.x, d.y + h * 0.58, 16, 1 - Math.max(0, d.cd) / 10, d.img === 'drone2' ? '#b99bff' : '#62f0ff', 4);
+      }
     },
 
     tag(p) { return this.players.length > 1 && p ? `Player ${p.id}: ` : ''; },
@@ -1224,20 +1264,21 @@
     catchMonster(m, netted) {
       m.state = 'dying'; m.t = 0; m.netted = !!netted;
       this.hits++; this.earned += this.crystalValue();
-      if (this.caught[m.type] < GOAL) this.caught[m.type]++;
+      if (this.caught[m.type] < goalOf(m.type)) this.caught[m.type]++;
       this.hud('caught', m.type);
-      if (!netted) Sfx.pop();
-      this.burst(m.px, m.py, SPR[m.type].color, 22);
-      if (this.caught[m.type] === GOAL && !this['done_' + m.type]) { this['done_' + m.type] = true; this.hud('toast', SPR[m.type].name + ' complete!'); }
+      Sfx.digitize();
+      this.burst(m.px, m.py, SPR[m.type].color, 22, true);
+      if (this.caught[m.type] === goalOf(m.type) && !this['done_' + m.type]) { this['done_' + m.type] = true; this.hud('toast', SPR[m.type].name + ' complete!'); }
       this.hud('catch');
     },
 
-    burst(x, y, color, count) {
+    // sq = square "pixel" particles: the alien dissolves into data when it is caught
+    burst(x, y, color, count, sq) {
       if (this.lowFx) count = Math.ceil(count / 2);
       if (this.particles.length > 120) return;
       for (let i = 0; i < count; i++) {
         const a = rand(0, Math.PI * 2), sp = rand(150, 520);
-        this.particles.push({ x, y, vx: Math.cos(a) * sp, vy: Math.sin(a) * sp, life: rand(0.4, 0.8), max: 0.8, r: rand(4, 10), color });
+        this.particles.push({ x, y, vx: Math.cos(a) * sp, vy: Math.sin(a) * sp, life: rand(0.4, 0.8), max: 0.8, r: rand(4, 10), color, sq });
       }
     },
 
@@ -1410,7 +1451,7 @@
       for (const q of this.particles) {
         c.globalAlpha = Math.max(0, q.life / q.max);
         c.fillStyle = q.color;
-        c.beginPath(); c.arc(q.x, q.y, q.r, 0, Math.PI * 2); c.fill();
+        if (q.sq) c.fillRect(q.x - q.r, q.y - q.r, q.r * 2, q.r * 2); else { c.beginPath(); c.arc(q.x, q.y, q.r, 0, Math.PI * 2); c.fill(); }
       }
       for (const l of this.lasers) {
         const a = l.t / 0.16;
@@ -1837,5 +1878,5 @@
     },
   };
 
-  window.SV = { Assets, Input, inputs, Level, SPR, LEVELS, STAGES, stageConfig, starRating, ALL_TYPES, GEAR, TIME_GEAR, SHIELD_MAX, get TYPES() { return TYPES; }, get GOAL() { return GOAL; } };
+  window.SV = { Assets, Input, inputs, Level, SPR, LEVELS, STAGES, stageConfig, starRating, ALL_TYPES, GEAR, TIME_GEAR, SHIELD_MAX, get TYPES() { return TYPES; }, get GOAL() { return GOAL; }, goalOf };
 })();

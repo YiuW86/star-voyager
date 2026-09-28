@@ -2,7 +2,7 @@
 (function () {
   const { Assets, Input, Level, SPR, LEVELS, STAGES, stageConfig, starRating, GEAR, SHIELD_MAX } = window.SV;
   const types = () => window.SV.TYPES;   // monsters of the level being played
-  const goal = () => window.SV.GOAL;
+  const goal = (t) => window.SV.goalOf(t);
   const $ = (s, root = document) => root.querySelector(s);
   const $$ = (s, root = document) => [...root.querySelectorAll(s)];
 
@@ -117,6 +117,8 @@
     'options-back'() { closeOptions(); },
     'skip-cal'() { Level.skipCalibration(); },
     menu() { Level.pause(); },
+    'start-game'() { playIntro(); },
+    'intro-skip'() { endIntro(); },
     'dex-close'() { Dex.hide(); setTimeout(focusFirst, 30); },
     resume() { Level.resume(); },
     restart() { hideOverlays(); startLevel(lastMode, lastWorld, lastStage); },
@@ -264,7 +266,7 @@
       const label = boss ? `Boss: ${cfg.boss.name}` : `Level ${s}`;
       n.innerHTML = (boss ? '<span class="boss-warn">⚠ BOSS</span>' : '')
         + `<div class="hex"><div>${inner}</div></div><div class="node-stars">${starsHtml(stars)}</div><div class="node-label">${label}</div>`;
-      n.setAttribute('aria-label', `${label}${unlocked ? '' : ', locked'}${stars ? `, ${stars} stars` : ''}. Catch ${sc.goal} of each.`);
+      n.setAttribute('aria-label', `${label}${unlocked ? '' : ', locked'}${stars ? `, ${stars} stars` : ''}. Catch ${sc.total} aliens.`);
       n.addEventListener('click', () => chooseStage(w, s));
       map.appendChild(n);
     }
@@ -294,6 +296,7 @@
     { id: 'crystalMagnet', name: 'Crystal magnet', text: 'Every alien you catch gives 2 crystals instead of 1.', price: 4 },
     { id: 'secondChance', name: 'Second chance',   text: 'Once per level: when your health runs out, come back with 50%.', price: 5 },
     { id: 'helperDrone',  name: 'Helper drone',    text: 'A little drone that catches an alien for you every 10 seconds.', price: 8 },
+    { id: 'droneTwo',     name: 'Drone 2',         text: 'A second helper drone that flies and catches aliens on its own.', price: 10 },
   ];
   const totalStars = () => Object.values(save.stages || {}).reduce((a, s) => a + (s.stars || 0), 0);
   const starsLeft = () => totalStars() - (save.starSpent || 0);
@@ -422,7 +425,7 @@
       const d = document.createElement('div');
       d.className = 'catch'; d.dataset.type = t;
       d.style.setProperty('--c', SPR[t].color);
-      d.innerHTML = `<canvas width="132" height="132"></canvas><div><b>0</b><small>/${goal()}</small></div>`;
+      d.innerHTML = `<canvas width="132" height="132"></canvas><div><b>0</b><small>/${goal(t)}</small></div>`;
       Level.drawPortrait($('canvas', d), t);
       catches.appendChild(d);
     }
@@ -459,7 +462,7 @@
         const el = $(`.catch[data-type="${t}"]`);
         if (!el) continue;
         $('b', el).textContent = L.caught[t];
-        el.classList.toggle('done', L.caught[t] >= goal());
+        el.classList.toggle('done', L.caught[t] >= goal(t));
       }
       $('#hud-crystals').textContent = save.crystals + L.earned;
     }
@@ -580,7 +583,7 @@
       tip = { health: 'Tip: take less damage for more stars', accuracy: 'Tip: aim carefully, fewer missed shots give more stars', time: `Tip: be a bit quicker, the target time is ${fmtTime(r.par)}` }[weakest];
     }
     $('#end-tip').textContent = tip;
-    const caught = types().map((t) => `<span>${SPR[t].name}</span><b>${r.caught[t]}/${goal()}</b>`).join('')
+    const caught = types().map((t) => `<span>${SPR[t].name}</span><b>${r.caught[t]}/${goal(t)}</b>`).join('')
       + (r.boss ? `<span>${r.boss.name}</span><b>${r.boss.caught ? 'Caught!' : 'Got away'}</b>` : '');
     $('#end-stats').innerHTML = `
       <span>Time</span><b>${fmtTime(r.time)} <small>(target ${fmtTime(r.par)})</small></b>
@@ -604,6 +607,7 @@
     if (inGame && (e.key === 'r' || e.key === 'R')) { Level.keyReload(); return; }
     if (inGame && ['1', '2', '3', '4'].includes(e.key)) { Level.keyEquipIndex(Number(e.key) - 1); return; }
     if (inGame && (e.key === 'g' || e.key === 'G')) { Level.toggleBelt(); return; }
+    if (current === 'intro' && (e.key === 'Enter' || e.key === ' ')) { e.preventDefault(); endIntro(); return; }
     if (e.key === 'Escape' || e.key === 'p' || e.key === 'P' || e.key === 'Backspace' || e.key === 'GoBack') {
       if (inGame) {
         e.preventDefault();
@@ -613,6 +617,7 @@
       if (current === 'levels' && $('#ov-world').classList.contains('show')) { e.preventDefault(); actions['world-close'](); return; }
       if (current === 'dex' && Dex.detailOpen()) { e.preventDefault(); Dex.hide(); setTimeout(focusFirst, 30); return; }
       if (current === 'options') { e.preventDefault(); closeOptions(); return; }
+      if (current === 'intro') { e.preventDefault(); endIntro(); return; }
       const back = { options: 'start', levels: 'start', shop: 'levels', connect: 'levels', quit: 'start', dex: 'levels', home: 'levels' }[current];
       if (back) { e.preventDefault(); go(back); }
       return;
@@ -628,6 +633,37 @@
     }
   });
   document.addEventListener('pointerdown', () => Sfx.unlock(), { once: false });
+
+  // ---------------- Intro video ----------------
+  // After Start, the intro video plays full screen; when it ends (or Skip is pressed) a bright
+  // warp transition leads to the world screen.
+  let introDone = true;
+  function playIntro() {
+    const v = $('#intro-video');
+    introDone = false;
+    go('intro');
+    try {
+      v.currentTime = 0;
+      v.muted = save.options.sound !== 'on';
+      const p = v.play();
+      if (p && p.catch) p.catch(() => endIntro());          // could not play: go straight on
+    } catch (e) { endIntro(); }
+  }
+  function endIntro() {
+    if (introDone) return;
+    introDone = true;
+    const v = $('#intro-video');
+    const warp = $('#warp');
+    warp.classList.remove('out'); warp.classList.add('in');   // flash in
+    setTimeout(() => {
+      try { v.pause(); } catch (e) {}
+      go('levels');
+      warp.classList.remove('in'); warp.classList.add('out');  // and fade out on the world screen
+      setTimeout(() => warp.classList.remove('out'), 900);
+    }, 450);
+  }
+  $('#intro-video').addEventListener('ended', endIntro);
+  $('#intro-video').addEventListener('error', endIntro);
 
   // ---------------- Hand pointer for menu screens (alien guide) ----------------
   // Uses the phone's aim outside of a level: point at a button and hold to press it.

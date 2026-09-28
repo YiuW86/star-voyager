@@ -308,7 +308,7 @@
           if (Math.abs(b.x - a.x) < 62 && Math.abs(b.y - cy) < 70) {
             a.state = 'dying'; a.t = 0; b.dead = true;
             this.hits++; this.earned += this.crystalValue();
-            Sfx.pop(); this.burst(a.x, cy, SPR[a.type].color, 20);
+            Sfx.digitize(); this.burst(a.x, cy, SPR[a.type].color, 20, true);
             this.hud('caught', a.type); this.hud('catch');
             break;
           }
@@ -404,7 +404,7 @@
       c.globalCompositeOperation = 'lighter';
       for (const q of this.particles) {
         c.globalAlpha = Math.max(0, q.life / q.max); c.fillStyle = q.color;
-        c.beginPath(); c.arc(q.x, q.y, q.r, 0, Math.PI * 2); c.fill();
+        if (q.sq) c.fillRect(q.x - q.r, q.y - q.r, q.r * 2, q.r * 2); else { c.beginPath(); c.arc(q.x, q.y, q.r, 0, Math.PI * 2); c.fill(); }
       }
       c.restore();
       c.restore();

@@ -59,9 +59,11 @@ Controls without the phone (for testing): mouse to aim, click to fire, right-cli
 
 Prism and Vexa throw rocks from a distance. Shoot them down or block them with the shield.
 
+After pressing Start, the intro video (`assets/intro.mp4`) plays full screen, followed by a warp transition to the world screen; Skip (or Enter / Fire on the phone) skips it.
+
 Worlds and levels:
 
-The game has 6 worlds (environments), each with **10 levels**. Levels 1–9 are regular levels; **level 10 ends with the world's boss** and is marked with a pulsing ⚠ BOSS sign. Each world has at most 3 kinds of aliens, and a level asks for at most 10 of each (so at most 30 aliens). Early levels start with 2 kinds and a few catches; later levels bring all 3 kinds, more catches and faster aliens.
+The game has 6 worlds (environments), each with **10 levels**. Levels 1–9 are regular levels; **level 10 ends with the world's boss** and is marked with a pulsing ⚠ BOSS sign. Each world has at most 3 kinds of aliens, and every level asks for **15 to 20 aliens** in total, spread over its kinds (the boss level: 15 plus the boss). Levels 1–2 have 2 kinds; later levels bring all 3 kinds, more catches and faster aliens.
 
 | World | Aliens | Boss |
 |---|---|---|
@@ -90,7 +92,7 @@ Controls: phone **Gamepad** (the phone switches to Jump, Blast, Run and Menu but
 
 ## Star shop
 
-The shop has two tabs. The **Star shop** sells special upgrades paid with the stars earned on levels: Golden blaster (3★), Rainbow lasers (2★), Crystal magnet (4★, 2 crystals per catch), Second chance (5★, once per level come back with 50% health) and Helper drone (8★, catches an alien for you every 10 seconds).
+The shop has two tabs. The **Star shop** sells special upgrades paid with the stars earned on levels: Golden blaster (3★), Rainbow lasers (2★), Crystal magnet (4★, 2 crystals per catch), Second chance (5★, once per level come back with 50% health) and Helper drone (8★) and Drone 2 (10★): two little drones that each fly around on their own and catch an alien for you every 10 seconds. They face you while idle and turn their back to you when they fire.
 
 ## Languages
 

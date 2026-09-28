@@ -28,7 +28,7 @@
   <!-- Start screen: the buttons are part of the artwork; invisible hotspots sit on top -->
   <section id="screen-start" class="screen">
     <img class="fill" src="assets/start-screen.jpg" alt="">
-    <button class="hotspot" id="hs-start" data-go="levels"><span class="sr">Start</span></button>
+    <button class="hotspot" id="hs-start" data-action="start-game"><span class="sr">Start</span></button>
     <button class="hotspot" id="hs-options" data-go="options"><span class="sr">Options</span></button>
     <button class="hotspot" id="hs-quit" data-action="quit"><span class="sr">Quit</span></button>
     <div class="start-connect" id="start-connect">
@@ -39,6 +39,12 @@
         <div class="code small-code" data-room-code>······</div>
       </div>
     </div>
+  </section>
+
+  <!-- Intro video after pressing Start -->
+  <section id="screen-intro" class="screen intro">
+    <video id="intro-video" src="assets/intro.mp4" playsinline preload="auto"></video>
+    <button class="btn small intro-skip" data-action="intro-skip"><span>Skip</span></button>
   </section>
 
   <!-- Level select -->
@@ -230,6 +236,9 @@
       </div>
     </div>
   </section>
+
+  <!-- Transition flash between the intro and the world screen -->
+  <div id="warp" aria-hidden="true"></div>
 
   <!-- Hand cursor for menus while paused or at the end of a level -->
   <div id="menu-cursor" aria-hidden="true"></div>
