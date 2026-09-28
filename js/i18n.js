@@ -177,12 +177,12 @@
       'Croix pour bouger (pousse loin pour courir), JUMP pour sauter, Blast pour tirer',
       'Cruceta para moverte (empuja al fondo para correr), JUMP para saltar, Blast para disparar',
       'Direcional para andar (empurra até ao fim para correr), JUMP para saltar, Blast para disparar'],
-    'Level 6 needs the Gamepad on your phone (or a keyboard)': [
-      'Level 6 speel je met de Gamepad op je telefoon (of een toetsenbord)',
-      'Level 6 brauchst du das Gamepad auf dem Handy (oder eine Tastatur)',
-      'Le niveau 6 se joue avec la Manette du téléphone (ou un clavier)',
-      'El nivel 6 necesita el Mando del móvil (o un teclado)',
-      'O nível 6 precisa do Comando no telemóvel (ou de um teclado)'],
+    'The extra level needs the Gamepad on your phone (or a keyboard)': [
+      'Het extra level speel je met de Gamepad op je telefoon (of een toetsenbord)',
+      'Für das Extra-Level brauchst du das Gamepad auf dem Handy (oder eine Tastatur)',
+      'Le niveau bonus se joue avec la Manette du téléphone (ou un clavier)',
+      'El nivel extra necesita el Mando del móvil (o un teclado)',
+      'O nível extra precisa do Comando no telemóvel (ou de um teclado)'],
     // Shop items
     'Bigger magazine': ['Groter magazijn', 'Größeres Magazin', 'Chargeur plus grand', 'Cargador más grande', 'Carregador maior'],
     '12 shots before reloading instead of 8.': ['12 schoten voor het herladen in plaats van 8.', '12 Schüsse vor dem Nachladen statt 8.', '12 tirs avant de recharger au lieu de 8.', '12 disparos antes de recargar en vez de 8.', '12 tiros antes de recarregar em vez de 8.'],
@@ -237,7 +237,7 @@
     'Drag any button or the d-pad to where you want it': ['Sleep een knop of de d-pad naar waar jij hem wilt', 'Zieh jeden Knopf oder das Steuerkreuz dahin, wo du es willst', 'Fais glisser un bouton ou la croix où tu veux', 'Arrastra cualquier botón o la cruceta adonde quieras', 'Arrasta qualquer botão ou o direcional para onde quiseres'],
     'Turn your phone sideways': ['Draai je telefoon op zijn kant', 'Dreh dein Handy quer', 'Tourne ton téléphone', 'Gira el móvil en horizontal', 'Vira o telemóvel na horizontal'],
     'The gamepad works in landscape: d-pad on the left, Fire on the right.': ['De gamepad werkt liggend: d-pad links, Fire rechts.', 'Das Gamepad funktioniert quer: Steuerkreuz links, Fire rechts.', "La manette fonctionne à l'horizontale : croix à gauche, Fire à droite.", 'El mando funciona en horizontal: cruceta a la izquierda, Fire a la derecha.', 'O comando funciona na horizontal: direcional à esquerda, Fire à direita.'],
-    'Level 6 is a platformer: choose Gamepad to play it.': ['Level 6 is een platformspel: kies Gamepad om het te spelen.', 'Level 6 ist ein Jump-and-Run: wähle Gamepad.', 'Le niveau 6 est un jeu de plateforme : choisis Manette.', 'El nivel 6 es de plataformas: elige Mando.', 'O nível 6 é de plataformas: escolhe Comando.'],
+    'The extra level is a platformer: choose Gamepad to play it.': ['Het extra level is een platformspel: kies Gamepad om het te spelen.', 'Das Extra-Level ist ein Jump-and-Run: wähle Gamepad.', 'Le niveau bonus est un jeu de plateforme : choisis Manette.', 'El nivel extra es de plataformas: elige Mando.', 'O nível extra é de plataformas: escolhe Comando.'],
     'Start on the TV': ['Start op de tv', 'Auf dem Fernseher starten', 'Lancer sur la télé', 'Empezar en la tele', 'Começar na televisão'],
     'For Google TV, Android TV and Chromecast: the game opens on the TV by itself.': ['Voor Google TV, Android TV en Chromecast: het spel opent vanzelf op de tv.', 'Für Google TV, Android TV und Chromecast: das Spiel öffnet sich von selbst auf dem Fernseher.', 'Pour Google TV, Android TV et Chromecast : le jeu s\'ouvre tout seul sur la télé.', 'Para Google TV, Android TV y Chromecast: el juego se abre solo en la tele.', 'Para Google TV, Android TV e Chromecast: o jogo abre sozinho na televisão.'],
     'or': ['of', 'oder', 'ou', 'o', 'ou'],
@@ -245,6 +245,9 @@
     'Opening the game on the TV…': ['Het spel wordt op de tv geopend…', 'Das Spiel wird auf dem Fernseher geöffnet…', 'Ouverture du jeu sur la télé…', 'Abriendo el juego en la tele…', 'A abrir o jogo na televisão…'],
     'Could not start the game on the TV': ['Het spel kon niet op de tv starten', 'Das Spiel konnte nicht auf dem Fernseher starten', 'Impossible de lancer le jeu sur la télé', 'No se pudo abrir el juego en la tele', 'Não foi possível abrir o jogo na televisão'],
     'Enter the code shown on the TV, or scan the QR code on the TV to fill it in automatically.': ['Vul de code van de tv in, of scan de QR-code op de tv om hem automatisch in te vullen.', 'Gib den Code vom Fernseher ein oder scanne den QR-Code, um ihn automatisch auszufüllen.', 'Saisis le code affiché sur la télé, ou scanne le QR code pour le remplir automatiquement.', 'Escribe el código de la tele o escanea el código QR para rellenarlo automáticamente.', 'Escreve o código da televisão ou lê o código QR para o preencher automaticamente.'],
+    'Extra level': ['Extra level', 'Extra-Level', 'Niveau bonus', 'Nivel extra', 'Nível extra'],
+    'Starfall Wetlands': ['Sterrenval-moeras', 'Sternfall-Sumpf', 'Marais des Étoiles', 'Pantano Estelar', 'Pântano Estelar'],
+    'Unlock all levels': ['Alle levels openen', 'Alle Level freischalten', 'Débloquer tous les niveaux', 'Desbloquear todos los niveles', 'Desbloquear todos os níveis'],
     'Level 6 clear': ['Level 6 gehaald', 'Level 6 geschafft', 'Niveau 6 réussi', 'Nivel 6 superado', 'Nível 6 concluído'],
   };
 
@@ -255,7 +258,7 @@
     [/^Boss: (.+)$/, ['Baas: $1', 'Boss: $1', 'Boss : $1', 'Jefe: $1', 'Chefe: $1']],
     [/^Clear (.+) first$/, ['Haal eerst $1', 'Schaffe zuerst $1', "Termine d'abord $1", 'Supera antes $1', 'Conclui primeiro $1']],
     [/^(.+) cleared!$/, ['$1 gehaald!', '$1 geschafft!', '$1 terminé !', '¡$1 superado!', '$1 concluído!']],
-    [/^Experimental · Level 6$/, ['Experimenteel · Level 6', 'Experimentell · Level 6', 'Expérimental · Niveau 6', 'Experimental · Nivel 6', 'Experimental · Nível 6']],
+
     [/^Discovered (\d+)\/(\d+)$/, ['Ontdekt $1/$2', 'Entdeckt $1/$2', 'Découverts $1/$2', 'Descubiertos $1/$2', 'Descobertos $1/$2']],
     [/^Tip: be a bit quicker, the target time is (.+)$/, ['Tip: wees iets sneller, de doeltijd is $1', 'Tipp: sei etwas schneller, die Zielzeit ist $1', 'Astuce : sois un peu plus rapide, le temps visé est $1', 'Consejo: sé un poco más rápido, el tiempo objetivo es $1', 'Dica: sê um pouco mais rápido, o tempo alvo é $1']],
     [/^\(target (.+)\)$/, ['(doel $1)', '(Ziel $1)', '(objectif $1)', '(objetivo $1)', '(alvo $1)']],

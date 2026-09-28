@@ -2,38 +2,40 @@
 (function () {
   const W = 1920, H = 1080;
   let GOAL = 10;                                     // goal of the level being played
-  // Levels: background, which monsters appear, and how many of each to catch
+  // Worlds (environments): background, the (at most 3) kinds of aliens, and the boss of the last level.
+  // Every boss is a giant crowned version of an alien that has not been a boss before.
   const LEVELS = {
-    // boss: appears when all goals are reached; a giant crowned version of one of the level's monsters
-    1: { name: 'Crystal Shores',  bg: 'assets/level1.jpg', types: ['nebula', 'prism', 'solara', 'glide', 'vexa'], goal: 10,
+    1: { name: 'Crystal Shores', bg: 'assets/level1.jpg', types: ['nebula', 'prism', 'solara'],
          boss: { name: 'King Nebula', sprite: 'nebula', hp: 20 } },
-    2: { name: 'Glowwood Forest', bg: 'assets/level2.jpg', types: ['pulsar', 'ember'], goal: 15,
-         boss: { name: 'Ember Lord', sprite: 'ember', hp: 26 } },
-    // Underwater: aliens swim, bubbles rise, and after the goal the boss appears
-    3: { name: 'Sunken Lagoon', bg: 'assets/level3.jpg', types: ['nimbus', 'echo', 'splash'], goal: 10, underwater: true,
-         boss: { name: 'Tidequeen', sprite: 'splash', hp: 30 } },
-    // Levels 4 and 5 reuse the aliens of levels 1-3; each boss is an alien that was not a boss before
-    4: { name: 'Sunfire Dunes', bg: 'assets/level4.jpg', types: ['solara', 'prism', 'vexa', 'pulsar'], goal: 10,
+    2: { name: 'Glowwood Forest', bg: 'assets/level2.jpg', types: ['pulsar', 'ember', 'glide'],
+         boss: { name: 'Ember Lord', sprite: 'ember', hp: 24 } },
+    // Underwater: aliens swim and bubbles rise
+    3: { name: 'Sunken Lagoon', bg: 'assets/level3.jpg', types: ['nimbus', 'splash', 'echo'], underwater: true,
+         boss: { name: 'Tidequeen', sprite: 'splash', hp: 28 } },
+    4: { name: 'Sunfire Dunes', bg: 'assets/level4.jpg', types: ['vexa', 'solara', 'prism'],
          boss: { name: 'Prism Empress', sprite: 'prism', hp: 32 } },
-    5: { name: 'Moonlit Cavern', bg: 'assets/level5.jpg', types: ['nimbus', 'echo', 'glide', 'nebula'], goal: 10,
+    5: { name: 'Moonlit Cavern', bg: 'assets/level5.jpg', types: ['glide', 'nebula', 'echo'],
          boss: { name: 'Echo Monarch', sprite: 'echo', hp: 36 } },
-    // Experimental: a side-scrolling platformer level (see js/platformer.js)
-    6: { name: 'Skyline Run', bg: 'assets/plat_bgA.jpg', types: [], goal: 0, plat: true, experimental: true },
+    6: { name: 'Starfall Wetlands', bg: 'assets/level6.jpg', types: ['orbita', 'razor', 'vortex'],
+         boss: { name: 'Vortex King', sprite: 'vortex', hp: 40 } },
+    // Extra: the experimental side-scrolling platformer level (see js/platformer.js)
+    7: { name: 'Skyline Run', bg: 'assets/plat_bgA.jpg', types: [], plat: true, experimental: true },
   };
-  // Each world (environment) has 5 levels. Levels 1-4 are regular, level 5 ends with the world's boss.
-  // Later levels bring more alien types, more catches and faster aliens.
-  const STAGES = 5;
+  // Each world has 10 levels. Levels 1-9 are regular, level 10 ends with the world's boss.
+  // Early levels have fewer kinds of aliens and fewer catches; at most 10 of each kind (so at most 30).
+  const STAGES = 10;
+  const GOALS = [4, 5, 5, 6, 7, 7, 8, 9, 10, 6];
   function stageConfig(world, stage) {
     const w = LEVELS[world];
     if (w.plat) return { ...w, world, stage, types: [], goal: 0, boss: null, par: 140, speedMul: 1 };
     const n = w.types.length;
-    const typeCount = n <= 2 ? n : Math.min(n, stage === 1 ? 2 : stage === 2 ? 3 : n);
+    const typeCount = Math.min(n, stage <= 2 ? 2 : 3);
     const types = w.types.slice(0, typeCount);
-    const goal = Math.round([4, 5, 6, 8, 6][stage - 1] * w.goal / 10);
+    const goal = Math.min(10, GOALS[stage - 1]);
     const boss = stage === STAGES ? w.boss : null;
     // target time for 3 stars: about 3 seconds per catch, plus time for the boss
     const par = Math.round(goal * types.length * 3 + (boss ? boss.hp * 1.8 + 8 : 0));
-    return { ...w, world, stage, types, goal, boss, par, speedMul: 1 + 0.07 * (stage - 1) + 0.04 * (world - 1) };
+    return { ...w, world, stage, types, goal, boss, par, speedMul: 1 + 0.035 * (stage - 1) + 0.04 * (world - 1) };
   }
 
   // Stars (1-3) for a cleared level: health left counts most, then accuracy, then time
@@ -46,7 +48,7 @@
     return { stars: score >= 0.85 ? 3 : score >= 0.6 ? 2 : 1, score, parts: { health: hp, accuracy: acc, time: tm } };
   }
 
-  const ALL_TYPES = ['nebula', 'prism', 'solara', 'glide', 'vexa', 'pulsar', 'ember', 'nimbus', 'echo', 'splash'];
+  const ALL_TYPES = ['nebula', 'prism', 'solara', 'glide', 'vexa', 'pulsar', 'ember', 'nimbus', 'echo', 'splash', 'razor', 'orbita', 'vortex'];
   let TYPES = LEVELS[1].types;                       // types of the level being played
   const DWELL_TIME = 0.45;       // seconds the circle must rest on a target to fire the blaster
   const SHOT_COOLDOWN = 0.28;
@@ -91,6 +93,10 @@
     nimbus: { src: 'assets/nimbus.png', fw: 266, fh: 243, front: [0, 1], push: [5], side: [3, 4, 9, 7], color: '#8fd8ff', name: 'Nimbus', speed: [8, 10], swim: 'jelly' },
     echo:   { src: 'assets/echo.png',   fw: 278, fh: 255, front: [0, 5, 10, 5], side: [2, 3, 8, 9], color: '#c79bff', name: 'Echo', speed: [7, 9], swim: 'glide', thrower: true },
     splash: { src: 'assets/splash.png', fw: 265, fh: 246, front: [0, 12], push: [5, 14], side: [3, 4, 9, 7], color: '#ff9ad8', name: 'Splash', speed: [7.5, 9.5], swim: 'jelly' },
+    // Starfall Wetlands: Razor scuttles fast and throws spikes, Orbita glides like a little planet, Vortex spins toward you in bursts
+    razor:  { src: 'assets/razor.png',  fw: 248, fh: 238, front: [0, 12, 6, 12], side: [5, 11, 3], color: '#c79bff', name: 'Razor', speed: [6, 7.5], thrower: true },
+    orbita: { src: 'assets/orbita.png', fw: 235, fh: 263, front: [0, 4, 8, 4],   side: [6, 5, 11], color: '#9fd8ff', name: 'Orbita', speed: [8, 10], swim: 'glide' },
+    vortex: { src: 'assets/vortex.png', fw: 275, fh: 244, front: [0, 12, 8, 12], side: [5, 14, 9], color: '#ff8ad8', name: 'Vortex', speed: [7, 9], pulse: true, thrower: true },
     ember:  { src: 'assets/ember.png',  fw: 244, fh: 260, front: [0, 5, 0, 7],    side: [3, 6, 11, 12], color: '#ff9a6a', name: 'Ember', speed: [6.5, 8], thrower: true },
   };
   // Gun frames ordered from pointing far left to pointing far right

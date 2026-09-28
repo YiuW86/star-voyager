@@ -66,7 +66,7 @@ function openConn(code) {
       layout = d.mode;
       applyPadMap();
       if (mode === 'tilt' || mode === 'cam') {
-        const note = layout === 'plat' ? 'Level 6 is a platformer: choose Gamepad to play it.' : '';
+        const note = layout === 'plat' ? 'The extra level is a platformer: choose Gamepad to play it.' : '';
         if (note) setConn('on', note);
       }
     }

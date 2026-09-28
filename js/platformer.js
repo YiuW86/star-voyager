@@ -137,7 +137,7 @@
           this.state = 'play'; this.stateT = 0; this.hud('go');
           const msg = inp.mode === 'mouse' ? 'Arrows or A/D to move, Shift to run, Space to jump, J or click to blast'
             : inp.device === 'pad' ? 'D-pad to move (push far to run), JUMP to jump, Blast to shoot'
-            : 'Level 6 needs the Gamepad on your phone (or a keyboard)';
+            : 'The extra level needs the Gamepad on your phone (or a keyboard)';
           this.setPrompt(msg, 5);
         }
         inp.takeEvents();
@@ -172,7 +172,7 @@
       const p = this.pl;
       const target = clamp(p.x - W * 0.38, 0, this.sec.w - W);
       this.camX = lerp(this.camX, target, Math.min(1, dt * 8));
-      if (this.platDeviceWarn) this.setPrompt('Level 6 needs the Gamepad on your phone (or a keyboard)', 0.3);
+      if (this.platDeviceWarn) this.setPrompt('The extra level needs the Gamepad on your phone (or a keyboard)', 0.3);
     },
 
     platInputX(inp) {

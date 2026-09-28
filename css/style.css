@@ -100,7 +100,7 @@ p { margin: 0; font-size: 28px; line-height: 1.45; color: var(--text); }
 /* ---------- Level select ---------- */
 .levels { display: flex; gap: 24px; }
 .level-card {
-  --cut: 26px; width: 292px; height: 290px; border: 0; padding: 3px; cursor: pointer; position: relative;
+  --cut: 26px; width: 250px; height: 262px; border: 0; padding: 3px; cursor: pointer; position: relative;
   background: linear-gradient(180deg, var(--cyan), var(--cyan-deep));
   clip-path: polygon(26px 0, calc(100% - 26px) 0, 100% 26px, 100% 100%, 0 100%, 0 26px);
   transition: transform 0.12s ease;
@@ -447,3 +447,16 @@ input[type=range] { width: 100%; accent-color: var(--cyan); height: 40px; }
 
 .seg.lang-seg { flex-wrap: wrap; }
 .seg.lang-seg button { flex: 1 1 30%; height: 54px; font-size: 22px; }
+
+/* 10 levels per world: smaller level hexagons */
+.stage-node .hex { width: 132px; height: 132px; }
+.stage-node .hex > div { font-size: 48px; }
+.stage-node.boss .hex { width: 172px; height: 172px; }
+.stage-node.boss .hex > div { font-size: 44px; }
+.stage-node .node-stars .star { width: 24px; height: 24px; }
+.stage-node .node-label { font-size: 19px; }
+.boss-crown { width: 50px; height: 32px; }
+.levels { gap: 16px; }
+.level-card .label { padding: 12px 14px; }
+.level-card .label b { font-size: 24px; }
+.level-card .label small { font-size: 16px; }

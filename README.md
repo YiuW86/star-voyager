@@ -61,19 +61,30 @@ Prism and Vexa throw rocks from a distance. Shoot them down or block them with t
 
 Worlds and levels:
 
-The game has 5 worlds (environments): Crystal Shores, Glowwood Forest, Sunken Lagoon, Sunfire Dunes and Moonlit Cavern. Choosing a world opens its map with **5 levels**. Levels 1–4 are regular levels; **level 5 ends with the world's boss** (King Nebula, Ember Lord, Tidequeen, Prism Empress, Echo Monarch) and is marked with a pulsing ⚠ BOSS sign. Later levels bring more alien types, more catches and faster aliens.
+The game has 6 worlds (environments), each with **10 levels**. Levels 1–9 are regular levels; **level 10 ends with the world's boss** and is marked with a pulsing ⚠ BOSS sign. Each world has at most 3 kinds of aliens, and a level asks for at most 10 of each (so at most 30 aliens). Early levels start with 2 kinds and a few catches; later levels bring all 3 kinds, more catches and faster aliens.
 
-A level can only be played when the level before it is cleared, and a world only opens when every level of the previous world is cleared.
+| World | Aliens | Boss |
+|---|---|---|
+| Crystal Shores | Nebula, Prism, Solara | King Nebula |
+| Glowwood Forest | Pulsar, Ember, Glide | Ember Lord |
+| Sunken Lagoon | Nimbus, Splash, Echo | Tidequeen |
+| Sunfire Dunes | Vexa, Solara, Prism | Prism Empress |
+| Moonlit Cavern | Glide, Nebula, Echo | Echo Monarch |
+| Starfall Wetlands | Orbita, Razor, Vortex | Vortex King |
 
-Every cleared level earns **1 to 3 stars**, based on health left (counts most), accuracy and time compared with the level's target time. The best result is kept, and the world card shows the stars collected (out of 15). The end screen gives a tip on how to get more stars, and **Next level** goes straight on.
+The **Skyline Run** card is the extra (experimental) platformer level.
 
-World settings (background, aliens, boss) are in `LEVELS` at the top of `js/level.js`; how the 5 levels of a world get harder is in `stageConfig`, and the star rules in `starRating`.
+A level can only be played when the level before it is cleared, and a world only opens when every level of the previous world is cleared. **Options → Unlock all levels** opens everything.
+
+Every cleared level earns **1 to 3 stars**, based on health left (counts most), accuracy and time compared with the level's target time. The best result is kept, and the world card shows the stars collected (out of 30). The end screen gives a tip on how to get more stars, and **Next level** goes straight on.
+
+World settings (background, aliens, boss) are in `LEVELS` at the top of `js/level.js`; how the 10 levels of a world get harder is in `GOALS` and `stageConfig`, and the star rules in `starRating`.
 
 Every boss is a giant, crowned version of one of the level's monsters. Blaster hits fill 1 point of the boss bar, net grenades 4. Boss strength per level is the `hp` value in `LEVELS` in `js/level.js`.
 
-## Level 6 (experimental platformer)
+## Extra level: Skyline Run (experimental platformer)
 
-The sixth card on the world screen, **Skyline Run**, is a side-scrolling platformer. The robot runs from left to right through three backgrounds (the dome base, the floating rocks and the crystal pillar); a glowing portal at the end of each one leads to the next. On the floating rocks you have to jump from rock to rock, and at the end jump from the last rock into the portal. The level ends at the great crystal. Aliens walk or float toward you and throw glowing orbs; blast them (or their orbs) to catch them.
+The last card on the world screen, **Skyline Run**, is a side-scrolling platformer. The robot runs from left to right through three backgrounds (the dome base, the floating rocks and the crystal pillar); a glowing portal at the end of each one leads to the next. On the floating rocks you have to jump from rock to rock, and at the end jump from the last rock into the portal. The level ends at the great crystal. Aliens walk or float toward you and throw glowing orbs; blast them (or their orbs) to catch them.
 
 Controls: phone **Gamepad** (the phone switches to Jump, Blast, Run and Menu buttons automatically; push the d-pad far to run), or keyboard: arrows or A/D to move, Shift to run, Space to jump, J or a click to blast. Platforms, aliens and portals are set in `SECTIONS` at the top of `js/platformer.js`.
 

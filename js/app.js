@@ -14,9 +14,16 @@
     stages: {},     // 'w1s3' -> { stars, time } for every cleared level
     dex: {},        // alien id -> times caught (all time)
     dexNew: {},     // aliens caught but not yet viewed in the guide
-    options: { sound: 'on', assist: 2, hand: 'right', sens: 1, smoothing: 'normal', quality: 'auto', fps: 'off' },
+    options: { sound: 'on', assist: 2, hand: 'right', sens: 1, smoothing: 'normal', quality: 'auto', fps: 'off', unlockAll: 'off' },
   };
   let save = load();
+  // Older saves: the extra platformer level used to be world 6 (now world 7)
+  if (!save.v2) {
+    const st = save.stages || {};
+    if (st.w6s1) { st.w7s1 = st.w6s1; delete st.w6s1; }
+    save.v2 = true;
+    try { localStorage.setItem('starvoyager.save', JSON.stringify(save)); } catch (e) {}
+  }
 
   function load() {
     try {
@@ -163,8 +170,10 @@
   const stageStars = (w, s) => ((save.stages || {})[key(w, s)] || {}).stars || 0;
   const stageCleared = (w, s) => stageStars(w, s) > 0;
   const worldCleared = (w) => Array.from({ length: STAGES }, (_, i) => i + 1).every((s) => stageCleared(w, s));
-  const worldUnlocked = (w) => w === WORLD_IDS[0] || !!LEVELS[w].experimental || worldCleared(w - 1);
-  const stageUnlocked = (w, s) => worldUnlocked(w) && (s === 1 || stageCleared(w, s - 1));
+  // Options → "Unlock all levels" opens everything (handy for testing or for younger players)
+  const unlockAll = () => save.options.unlockAll === 'on';
+  const worldUnlocked = (w) => unlockAll() || w === WORLD_IDS[0] || !!LEVELS[w].experimental || worldCleared(w - 1);
+  const stageUnlocked = (w, s) => unlockAll() || (worldUnlocked(w) && (s === 1 || stageCleared(w, s - 1)));
   const worldStars = (w) => Array.from({ length: STAGES }, (_, i) => stageStars(w, i + 1)).reduce((a, b) => a + b, 0);
   function nextStage(w, s) {
     if (LEVELS[w].plat || (LEVELS[w + 1] && LEVELS[w + 1].experimental && s === STAGES)) return null;
@@ -189,7 +198,7 @@
       b.disabled = !open;
       b.dataset.world = w;
       const maxStars = cfg.plat ? 3 : STAGES * 3;
-      const sub = cfg.experimental ? `<small>Experimental · Level 6</small><span class="card-stars">${starSvg(true)} ${worldStars(w)}/${maxStars}</span>`
+      const sub = cfg.experimental && open ? `<small>Extra level</small><span class="card-stars">${starSvg(true)} ${worldStars(w)}/${maxStars}</span>`
         : open ? `<span class="card-stars">${starSvg(true)} ${worldStars(w)}/${maxStars}</span>` : `<small>Clear ${LEVELS[w - 1].name} first</small>`;
       b.innerHTML = `<div class="face"><img src="${cfg.bg}" alt="">${open ? '' : LOCK_SVG}<div class="label"><b>${cfg.name}</b>${sub}</div></div>`;
       b.setAttribute('aria-label', open ? `${cfg.name}, ${worldStars(w)} of ${STAGES * 3} stars` : `${cfg.name}, locked`);
@@ -202,7 +211,8 @@
 
   // Opening a world: its background zooms in and the 5 levels pop out of the centre along a dotted path
   let openWorldId = null;
-  const NODE_POS = [[300, 640], [630, 500], [960, 650], [1290, 500], [1610, 590]];
+  // 10 levels along a winding path across the screen (the boss level last, on the right)
+  const NODE_POS = Array.from({ length: 10 }, (_, i) => [170 + i * 176, Math.round(610 + Math.sin(i * 1.15) * 125)]);
   // A flowing, curved path through the levels: extra bends between the levels, then a smooth
   // curve (Catmull-Rom) through all points
   function smoothPath(nodes) {
@@ -268,7 +278,7 @@
       $$('#stage-map .stage-node').forEach((n) => { n.style.transitionDelay = '0s'; });
       const firstOpen = $$('#stage-map .stage-node:not([disabled])').pop();
       if (firstOpen) firstOpen.focus({ preventScroll: true });
-    }, 900);
+    }, 1800);
   }
 
   function fmtTime(s) {
@@ -561,7 +571,7 @@
     persist();
     $('#prompt').classList.remove('show');
     const cfgName = LEVELS[r.world].name;
-    $('#end-title').textContent = !r.won ? 'Your shields are down' : LEVELS[r.world].plat ? 'Level 6 clear' : r.stage === STAGES ? `${cfgName} cleared!` : `Level ${r.stage} clear`;
+    $('#end-title').textContent = !r.won ? 'Your shields are down' : LEVELS[r.world].plat ? `${cfgName} cleared!` : r.stage === STAGES ? `${cfgName} cleared!` : `Level ${r.stage} clear`;
     $('#end-stars').innerHTML = r.won ? starsHtml(rating.stars) : '';
     // A friendly tip on what would give more stars
     let tip = '';
