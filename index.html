@@ -57,6 +57,8 @@
         <button class="btn" data-go="start"><span>Back</span></button>
         <button class="btn" data-go="home"><span>Home</span></button>
         <button class="btn pink" data-go="shop"><span>Shop</span></button>
+        <button class="btn" data-go="workshop" data-from="levels"><span>Workshop</span></button>
+        <button class="btn pink" data-go="goals"><span>Goals</span><i class="goal-dot" id="goal-dot"></i></button>
         <button class="btn" data-go="dex"><span>Alien guide</span></button>
         <button class="btn" data-action="connect"><span>Connect phone</span></button>
       </div>
@@ -81,7 +83,26 @@
   <!-- Home base (for now only the picture; more will be added later) -->
   <section id="screen-home" class="screen">
     <img class="fill" src="assets/home.jpg" alt="Your home base">
-    <button class="btn small home-back" data-go="levels"><span>Back</span></button>
+    <div class="home-top">
+      <button class="btn small" data-go="levels"><span>Back</span></button>
+      <div class="base-level" id="base-level"></div>
+      <div class="inventory home-inv" id="home-inv"></div>
+    </div>
+    <div id="buildings"></div>
+    <div class="overlay" id="ov-base">
+      <div class="panel base-panel"><div class="inner" id="base-panel"></div></div>
+    </div>
+  </section>
+
+  <!-- Workshop: upgrade your gear with crystals, materials and boss trophies -->
+  <section id="screen-workshop" class="screen dim-bg">
+    <img class="fill" src="assets/home.jpg" alt="">
+    <div class="center-col workshop">
+      <h1 class="title">Workshop</h1>
+      <div class="inventory" id="inventory"></div>
+      <div class="upgrades" id="upgrades"></div>
+      <button class="btn" data-action="workshop-back"><span>Back</span></button>
+    </div>
   </section>
 
   <!-- Shop -->
@@ -116,6 +137,22 @@
         <div class="dex-detail" id="dex-detail"></div>
         <div class="row"><button class="btn pink" data-action="dex-close"><span>Back to the guide</span></button></div>
       </div></div>
+    </div>
+  </section>
+
+  <!-- Goals: daily/weekly missions and achievements -->
+  <section id="screen-goals" class="screen dim-bg">
+    <img class="fill" src="assets/level1.jpg" alt="">
+    <div class="goals-wrap">
+      <header class="goals-head">
+        <button class="btn small" data-go="levels"><span>Back</span></button>
+        <h1 class="title">Goals</h1>
+        <div class="goals-count" id="ach-count"></div>
+      </header>
+      <div class="goals-cols">
+        <div class="missions" id="missions"></div>
+        <div class="achievements" id="achievements"></div>
+      </div>
     </div>
   </section>
 
@@ -198,6 +235,8 @@
       <div class="fps" id="fps"></div>
       <div class="prompt" id="prompt"></div>
       <div class="toast" id="toast"></div>
+      <div class="score-box"><div class="score" id="score">0</div><div class="combo" id="combo"></div></div>
+      <div class="mats-hud" id="mats-hud"></div>
     </div>
 
     <div class="overlay" id="ov-calibrate">
@@ -226,6 +265,7 @@
       <div class="center-col">
         <h1 class="title" id="end-title">Level clear</h1>
         <div class="end-stars" id="end-stars"></div>
+        <div class="end-score" id="end-score"></div>
         <p class="end-tip" id="end-tip"></p>
         <div class="stats" id="end-stats"></div>
         <div class="row">

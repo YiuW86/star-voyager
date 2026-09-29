@@ -1,6 +1,6 @@
 // Screens, menus, shop, options, saving and the connection between UI and gameplay.
 (function () {
-  const { Assets, Input, Level, SPR, LEVELS, STAGES, stageConfig, starRating, GEAR, SHIELD_MAX } = window.SV;
+  const { Assets, Input, Level, SPR, LEVELS, STAGES, stageConfig, starRating, GEAR, TROPHIES } = window.SV;
   const types = () => window.SV.TYPES;   // monsters of the level being played
   const goal = (t) => window.SV.goalOf(t);
   const $ = (s, root = document) => root.querySelector(s);
@@ -9,6 +9,10 @@
   // ---------------- Save data ----------------
   const DEFAULT_SAVE = {
     crystals: 10,
+    mats: { shard: 0, goo: 0, dust: 0 },   // materials dropped by aliens
+    trophies: {},                           // boss trophies
+    upg: { blaster: 1, net: 1, shield: 1 }, // Workshop upgrade levels
+    base: {},                               // Home base building levels (+ sanctuary timer)
     owned: {},
     best: {},
     stages: {},     // 'w1s3' -> { stars, time } for every cleared level
@@ -22,8 +26,12 @@
     const st = save.stages || {};
     if (st.w6s1) { st.w7s1 = st.w6s1; delete st.w6s1; }
     save.v2 = true;
-    try { localStorage.setItem('starvoyager.save', JSON.stringify(save)); } catch (e) {}
   }
+  if (!save.mats) save.mats = { shard: 0, goo: 0, dust: 0 };
+  if (!save.trophies) save.trophies = {};
+  if (!save.upg) save.upg = { blaster: 1, net: 1, shield: 1 };
+  if (!save.base) save.base = {};
+  try { localStorage.setItem('starvoyager.save', JSON.stringify(save)); } catch (e) {}
 
   function load() {
     try {
@@ -68,6 +76,11 @@
     if (name === 'levels') renderLevels();
     if (name === 'connect') { Net.start(); Net.renderQr(); updatePhoneUi(); }
     if (name === 'dex') { Dex.hide(); Dex.render(); }
+    if (name === 'workshop') renderWorkshop();
+    if (name === 'home') renderHome();
+    if (name === 'goals') renderGoals();
+    if (name === 'levels') Progress.updateDot();
+    if (name === 'game') renderMatsHud();
     if (name === 'start') updatePhoneUi();
     // Hand pointer works on every menu screen; inside a level the game handles it
     if (name !== 'game' && name !== 'loading') MenuPointer.start(); else MenuPointer.stop();
@@ -92,6 +105,7 @@
     const el = e.target.closest('[data-go], [data-action]');
     if (!el || el.disabled) return;
     Sfx.select();
+    if (el.dataset.go === 'workshop') workshopFrom = el.dataset.from || 'levels';
     if (el.dataset.go) return go(el.dataset.go);
     actions[el.dataset.action] && actions[el.dataset.action](el);
   });
@@ -174,10 +188,13 @@
   const worldCleared = (w) => Array.from({ length: STAGES }, (_, i) => i + 1).every((s) => stageCleared(w, s));
   // Options → "Unlock all levels" opens everything (handy for testing or for younger players)
   const unlockAll = () => save.options.unlockAll === 'on';
-  const worldUnlocked = (w) => unlockAll() || w === WORLD_IDS[0] || !!LEVELS[w].experimental || worldCleared(w - 1);
+  // Endless opens after the first world is cleared
+  const worldUnlocked = (w) => unlockAll() || w === WORLD_IDS[0] || !!LEVELS[w].experimental
+    || (LEVELS[w].endless ? worldCleared(1) : worldCleared(w - 1));
   const stageUnlocked = (w, s) => unlockAll() || (worldUnlocked(w) && (s === 1 || stageCleared(w, s - 1)));
   const worldStars = (w) => Array.from({ length: STAGES }, (_, i) => stageStars(w, i + 1)).reduce((a, b) => a + b, 0);
   function nextStage(w, s) {
+    if (LEVELS[w].endless || (LEVELS[w + 1] && LEVELS[w + 1].endless && s === STAGES && LEVELS[w].plat)) return null;
     if (LEVELS[w].plat || (LEVELS[w + 1] && LEVELS[w + 1].experimental && s === STAGES)) return null;
     if (s < STAGES) return stageUnlocked(w, s + 1) ? { world: w, stage: s + 1 } : null;
     return LEVELS[w + 1] && stageUnlocked(w + 1, 1) ? { world: w + 1, stage: 1 } : null;
@@ -200,12 +217,14 @@
       b.disabled = !open;
       b.dataset.world = w;
       const maxStars = cfg.plat ? 3 : STAGES * 3;
-      const sub = cfg.experimental && open ? `<small>Extra level</small><span class="card-stars">${starSvg(true)} ${worldStars(w)}/${maxStars}</span>`
+      const eb = save.endlessBest || {};
+      const sub = cfg.endless ? (open ? `<small>${t('Best')}: ${t('wave')} ${eb.wave || 0}</small><span class="card-stars">${(eb.score || 0).toLocaleString()}</span>` : `<small>Clear ${LEVELS[1].name} first</small>`)
+        : cfg.experimental && open ? `<small>Extra level</small><span class="card-stars">${starSvg(true)} ${worldStars(w)}/${maxStars}</span>`
         : open ? `<span class="card-stars">${starSvg(true)} ${worldStars(w)}/${maxStars}</span>` : `<small>Clear ${LEVELS[w - 1].name} first</small>`;
       b.innerHTML = `<div class="face"><img src="${cfg.bg}" alt="">${open ? '' : LOCK_SVG}<div class="label"><b>${cfg.name}</b>${sub}</div></div>`;
       b.setAttribute('aria-label', open ? `${cfg.name}, ${worldStars(w)} of ${STAGES * 3} stars` : `${cfg.name}, locked`);
       // the experimental platformer is a single level: start it right away
-      b.addEventListener('click', () => { if (!worldUnlocked(w)) return; Sfx.select(); if (cfg.plat) chooseStage(w, 1); else openWorld(w); });
+      b.addEventListener('click', () => { if (!worldUnlocked(w)) return; Sfx.select(); if (cfg.plat || cfg.endless) chooseStage(w, 1); else openWorld(w); });
       box.appendChild(b);
     }
     updatePhoneUi();
@@ -240,7 +259,7 @@
   }
 
   function openWorld(w) {
-    if (!LEVELS[w]) return;
+    if (!LEVELS[w] || LEVELS[w].plat || LEVELS[w].endless) return;     // single-level cards have no level map
     openWorldId = w;
     const cfg = LEVELS[w];
     const ov = $('#ov-world');
@@ -265,7 +284,8 @@
       const sc = stageConfig(w, s);
       const label = boss ? `Boss: ${cfg.boss.name}` : `Level ${s}`;
       n.innerHTML = (boss ? '<span class="boss-warn">⚠ BOSS</span>' : '')
-        + `<div class="hex"><div>${inner}</div></div><div class="node-stars">${starsHtml(stars)}</div><div class="node-label">${label}</div>`;
+        + `<div class="hex"><div>${inner}</div></div><div class="node-stars">${starsHtml(stars)}</div><div class="node-label">${label}</div>`
+        + (((save.stages || {})[key(w, s)] || {}).score ? `<div class="node-score">${save.stages[key(w, s)].score.toLocaleString()}</div>` : '');
       n.setAttribute('aria-label', `${label}${unlocked ? '' : ', locked'}${stars ? `, ${stars} stars` : ''}. Catch ${sc.total} aliens.`);
       n.addEventListener('click', () => chooseStage(w, s));
       map.appendChild(n);
@@ -289,6 +309,368 @@
   }
 
   // ---------------- Shop ----------------
+  // ---------------- Materials, trophies and the Workshop ----------------
+  const MAT_NAMES = { shard: 'Crystal shards', goo: 'Alien goo', dust: 'Star dust' };
+  const TROPHY_NAMES = { nebulaCrown: 'Nebula Crown', emberCore: 'Ember Core', tidePearl: 'Tide Pearl', prismHeart: 'Prism Heart', echoBell: 'Echo Bell', vortexEye: 'Vortex Eye' };
+  // Placeholder icons (to be replaced by artwork)
+  const MAT_SVG = {
+    crystal: '<i class="crystal"></i>',
+    shard: '<svg class="mat" viewBox="0 0 24 24"><path d="M12 2l6 10-6 10-6-10z" fill="#62f0ff" stroke="#fff" stroke-width="1.5"/></svg>',
+    goo: '<svg class="mat" viewBox="0 0 24 24"><circle cx="12" cy="13" r="8" fill="#7dffb0" stroke="#fff" stroke-width="1.5"/><circle cx="9.5" cy="11" r="2.2" fill="#ff8ad8"/></svg>',
+    dust: '<svg class="mat" viewBox="0 0 24 24"><path d="M12 1.5l2.2 7.3 7.3 2.2-7.3 2.2L12 20.5l-2.2-7.3-7.3-2.2 7.3-2.2z" fill="#ffd27a" stroke="#fff" stroke-width="1.2"/></svg>',
+    trophy: '<svg class="mat" viewBox="0 0 24 24"><path d="M3 18V7l5 5 4-8 4 8 5-5v11z" fill="#ffd27a" stroke="#fff" stroke-width="1.3" stroke-linejoin="round"/><circle cx="12" cy="14" r="2" fill="#b99bff"/></svg>',
+  };
+
+  function renderMatsHud() {
+    const m = save.mats || {};
+    $('#mats-hud').innerHTML = ['shard', 'goo', 'dust'].map((k) => `<span>${MAT_SVG[k]}<b>${m[k] || 0}</b></span>`).join('');
+  }
+
+  // Upgrade paths: cost of each next level (crystals + materials, the last blaster level also needs a boss trophy)
+  const UPGRADES = [
+    { id: 'blaster', name: 'Blaster', max: 5,
+      stats: (l) => `${t('Damage')} ${[1, 1, 2, 2, 3][l - 1]} · ${t('Lock-on')} ${[0.45, 0.4, 0.35, 0.31, 0.27][l - 1]}s · ${t('Fire rate')} +${[0, 10, 20, 30, 40][l - 1]}%`,
+      cost: [null, { crystal: 40, shard: 5 }, { crystal: 80, shard: 10, goo: 3 }, { crystal: 140, shard: 15, goo: 6, dust: 2 }, { crystal: 220, shard: 20, goo: 10, dust: 5, trophy: 'nebulaCrown' }] },
+    { id: 'net', name: 'Net grenade', max: 3,
+      stats: (l) => `${t('Net size')} +${(l - 1) * 15}% · ${t('Damage')} ${2 + l}`,
+      cost: [null, { crystal: 50, shard: 6, goo: 2 }, { crystal: 120, shard: 12, goo: 6, dust: 2 }] },
+    { id: 'shield', name: 'Shield', max: 3,
+      stats: (l) => `${t('Blocks')} ${10 + 4 * (l - 1)} ${t('hits')}`,
+      cost: [null, { crystal: 50, shard: 8, goo: 2 }, { crystal: 120, shard: 14, goo: 5, dust: 3 }] },
+  ];
+  const have = (k, trophyId) => k === 'crystal' ? save.crystals : k === 'trophy' ? (save.trophies[trophyId] || 0) : (save.mats[k] || 0);
+  function canPay(cost) { return Object.entries(cost).every(([k, v]) => k === 'trophy' ? have('trophy', v) > 0 : have(k) >= v); }
+  function pay(cost) {
+    for (const [k, v] of Object.entries(cost)) {
+      if (k === 'crystal') save.crystals -= v;
+      else if (k !== 'trophy') save.mats[k] -= v;       // trophies are only needed, not used up
+    }
+  }
+
+  function renderWorkshop() {
+    if (!save.upg) save.upg = { blaster: 1, net: 1, shield: 1 };
+    const inv = [['crystal', save.crystals, 'Crystals'], ...['shard', 'goo', 'dust'].map((k) => [k, save.mats[k] || 0, MAT_NAMES[k]])];
+    const trophies = Object.entries(save.trophies || {}).filter(([, n]) => n > 0);
+    $('#inventory').innerHTML = inv.map(([k, n, name]) => `<span class="inv">${MAT_SVG[k]}<b>${n}</b><small>${t(name)}</small></span>`).join('')
+      + (trophies.length ? trophies.map(([id]) => `<span class="inv trophy">${MAT_SVG.trophy}<small>${t(TROPHY_NAMES[id] || id)}</small></span>`).join('')
+        : `<span class="inv muted"><small>${t('Boss trophies appear here')}</small></span>`);
+    const box = $('#upgrades');
+    box.innerHTML = '';
+    for (const u of UPGRADES) {
+      const lvl = save.upg[u.id] || 1, maxed = lvl >= u.max, cost = maxed ? null : u.cost[lvl];
+      const card = document.createElement('div');
+      card.className = 'upgrade';
+      const pips = Array.from({ length: u.max }, (_, i) => `<i class="${i < lvl ? 'on' : ''}"></i>`).join('');
+      const costHtml = cost ? Object.entries(cost).map(([k, v]) => {
+        const ok = k === 'trophy' ? have('trophy', v) > 0 : have(k) >= v;
+        return `<span class="${ok ? '' : 'short'}">${k === 'trophy' ? MAT_SVG.trophy + t(TROPHY_NAMES[v]) : MAT_SVG[k] + v}</span>`;
+      }).join('') : '';
+      card.innerHTML = `<b>${t(u.name)} <em>Mk ${lvl}</em></b><div class="pips">${pips}</div>
+        <p>${u.stats(lvl)}</p>${cost ? `<p class="next">${t('Next')}: ${u.stats(lvl + 1)}</p><div class="cost">${costHtml}</div>` : `<p class="next">${t('Fully upgraded!')}</p>`}`;
+      const btn = document.createElement('button');
+      btn.className = 'btn small' + (maxed ? '' : ' pink');
+      btn.innerHTML = `<span>${maxed ? t('Max') : t('Upgrade')}</span>`;
+      btn.disabled = maxed || !canPay(cost);
+      btn.addEventListener('click', () => {
+        if (maxed || !canPay(cost)) return;
+        pay(cost);
+        save.upg[u.id] = lvl + 1;
+        persist(); Sfx.win(); renderWorkshop(); focusFirst();
+      });
+      card.appendChild(btn);
+      box.appendChild(card);
+    }
+  }
+
+  // ---------------- Achievements and missions ----------------
+  // Statistics are counted from game events; achievements unlock once, missions reset daily/weekly.
+  const REWARD = (r) => Object.entries(r).map(([k, v]) => `${MAT_SVG[k === 'crystal' ? 'crystal' : k]}${v}`).join(' ');
+  const totalStarsAll = () => Object.values(save.stages || {}).reduce((a, s) => a + (s.stars || 0), 0);
+  const ACHIEVEMENTS = [
+    { id: 'first', name: 'First catch', desc: 'Catch your first alien', val: (s) => s.catches, goal: 1, reward: { crystal: 20 } },
+    { id: 'c100', name: 'Alien catcher', desc: 'Catch 100 aliens', val: (s) => s.catches, goal: 100, reward: { crystal: 60, shard: 5 } },
+    { id: 'c500', name: 'Alien expert', desc: 'Catch 500 aliens', val: (s) => s.catches, goal: 500, reward: { crystal: 150, goo: 5 } },
+    { id: 'c1000', name: 'Alien master', desc: 'Catch 1000 aliens', val: (s) => s.catches, goal: 1000, reward: { crystal: 300, dust: 3 } },
+    { id: 'elite25', name: 'Armour breaker', desc: 'Catch 25 armoured aliens', val: (s) => s.elites, goal: 25, reward: { shard: 10 } },
+    { id: 'shiny1', name: 'Something shiny', desc: 'Catch a shiny alien', val: (s) => s.shinies, goal: 1, reward: { crystal: 50, goo: 3 } },
+    { id: 'shiny10', name: 'Gold collector', desc: 'Catch 10 shiny aliens', val: (s) => s.shinies, goal: 10, reward: { dust: 3 } },
+    { id: 'combo10', name: 'Combo star', desc: 'Reach a combo of 10', val: (s) => s.bestCombo, goal: 10, reward: { crystal: 50 } },
+    { id: 'combo25', name: 'Combo legend', desc: 'Reach a combo of 25', val: (s) => s.bestCombo, goal: 25, reward: { dust: 2 } },
+    { id: 'net5', name: 'Big net', desc: 'Catch 5 aliens with one net grenade', val: (s) => s.netBest, goal: 5, reward: { crystal: 80 } },
+    { id: 'boss1', name: 'Boss catcher', desc: 'Catch your first boss', val: (s) => Object.keys(s.bosses).length, goal: 1, reward: { crystal: 100 } },
+    { id: 'bossAll', name: 'Crown collector', desc: 'Catch all 6 bosses', val: (s) => Object.keys(s.bosses).length, goal: 6, reward: { crystal: 500, dust: 5 } },
+    { id: 'bossClean', name: 'Untouchable', desc: 'Catch a boss without taking damage', val: (s) => s.bossNoDamage, goal: 1, reward: { crystal: 200, goo: 5 } },
+    { id: 'stars30', name: 'Rising star', desc: 'Collect 30 stars', val: () => totalStarsAll(), goal: 30, reward: { crystal: 100 } },
+    { id: 'stars100', name: 'Superstar', desc: 'Collect 100 stars', val: () => totalStarsAll(), goal: 100, reward: { crystal: 300, dust: 3 } },
+    { id: 'score10k', name: 'High scorer', desc: 'Score 10,000 in one level', val: (s) => s.bestScore, goal: 10000, reward: { crystal: 100 } },
+    { id: 'base5', name: 'Builder', desc: 'Reach base level 5', val: () => baseLevel(), goal: 5, reward: { crystal: 100 } },
+    { id: 'base20', name: 'Architect', desc: 'Reach base level 20', val: () => baseLevel(), goal: 20, reward: { crystal: 400, dust: 3 } },
+    { id: 'mk5', name: 'Fully charged', desc: 'Upgrade the blaster to Mk 5', val: () => (save.upg || {}).blaster || 1, goal: 5, reward: { dust: 5 } },
+    { id: 'dex13', name: 'Alien scientist', desc: 'Discover all 13 kinds of aliens', val: () => Object.keys(save.dex || {}).filter((k) => save.dex[k] > 0).length, goal: 13, reward: { crystal: 300 } },
+    { id: 'wave10', name: 'Survivor', desc: 'Reach wave 10 in Endless', val: (s) => s.bestWave, goal: 10, reward: { crystal: 200 } },
+    { id: 'wave25', name: 'Unstoppable', desc: 'Reach wave 25 in Endless', val: (s) => s.bestWave, goal: 25, reward: { dust: 5 } },
+  ];
+  // Mission templates: sum = counts up, max = best value in one go
+  const MISSIONS = [
+    { id: 'catch', text: 'Catch {n} aliens', ev: 'catch', mode: 'sum', d: 40, w: 250 },
+    { id: 'elite', text: 'Catch {n} armoured aliens', ev: 'catchElite', mode: 'sum', d: 6, w: 30 },
+    { id: 'net', text: 'Catch {n} aliens with net grenades', ev: 'catchNet', mode: 'sum', d: 8, w: 40 },
+    { id: 'combo', text: 'Reach a combo of {n}', ev: 'combo', mode: 'max', d: 8, w: 15 },
+    { id: 'clear', text: 'Clear {n} levels', ev: 'clear', mode: 'sum', d: 3, w: 15 },
+    { id: 'stars', text: 'Earn {n} stars', ev: 'stars', mode: 'sum', d: 6, w: 30 },
+    { id: 'score', text: 'Score {n} in one level', ev: 'score', mode: 'max', d: 3000, w: 8000 },
+    { id: 'boss', text: 'Catch {n} bosses', ev: 'boss', mode: 'sum', d: 1, w: 3 },
+    { id: 'shiny', text: 'Catch a shiny alien', ev: 'shiny', mode: 'sum', d: 1, w: 3, weeklyOnly: true },
+    { id: 'wave', text: 'Reach wave {n} in Endless', ev: 'wave', mode: 'max', d: 5, w: 12 },
+  ];
+  const DAILY_REWARD = { crystal: 40, shard: 3 }, WEEKLY_REWARD = { crystal: 150, goo: 4, dust: 1 };
+
+  const Progress = {
+    stats() {
+      if (!save.stats) save.stats = {};
+      const s = save.stats;
+      for (const k of ['catches', 'elites', 'shinies', 'bestCombo', 'netBest', 'bossNoDamage', 'bestScore', 'bestWave']) if (s[k] == null) s[k] = 0;
+      if (!s.bosses) s.bosses = {};
+      return s;
+    },
+    // today's and this week's missions (picked the same way for everyone on that day, so they stay put)
+    missions() {
+      const now = new Date();
+      const day = now.toISOString().slice(0, 10);
+      const monday = new Date(now); monday.setDate(now.getDate() - ((now.getDay() + 6) % 7));
+      const week = monday.toISOString().slice(0, 10);
+      if (!save.missions) save.missions = {};
+      const m = save.missions;
+      const pick = (seed, n, weekly) => {
+        let h = 0; for (const ch of seed) h = (h * 31 + ch.charCodeAt(0)) >>> 0;
+        const pool = MISSIONS.filter((q) => weekly || !q.weeklyOnly).slice();
+        const out = [];
+        while (out.length < n && pool.length) { h = (h * 1103515245 + 12345) >>> 0; out.push(pool.splice(h % pool.length, 1)[0]); }
+        return out.map((q) => ({ id: q.id, target: weekly ? q.w : q.d, prog: 0, claimed: false }));
+      };
+      if (m.day !== day) { m.day = day; m.daily = pick('d' + day, 3, false); }
+      if (m.week !== week) { m.week = week; m.weekly = pick('w' + week, 3, true); }
+      return m;
+    },
+    bump(evName, amount, isMax) {
+      const m = this.missions();
+      for (const list of [m.daily, m.weekly]) for (const q of list) {
+        const def = MISSIONS.find((d) => d.id === q.id);
+        if (!def || def.ev !== evName || q.claimed) continue;
+        q.prog = def.mode === 'max' ? Math.max(q.prog, amount) : q.prog + amount;
+      }
+    },
+    event(e) {
+      const s = this.stats();
+      if (e.ev === 'catch') {
+        s.catches++; this.bump('catch', 1);
+        if (e.elite) { s.elites++; this.bump('catchElite', 1); }
+        if (e.shiny) { s.shinies++; this.bump('shiny', 1); }
+        if (e.netted) this.bump('catchNet', 1);
+      }
+      if (e.ev === 'net') s.netBest = Math.max(s.netBest, e.n);
+      if (e.ev === 'combo') { s.bestCombo = Math.max(s.bestCombo, e.n); this.bump('combo', e.n, true); }
+      if (e.ev === 'boss') { s.bosses[e.sprite] = (s.bosses[e.sprite] || 0) + 1; if (e.noDamage) s.bossNoDamage++; this.bump('boss', 1); }
+      if (e.ev === 'wave') { s.bestWave = Math.max(s.bestWave, e.n); this.bump('wave', e.n, true); }
+      if (e.ev === 'clear') { this.bump('clear', 1); this.bump('stars', e.stars); this.bump('score', e.score, true); s.bestScore = Math.max(s.bestScore, e.score); }
+      if (e.ev === 'endlessEnd') { s.bestScore = Math.max(s.bestScore, e.score); }
+      this.checkAchievements();
+      persist();
+    },
+    checkAchievements() {
+      const s = this.stats();
+      if (!save.ach) save.ach = {};
+      for (const a of ACHIEVEMENTS) {
+        if (save.ach[a.id]) continue;
+        if (a.val(s) >= a.goal) {
+          save.ach[a.id] = Date.now();
+          this.give(a.reward);
+          Sfx.win();
+          showToast(t('Achievement') + ': ' + t(a.name) + '!');
+        }
+      }
+    },
+    give(r) {
+      for (const [k, v] of Object.entries(r)) {
+        if (k === 'crystal') save.crystals += v;
+        else save.mats[k] = (save.mats[k] || 0) + v;
+      }
+    },
+    claimable() {
+      const m = this.missions();
+      return [...m.daily, ...m.weekly].filter((q) => !q.claimed && q.prog >= q.target).length;
+    },
+    updateDot() { const d = $('#goal-dot'); if (d) d.classList.toggle('on', this.claimable() > 0); },
+  };
+
+  function renderGoals() {
+    Progress.checkAchievements();
+    const m = Progress.missions();
+    const now = new Date();
+    const hoursLeft = 24 - now.getHours();
+    const mission = (q, weekly) => {
+      const def = MISSIONS.find((d) => d.id === q.id);
+      const done = q.prog >= q.target;
+      const reward = weekly ? WEEKLY_REWARD : DAILY_REWARD;
+      return `<div class="mission${q.claimed ? ' claimed' : done ? ' done' : ''}">
+        <b>${t(def.text).replace('{n}', q.target.toLocaleString())}</b>
+        <div class="bar"><i style="width:${Math.min(100, (q.prog / q.target) * 100)}%"></i></div>
+        <span class="prog">${Math.min(q.prog, q.target).toLocaleString()} / ${q.target.toLocaleString()}</span>
+        <span class="reward">${REWARD(reward)}</span>
+        ${q.claimed ? `<span class="claimed-tag">${t('Claimed')}</span>` : `<button class="btn small${done ? ' pink' : ''}" data-claim="${weekly ? 'w' : 'd'}:${q.id}" ${done ? '' : 'disabled'}><span>${t('Claim')}</span></button>`}
+      </div>`;
+    };
+    $('#missions').innerHTML = `<h2>${t('Daily missions')} <small>${t('new in')} ${hoursLeft} h</small></h2>${m.daily.map((q) => mission(q, false)).join('')}
+      <h2>${t('Weekly missions')}</h2>${m.weekly.map((q) => mission(q, true)).join('')}`;
+    const s = Progress.stats();
+    const got = ACHIEVEMENTS.filter((a) => save.ach && save.ach[a.id]).length;
+    $('#ach-count').textContent = `${got} / ${ACHIEVEMENTS.length}`;
+    $('#achievements').innerHTML = ACHIEVEMENTS.map((a) => {
+      const done = save.ach && save.ach[a.id];
+      const v = Math.min(a.val(s), a.goal);
+      return `<div class="ach${done ? ' done' : ''}">
+        <svg class="medal" viewBox="0 0 40 40"><circle cx="20" cy="22" r="14" fill="${done ? 'url(#starGold)' : 'rgba(255,255,255,0.12)'}" stroke="${done ? '#fff4c9' : 'rgba(159,183,232,0.5)'}" stroke-width="2"/><path d="M20 13l2.6 5.3 5.8.8-4.2 4.1 1 5.8-5.2-2.7-5.2 2.7 1-5.8-4.2-4.1 5.8-.8z" fill="${done ? '#fff' : 'rgba(255,255,255,0.3)'}"/><path d="M12 3l5 9M28 3l-5 9" stroke="${done ? '#ff8ad8' : 'rgba(255,255,255,0.2)'}" stroke-width="4"/></svg>
+        <div><b>${t(a.name)}</b><p>${t(a.desc)}</p><small>${done ? t('Unlocked') : `${v.toLocaleString()} / ${a.goal.toLocaleString()}`} · ${REWARD(a.reward)}</small></div>
+      </div>`;
+    }).join('');
+    $$('[data-claim]').forEach((btn) => btn.addEventListener('click', () => {
+      const [kind, id] = btn.dataset.claim.split(':');
+      const list = kind === 'w' ? m.weekly : m.daily;
+      const q = list.find((x) => x.id === id);
+      if (!q || q.claimed || q.prog < q.target) return;
+      q.claimed = true;
+      Progress.give(kind === 'w' ? WEEKLY_REWARD : DAILY_REWARD);
+      persist(); Sfx.win(); renderGoals(); focusFirst();
+    }));
+    Progress.updateDot();
+  }
+
+  // ---------------- Home base ----------------
+  // Buildings on the base picture. Building and upgrading them costs crystals, materials and
+  // sometimes a boss trophy; each level gives a permanent bonus in every level you play.
+  const discovered = () => Object.keys(save.dex || {}).filter((k) => save.dex[k] > 0).length;
+  const sanctRate = (l) => (2 + discovered()) * l;          // crystals per hour
+  const sanctCap = (l) => 40 * l;
+  function sanctPending() {
+    const l = save.base.sanctuary || 0;
+    if (!l || !save.base.sanctT) return 0;
+    const hours = (Date.now() - save.base.sanctT) / 3600000;
+    return Math.min(sanctCap(l), Math.floor(hours * sanctRate(l)));
+  }
+  const MODULES = [
+    { id: 'sanctuary', name: 'Alien sanctuary', pos: [331, 275], max: 5,
+      desc: 'Your caught aliens live here. They slowly make crystals for you, even while you are not playing.',
+      effect: (l) => `${sanctRate(l)} ${t('crystals per hour')} (${t('max')} ${sanctCap(l)})`,
+      cost: [{ crystal: 60, shard: 6 }, { crystal: 120, shard: 12, goo: 3 }, { crystal: 200, shard: 18, goo: 6, dust: 2 }, { crystal: 300, shard: 25, goo: 10, dust: 4 }, { crystal: 450, shard: 30, goo: 14, dust: 6, trophy: 'tidePearl' }] },
+    { id: 'observatory', name: 'Observatory', pos: [1156, 188], max: 3,
+      desc: 'Scans the skies for rare aliens: more shiny aliens and more drops.',
+      effect: (l) => `${t('Shiny aliens')} +${50 * l}% · ${t('drops')} +${20 * l}%`,
+      cost: [{ crystal: 150, shard: 10, goo: 4, dust: 1 }, { crystal: 260, shard: 16, goo: 8, dust: 3 }, { crystal: 400, shard: 24, goo: 12, dust: 6, trophy: 'echoBell' }] },
+    { id: 'medbay', name: 'Med bay', pos: [1519, 425], max: 5,
+      desc: 'Repairs your suit while you play: your health slowly comes back.',
+      effect: (l) => `+1% ${t('health every')} ${[0, 10, 8, 6, 5, 4][l]} s`,
+      cost: [{ crystal: 80, shard: 8 }, { crystal: 140, shard: 12, goo: 4 }, { crystal: 220, shard: 16, goo: 7, dust: 2 }, { crystal: 320, shard: 22, goo: 10, dust: 4, trophy: 'emberCore' }, { crystal: 450, shard: 28, goo: 14, dust: 6 }] },
+    { id: 'lab', name: 'Lab', pos: [1762, 762], max: 5,
+      desc: 'Research for your gear: extra grenades and a faster shield.',
+      effect: (l) => `+${Math.floor(l / 2)} ${t('net grenades')} · ${t('shield recharges in')} ${20 - 2 * l} s${l >= 3 ? ' · +1 ' + t('time grenade') : ''}`,
+      cost: [{ crystal: 70, shard: 8, goo: 1 }, { crystal: 130, shard: 12, goo: 4 }, { crystal: 210, shard: 16, goo: 7, dust: 2 }, { crystal: 310, shard: 22, goo: 10, dust: 4 }, { crystal: 450, shard: 28, goo: 14, dust: 6, trophy: 'prismHeart' }] },
+    { id: 'hangar', name: 'Hangar', pos: [1387, 887], max: 5,
+      desc: 'Tunes your helper drones (from the Star shop): they fire more often and hit harder.',
+      effect: (l) => `${t('Drones fire every')} ${10 - l} s · ${t('damage')} ${3 + Math.floor(l / 2)}`,
+      cost: [{ crystal: 100, shard: 10, goo: 2 }, { crystal: 170, shard: 14, goo: 5 }, { crystal: 250, shard: 18, goo: 8, dust: 2 }, { crystal: 350, shard: 24, goo: 11, dust: 4 }, { crystal: 480, shard: 30, goo: 15, dust: 6, trophy: 'vortexEye' }] },
+    { id: 'workshop', name: 'Workshop', pos: [588, 900], open: 'workshop', desc: 'Upgrade your blaster, net grenade and shield.' },
+    { id: 'command', name: 'Command center', pos: [875, 550], command: true, desc: 'The heart of your base.' },
+    { id: 'quarters', name: 'Crew quarters', pos: [219, 638], soon: true, desc: 'Coming soon.' },
+  ];
+  const baseLevel = () => MODULES.filter((m) => m.max).reduce((a, m) => a + (save.base[m.id] || 0), 0);
+
+  function renderHome() {
+    $('#base-level').innerHTML = `${t('Base level')} <b>${baseLevel()}</b>`;
+    const inv = [['crystal', save.crystals], ...['shard', 'goo', 'dust'].map((k) => [k, save.mats[k] || 0])];
+    $('#home-inv').innerHTML = inv.map(([k, n]) => `<span class="inv">${MAT_SVG[k]}<b>${n}</b></span>`).join('');
+    const box = $('#buildings');
+    box.innerHTML = '';
+    for (const m of MODULES) {
+      const l = save.base[m.id] || 0;
+      const b = document.createElement('button');
+      b.className = 'bld' + (m.max && !l ? ' unbuilt' : '') + (m.soon ? ' soon' : '') + (m.max && l >= m.max ? ' maxed' : '') + (!m.max && !m.soon ? ' fixed' : '');
+      b.style.left = m.pos[0] + 'px'; b.style.top = m.pos[1] + 'px';
+      b.style.setProperty('--lv', m.max ? l / m.max : 1);
+      const pend = m.id === 'sanctuary' ? sanctPending() : 0;
+      const tag = m.soon ? t('Coming soon') : m.max ? (l ? `${t('Level')} ${l}` : t('Build')) : '';
+      b.innerHTML = `<span class="bld-ring"></span><span class="bld-label">${t(m.name)}${tag ? `<small>${tag}</small>` : ''}</span>`
+        + (pend > 0 ? `<span class="bld-pend">+${pend}</span>` : '');
+      b.addEventListener('click', () => { Sfx.select(); if (m.open) { workshopFrom = 'home'; go(m.open); } else openModule(m); });
+      box.appendChild(b);
+    }
+  }
+
+  function openModule(m) {
+    const panel = $('#base-panel');
+    const l = save.base[m.id] || 0;
+    let html = `<h2>${t(m.name)}</h2><p class="muted">${t(m.desc)}</p>`;
+    let btn = null;
+    if (m.command) {
+      html += `<div class="base-list">` + MODULES.filter((q) => q.max).map((q) => {
+        const ql = save.base[q.id] || 0;
+        return `<span>${t(q.name)}</span><b>${ql ? `${t('Level')} ${ql}/${q.max}` : t('Not built yet')}</b>`;
+      }).join('') + `</div><p>${t('Base level')} <b>${baseLevel()}</b></p>`;
+    } else if (m.max) {
+      const maxed = l >= m.max, cost = maxed ? null : m.cost[l];
+      const pips = Array.from({ length: m.max }, (_, i) => `<i class="${i < l ? 'on' : ''}"></i>`).join('');
+      html += `<div class="pips">${pips}</div>`;
+      html += `<p>${l ? m.effect(l) : t('Not built yet')}</p>`;
+      if (!maxed) {
+        html += `<p class="next">${t(l ? 'Next' : 'When built')}: ${m.effect(l + 1)}</p>`;
+        html += `<div class="cost">${Object.entries(cost).map(([k, v]) => {
+          const ok = k === 'trophy' ? have('trophy', v) > 0 : have(k) >= v;
+          return `<span class="${ok ? '' : 'short'}">${k === 'trophy' ? MAT_SVG.trophy + t(TROPHY_NAMES[v]) : MAT_SVG[k] + v}</span>`;
+        }).join('')}</div>`;
+      } else html += `<p class="next">${t('Fully upgraded!')}</p>`;
+      if (m.id === 'sanctuary' && l) {
+        const aliens = Object.keys(save.dex || {}).filter((k) => save.dex[k] > 0);
+        html += `<div class="sanct">${aliens.map((a, i) => `<img src="assets/dex/${a}.png" alt="" style="animation-delay:${(i * 0.37) % 3}s">`).join('')}</div>`;
+      }
+      btn = document.createElement('button');
+      btn.className = 'btn small' + (maxed ? '' : ' pink');
+      btn.innerHTML = `<span>${maxed ? t('Max') : l ? t('Upgrade') : t('Build')}</span>`;
+      btn.disabled = maxed || !canPay(cost);
+      btn.addEventListener('click', () => {
+        if (maxed || !canPay(cost)) return;
+        pay(cost);
+        save.base[m.id] = l + 1;
+        if (m.id === 'sanctuary' && !save.base.sanctT) save.base.sanctT = Date.now();
+        persist(); Sfx.win(); renderHome(); openModule(m);
+      });
+    }
+    panel.innerHTML = html;
+    const row = document.createElement('div');
+    row.className = 'row';
+    if (btn) row.appendChild(btn);
+    if (m.id === 'sanctuary' && sanctPending() > 0) {
+      const c = document.createElement('button');
+      c.className = 'btn small pink';
+      c.innerHTML = `<span>${t('Collect')} ${sanctPending()} ${t('crystals')}</span>`;
+      c.addEventListener('click', () => {
+        const n = sanctPending();
+        save.crystals += n; save.base.sanctT = Date.now();
+        persist(); Sfx.reload(); renderHome(); openModule(m);
+      });
+      row.appendChild(c);
+    }
+    const close = document.createElement('button');
+    close.className = 'btn small'; close.dataset.action = 'base-close';
+    close.innerHTML = `<span>${t('Close')}</span>`;
+    row.appendChild(close);
+    panel.appendChild(row);
+    $('#ov-base').classList.add('show');
+    setTimeout(focusFirst, 30);
+  }
+  // The Workshop can be opened from the world screen or from its building on the Home base
+  let workshopFrom = 'levels';
+  actions['workshop-back'] = () => go(workshopFrom);
+  actions['base-close'] = () => { $('#ov-base').classList.remove('show'); setTimeout(focusFirst, 30); };
+
   // Star items: special upgrades bought with the stars you earn on levels
   const STAR_SHOP = [
     { id: 'goldBlaster',  name: 'Golden blaster',  text: 'Your blaster turns shiny gold.', price: 3 },
@@ -468,7 +850,7 @@
     }
     if ((kind === 'all' || kind === 'gear') && P1) {
       const label = P1.equipped === 'grenade' ? `Net grenade · ${P1.grenades} left`
-        : P1.equipped === 'shield' ? `Shield ${P1.shieldHP}/${SHIELD_MAX}`
+        : P1.equipped === 'shield' ? `Shield ${P1.shieldHP}/${window.SV.shieldMax()}`
         : 'Blaster';
       $('#gear-label').textContent = label;
       $('#pips').style.opacity = P1.equipped === 'gun' ? 1 : 0.25;
@@ -489,6 +871,30 @@
     }
     if (kind === 'caught') {
       if (Dex.record(value)) setTimeout(() => showToast(`New in the alien guide: ${SPR[value].name}!`), 900);
+    }
+    if (kind === 'all' || kind === 'score') $('#score').textContent = (L.score || 0).toLocaleString();
+    if (kind === 'combo') {
+      const el = $('#combo');
+      if (!value) el.classList.remove('show');
+      else {
+        el.innerHTML = `×${value.mult} <small>${value.combo} ${t('combo')}</small>`;
+        el.classList.remove('show'); void el.offsetWidth; el.classList.add('show');
+      }
+    }
+    if (kind === 'stat') Progress.event(value);
+    if (kind === 'drop') {
+      // materials are saved right away, so they are kept even if you leave the level
+      if (value.startsWith('trophy:')) {
+        const id = value.slice(7);
+        save.trophies[id] = (save.trophies[id] || 0) + 1;
+        showToast(t('Boss trophy') + ': ' + t(TROPHY_NAMES[id] || id) + '!');
+      } else {
+        save.mats[value] = (save.mats[value] || 0) + 1;
+        if (value === 'goo') showToast(t('Rare drop') + ': ' + t('Alien goo'));
+        if (value === 'dust') showToast(t('Epic drop') + ': ' + t('Star dust'));
+      }
+      persist();
+      renderMatsHud();
     }
     if (kind === 'prompt') {
       const p = $('#prompt');
@@ -556,6 +962,7 @@
     buildCatches();
     onHud('all', null, Level);
     $('#screen-game').classList.toggle('plat', !!Level.plat);
+    $('#screen-game').classList.toggle('endless', !!Level.endless);
     Net.setLayout(Level.plat ? 'plat' : 'normal');
     if (mode === 'phone' && Input.isCam()) onHud('cal', 'Looking for you…', Level);
     else onHud('countdown', 3, Level);
@@ -565,16 +972,24 @@
     const bonus = r.won ? 15 : 0;
     save.crystals += r.earned + bonus;
     const rating = starRating(r);
+    if (r.endless) {
+      const eb = save.endlessBest || { wave: 0, score: 0 };
+      r.newBest = r.score > (eb.score || 0) && (eb.score || 0) > 0;
+      save.endlessBest = { wave: Math.max(eb.wave || 0, r.wave), score: Math.max(eb.score || 0, r.score) };
+    }
     if (r.won) {
       if (!save.stages) save.stages = {};
       const k = key(r.world, r.stage);
       const prev = save.stages[k] || { stars: 0 };
-      save.stages[k] = { stars: Math.max(prev.stars || 0, rating.stars), time: Math.min(prev.time || Infinity, r.time) };
+      save.stages[k] = { stars: Math.max(prev.stars || 0, rating.stars), time: Math.min(prev.time || Infinity, r.time), score: Math.max(prev.score || 0, r.score || 0) };
+      r.newBest = (r.score || 0) > (prev.score || 0) && (prev.score || 0) > 0;
     }
+    if (r.won) Progress.event({ ev: 'clear', stars: rating.stars, score: r.score });
+    else if (r.endless) Progress.event({ ev: 'endlessEnd', score: r.score });
     persist();
     $('#prompt').classList.remove('show');
     const cfgName = LEVELS[r.world].name;
-    $('#end-title').textContent = !r.won ? 'Your shields are down' : LEVELS[r.world].plat ? `${cfgName} cleared!` : r.stage === STAGES ? `${cfgName} cleared!` : `Level ${r.stage} clear`;
+    $('#end-title').textContent = r.endless ? `${t('Endless')}: ${t('wave')} ${r.wave}` : !r.won ? 'Your shields are down' : LEVELS[r.world].plat ? `${cfgName} cleared!` : r.stage === STAGES ? `${cfgName} cleared!` : `Level ${r.stage} clear`;
     $('#end-stars').innerHTML = r.won ? starsHtml(rating.stars) : '';
     // A friendly tip on what would give more stars
     let tip = '';
@@ -583,10 +998,19 @@
       tip = { health: 'Tip: take less damage for more stars', accuracy: 'Tip: aim carefully, fewer missed shots give more stars', time: `Tip: be a bit quicker, the target time is ${fmtTime(r.par)}` }[weakest];
     }
     $('#end-tip').textContent = tip;
-    const caught = types().map((t) => `<span>${SPR[t].name}</span><b>${r.caught[t]}/${goal(t)}</b>`).join('')
+    const caught = r.endless ? `<span>${t('Wave')}</span><b>${r.wave}</b>` : types().map((t) => `<span>${SPR[t].name}</span><b>${r.caught[t]}/${goal(t)}</b>`).join('')
       + (r.boss ? `<span>${r.boss.name}</span><b>${r.boss.caught ? 'Caught!' : 'Got away'}</b>` : '');
-    $('#end-stats').innerHTML = `
-      <span>Time</span><b>${fmtTime(r.time)} <small>(target ${fmtTime(r.par)})</small></b>
+    const bonusRows = r.won && r.bonus ? `
+      <span>${t('No damage bonus')}</span><b>${r.bonus.noDamage.toLocaleString()}</b>
+      <span>${t('Accuracy bonus')}</span><b>${r.bonus.accuracy.toLocaleString()}</b>
+      <span>${t('Speed bonus')}</span><b>${r.bonus.time.toLocaleString()}</b>` : '';
+    const dropText = Object.entries(r.drops || {}).map(([k, n]) => `${n}× ${t(k.startsWith('trophy:') ? (TROPHY_NAMES[k.slice(7)] || k) : MAT_NAMES[k] || k)}`).join(', ');
+    $('#end-score').innerHTML = `<span class="end-score-num">${(r.score || 0).toLocaleString()}</span>`
+      + (r.newBest ? `<span class="new-best">${t('New high score!')}</span>` : '')
+      + (r.bestCombo > 1 ? `<small>${t('Best combo')}: ${r.bestCombo}</small>` : '');
+    $('#end-stats').innerHTML = `${bonusRows}
+      ${dropText ? `<span>${t('Drops')}</span><b>${dropText}</b>` : ''}
+      <span>Time</span><b>${fmtTime(r.time)}${r.endless ? '' : ` <small>(target ${fmtTime(r.par)})</small>`}</b>
       ${caught}
       <span>Accuracy</span><b>${r.accuracy}%</b>
       <span>Health left</span><b>${r.health}%</b>
@@ -618,7 +1042,8 @@
       if (current === 'dex' && Dex.detailOpen()) { e.preventDefault(); Dex.hide(); setTimeout(focusFirst, 30); return; }
       if (current === 'options') { e.preventDefault(); closeOptions(); return; }
       if (current === 'intro') { e.preventDefault(); endIntro(); return; }
-      const back = { options: 'start', levels: 'start', shop: 'levels', connect: 'levels', quit: 'start', dex: 'levels', home: 'levels' }[current];
+      if (current === 'home' && $('#ov-base').classList.contains('show')) { e.preventDefault(); actions['base-close'](); return; }
+      const back = { options: 'start', levels: 'start', shop: 'levels', connect: 'levels', quit: 'start', dex: 'levels', home: 'levels', workshop: workshopFrom, goals: 'levels' }[current];
       if (back) { e.preventDefault(); go(back); }
       return;
     }

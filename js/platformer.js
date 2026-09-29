@@ -256,6 +256,9 @@
     platHurt(amount, fromFall) {
       const p = this.pl;
       if (!fromFall && p.invuln > 0) return;
+      this.damageTaken = true;
+      if (this.combo > 1) this.hud('combo', null);
+      this.combo = 0; this.mult = 1;
       this.health = Math.max(0, this.health - amount);
       this.hud('health');
       Sfx.hurt();
@@ -308,6 +311,7 @@
           if (Math.abs(b.x - a.x) < 62 && Math.abs(b.y - cy) < 70) {
             a.state = 'dying'; a.t = 0; b.dead = true;
             this.hits++; this.earned += this.crystalValue();
+            this.addScore(100, a.x, cy - 70);
             Sfx.digitize(); this.burst(a.x, cy, SPR[a.type].color, 20, true);
             this.hud('caught', a.type); this.hud('catch');
             break;
@@ -328,6 +332,8 @@
     },
 
     platEffects(dt) {
+      if (this.floaters) { for (const f of this.floaters) f.t += dt; this.floaters = this.floaters.filter((f) => f.t < 1.1); }
+      if (this.combo > 1 && this.time - this.lastCatchT > 2.5) { this.combo = 0; this.mult = 1; this.hud('combo', null); }
       for (const q of this.particles) { q.life -= dt; q.x += q.vx * dt; q.y += q.vy * dt; q.vx *= 0.94; q.vy = q.vy * 0.94 + 300 * dt; }
       this.particles = this.particles.filter((q) => q.life > 0);
       const show = this.time < this.promptUntil ? this.promptText : '';
@@ -407,6 +413,10 @@
         if (q.sq) c.fillRect(q.x - q.r, q.y - q.r, q.r * 2, q.r * 2); else { c.beginPath(); c.arc(q.x, q.y, q.r, 0, Math.PI * 2); c.fill(); }
       }
       c.restore();
+      // score pop-ups (in world coordinates, like everything above)
+      const drops = this.drops; this.drops = [];
+      this.drawScoreFx();
+      this.drops = drops;
       c.restore();
 
       // progress: which of the three backgrounds you are in

@@ -51,6 +51,7 @@ window.Sfx = {
     src.connect(f).connect(g).connect(c.destination); src.start(t0); src.stop(t0 + len);
     this.tone(2300, 0.09, 'sine', 0.06, 3600, 0.25);
   },
+  clink()  { this.tone(1900, 0.06, 'square', 0.05, 1200); this.tone(3200, 0.05, 'sine', 0.03, null, 0.02); },
   select() { this.tone(880, 0.06, 'triangle', 0.06); },
   lock()   { this.tone(1500, 0.05, 'sine', 0.04); },
   win()    { [523, 659, 784, 1046].forEach((f, i) => this.tone(f, 0.25, 'triangle', 0.1, null, i * 0.12)); },

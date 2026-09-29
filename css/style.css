@@ -474,3 +474,159 @@ input[type=range] { width: 100%; accent-color: var(--cyan); height: 40px; }
 @keyframes warp-in { from { opacity: 0; transform: scale(0.2); border-radius: 50%; } to { opacity: 1; transform: scale(1.6); border-radius: 0; } }
 @keyframes warp-out { from { opacity: 1; transform: scale(1.6); } to { opacity: 0; transform: scale(3); } }
 @media (prefers-reduced-motion: reduce) { #warp.in, #warp.out { animation-duration: 0.01s; } }
+
+/* Score and combo during play */
+.score-box { position: absolute; left: 50%; top: 100px; transform: translateX(-50%); text-align: center; pointer-events: none; }
+.score { font-size: 40px; font-weight: 700; color: #fff; text-shadow: 0 2px 8px rgba(0, 0, 0, 0.7), 0 0 12px rgba(98, 240, 255, 0.6); font-variant-numeric: tabular-nums; }
+.combo { font-size: 30px; font-weight: 700; color: var(--gold); opacity: 0; text-shadow: 0 2px 8px #000; }
+.combo small { font-size: 20px; color: #fff; }
+.combo.show { animation: combo-pop 2.5s ease forwards; }
+@keyframes combo-pop { 0% { opacity: 1; transform: scale(1.4); } 12% { transform: scale(1); } 80% { opacity: 1; } 100% { opacity: 0; } }
+.mats-hud { position: absolute; left: 40px; bottom: 40px; display: flex; gap: 16px; padding: 8px 14px; background: rgba(10, 20, 72, 0.7); pointer-events: none; }
+.mats-hud span { display: flex; align-items: center; gap: 6px; font-size: 24px; color: #fff; }
+.mats-hud .mat { width: 30px; height: 30px; }
+#screen-game.plat .mats-hud { display: none; }
+.boss-active .score-box { top: 96px; }
+
+/* End screen score */
+.end-score { display: flex; flex-direction: column; align-items: center; gap: 2px; margin-top: -8px; }
+.end-score-num { font-size: 64px; font-weight: 700; color: #fff; text-shadow: 0 0 18px rgba(98, 240, 255, 0.7); font-variant-numeric: tabular-nums; }
+.end-score small { font-size: 22px; color: var(--muted); }
+.new-best { padding: 4px 16px; font-size: 22px; font-weight: 700; color: var(--space); background: linear-gradient(180deg, #fff4c9, #ffb74d); animation: boss-pulse 1.1s ease-in-out infinite; }
+.stage-node .node-score { font-size: 16px; color: var(--gold); font-weight: 600; text-shadow: 0 2px 6px #000; }
+
+/* Workshop */
+.workshop { gap: 26px; }
+.inventory { display: flex; gap: 14px; flex-wrap: wrap; justify-content: center; max-width: 1600px; }
+.inv { display: flex; align-items: center; gap: 8px; padding: 10px 16px; background: rgba(12, 28, 94, 0.9); border-bottom: 3px solid var(--cyan-deep); }
+.inv b { font-size: 28px; color: #fff; }
+.inv small { font-size: 18px; color: var(--muted); }
+.inv.trophy { border-bottom-color: var(--gold); }
+.inv .mat, .cost .mat { width: 30px; height: 30px; }
+.upgrades { display: grid; grid-template-columns: repeat(3, 480px); gap: 26px; }
+.upgrade { display: flex; flex-direction: column; gap: 10px; padding: 24px 26px; background: rgba(12, 28, 94, 0.92); border-left: 6px solid var(--cyan); }
+.upgrade b { font-size: 32px; color: #fff; }
+.upgrade b em { font-style: normal; color: var(--gold); margin-left: 8px; }
+.upgrade p { font-size: 21px; color: var(--muted); margin: 0; }
+.upgrade p.next { color: var(--cyan-soft); }
+.upgrade .pips { display: flex; gap: 6px; }
+.upgrade .pips i { width: 38px; height: 10px; background: rgba(255, 255, 255, 0.15); }
+.upgrade .pips i.on { background: linear-gradient(90deg, var(--cyan), var(--gold)); }
+.upgrade .cost { display: flex; flex-wrap: wrap; gap: 12px; font-size: 22px; color: #fff; }
+.upgrade .cost span { display: flex; align-items: center; gap: 4px; }
+.upgrade .cost span.short { color: var(--danger); }
+.upgrade .btn { align-self: flex-start; margin-top: 4px; }
+
+/* End screen: more rows now (score, bonuses, drops), so everything a bit more compact */
+#ov-end .center-col { gap: 12px; }
+#ov-end .title { font-size: 64px; }
+#ov-end .stats { font-size: 24px; gap: 4px 40px; margin: 4px 0 10px; }
+#ov-end .end-stars .star { width: 72px; height: 72px; }
+#ov-end .end-stars .star:nth-child(2) { width: 92px; height: 92px; }
+#ov-end .end-score-num { font-size: 56px; }
+
+/* ---------- Home base ---------- */
+.home-top { position: absolute; left: 40px; right: 40px; top: 34px; display: flex; align-items: center; gap: 24px; z-index: 2; }
+.base-level { padding: 10px 22px; font-size: 28px; color: var(--cyan-soft); background: rgba(10, 20, 72, 0.85); border: 2px solid var(--cyan-deep); }
+.base-level b { color: var(--gold); font-size: 34px; margin-left: 6px; }
+.home-inv { margin-left: auto; }
+#buildings { position: absolute; inset: 0; }
+.bld {
+  --lv: 0; position: absolute; transform: translate(-50%, -50%); width: 170px; height: 170px; border: 0; padding: 0;
+  background: none; cursor: pointer; border-radius: 50%;
+}
+.bld-ring {
+  position: absolute; inset: 0; border-radius: 50%;
+  border: 4px solid rgba(98, 240, 255, calc(0.35 + var(--lv) * 0.65));
+  box-shadow: 0 0 calc(10px + var(--lv) * 40px) rgba(98, 240, 255, calc(0.25 + var(--lv) * 0.6)), inset 0 0 calc(var(--lv) * 30px) rgba(98, 240, 255, 0.35);
+  animation: bld-pulse 2.4s ease-in-out infinite;
+}
+@keyframes bld-pulse { 50% { transform: scale(1.06); } }
+.bld.unbuilt .bld-ring { border: 4px dashed rgba(255, 255, 255, 0.55); box-shadow: none; background: rgba(6, 12, 44, 0.45); animation: none; }
+.bld.unbuilt .bld-ring::after { content: "+"; position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; font-size: 72px; color: #fff; opacity: 0.8; }
+.bld.soon { cursor: default; }
+.bld.soon .bld-ring { border-color: rgba(255, 255, 255, 0.2); box-shadow: none; animation: none; }
+.bld-label {
+  position: absolute; left: 50%; top: calc(100% - 6px); transform: translateX(-50%); white-space: nowrap;
+  padding: 6px 14px; font-size: 22px; font-weight: 700; color: #fff; background: rgba(10, 20, 72, 0.88); border: 2px solid var(--cyan-deep);
+  display: flex; flex-direction: column; align-items: center; line-height: 1.15;
+}
+.bld-label small { font-size: 16px; color: var(--gold); font-weight: 600; }
+.bld:hover .bld-label, .bld:focus-visible .bld-label, .bld.pointed .bld-label { border-color: var(--gold); }
+.bld:focus-visible { outline: none; }
+.bld:hover .bld-ring, .bld:focus-visible .bld-ring, .bld.pointed .bld-ring { border-color: var(--gold); }
+.bld-pend { position: absolute; right: -6px; top: -6px; padding: 4px 10px; font-size: 20px; font-weight: 700; color: var(--space); background: var(--gold); border-radius: 12px; }
+#ov-base { background: rgba(6, 12, 44, 0.55); align-items: center; justify-content: center; }
+.base-panel { width: 980px; }
+.base-panel .inner { display: flex; flex-direction: column; gap: 14px; }
+.base-panel h2 { margin: 0; }
+.base-panel p { font-size: 24px; margin: 0; }
+.base-panel p.next { color: var(--cyan-soft); }
+.base-panel .pips { display: flex; gap: 6px; }
+.base-panel .pips i { width: 56px; height: 12px; background: rgba(255, 255, 255, 0.15); }
+.base-panel .pips i.on { background: linear-gradient(90deg, var(--cyan), var(--gold)); }
+.base-panel .cost { display: flex; flex-wrap: wrap; gap: 14px; font-size: 24px; color: #fff; }
+.base-panel .cost span { display: flex; align-items: center; gap: 4px; }
+.base-panel .cost span.short { color: var(--danger); }
+.base-panel .cost .mat { width: 30px; height: 30px; }
+.base-panel .row { justify-content: flex-start; margin-top: 8px; }
+.base-list { display: grid; grid-template-columns: auto auto; gap: 6px 40px; font-size: 24px; }
+.base-list b { color: var(--gold); }
+.sanct { display: flex; flex-wrap: wrap; gap: 10px; padding: 12px; background: rgba(125, 255, 176, 0.08); border: 2px dashed rgba(125, 255, 176, 0.4); }
+.sanct img { width: 96px; height: auto; animation: sanct-float 3s ease-in-out infinite; }
+@keyframes sanct-float { 50% { transform: translateY(-10px) rotate(3deg); } }
+@media (prefers-reduced-motion: reduce) { .bld-ring, .sanct img { animation: none; } }
+/* built buildings: a clear glowing ring that gets brighter and bigger with each level */
+.bld:not(.unbuilt):not(.soon) .bld-ring {
+  border: 5px solid rgba(98, 240, 255, 0.95);
+  background: radial-gradient(circle, rgba(98, 240, 255, calc(0.12 + var(--lv) * 0.3)), rgba(98, 240, 255, 0) 70%);
+  box-shadow: 0 0 calc(14px + var(--lv) * 46px) rgba(98, 240, 255, 0.8);
+  transform-origin: center;
+}
+.bld.maxed .bld-ring { border-color: var(--gold); box-shadow: 0 0 60px rgba(255, 210, 122, 0.9); }
+/* the domes are blue themselves, so the built ring is gold with a dark edge to stand out */
+.bld:not(.unbuilt):not(.soon) .bld-ring {
+  border: 5px solid #ffd27a;
+  background: radial-gradient(circle, rgba(255, 210, 122, calc(0.1 + var(--lv) * 0.25)), rgba(255, 210, 122, 0) 70%);
+  box-shadow: 0 0 0 3px rgba(10, 20, 64, 0.65), inset 0 0 0 3px rgba(10, 20, 64, 0.45), 0 0 calc(12px + var(--lv) * 40px) rgba(255, 210, 122, 0.85);
+}
+.bld.fixed .bld-ring { border-color: #bff9ff; background: none; box-shadow: 0 0 0 3px rgba(10, 20, 64, 0.65), 0 0 18px rgba(98, 240, 255, 0.7); }
+.bld.maxed .bld-ring { border-width: 7px; }
+
+/* World screen: 8 cards and 7 buttons */
+.level-card { width: 222px !important; height: 250px !important; }
+.level-card .label b { font-size: 22px !important; }
+#screen-levels .row .btn { min-width: 0; height: 76px; font-size: 26px; }
+#screen-levels .row .btn span { padding: 0 26px; }
+#screen-levels .row { gap: 14px; }
+.goal-dot { position: absolute; right: 10px; top: 8px; width: 16px; height: 16px; border-radius: 50%; background: var(--gold); box-shadow: 0 0 10px var(--gold); display: none; }
+.goal-dot.on { display: block; animation: boss-pulse 1.1s ease-in-out infinite; }
+
+/* Goals screen */
+.goals-wrap { position: absolute; inset: 0; z-index: 1; display: flex; flex-direction: column; padding: 34px 60px; gap: 18px; }
+.goals-head { display: grid; grid-template-columns: 1fr auto 1fr; align-items: center; }
+.goals-head .btn { justify-self: start; }
+.goals-count { justify-self: end; font-size: 30px; font-weight: 700; color: var(--gold); }
+.goals-cols { flex: 1; min-height: 0; display: grid; grid-template-columns: 720px 1fr; gap: 30px; }
+.missions, .achievements { overflow-y: auto; padding-right: 8px; }
+.missions h2 { font-size: 34px; margin: 6px 0 10px; }
+.missions h2 small { font-size: 20px; color: var(--muted); margin-left: 10px; }
+.mission { display: grid; grid-template-columns: 1fr auto; gap: 6px 16px; align-items: center; padding: 14px 18px; margin-bottom: 10px; background: rgba(12, 28, 94, 0.9); border-left: 6px solid var(--cyan-deep); }
+.mission b { font-size: 24px; color: #fff; }
+.mission .bar { grid-column: 1; height: 12px; background: rgba(255, 255, 255, 0.12); }
+.mission .bar i { display: block; height: 100%; background: linear-gradient(90deg, var(--cyan), var(--gold)); }
+.mission .prog { grid-column: 1; font-size: 18px; color: var(--muted); }
+.mission .reward { grid-column: 2; grid-row: 1; display: flex; align-items: center; gap: 4px; font-size: 20px; color: var(--gold); }
+.mission .reward .mat, .ach .mat { width: 22px; height: 22px; vertical-align: -5px; }
+.mission .btn, .mission .claimed-tag { grid-column: 2; grid-row: 2 / span 2; }
+.mission.done { border-left-color: var(--gold); }
+.mission.claimed { opacity: 0.55; }
+.claimed-tag { font-size: 20px; color: #7dffb0; font-weight: 700; }
+.achievements { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; align-content: start; }
+.ach { display: flex; gap: 12px; align-items: center; padding: 12px 14px; background: rgba(12, 28, 94, 0.85); opacity: 0.75; }
+.ach.done { opacity: 1; border-left: 5px solid var(--gold); }
+.ach .medal { width: 56px; height: 56px; flex: none; }
+.ach b { font-size: 22px; color: #fff; }
+.ach p { font-size: 17px; margin: 2px 0; color: var(--muted); }
+.ach small { font-size: 16px; color: var(--gold); }
+#screen-game.endless .catches { display: none; }

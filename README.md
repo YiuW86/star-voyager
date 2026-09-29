@@ -98,6 +98,58 @@ The shop has two tabs. The **Star shop** sells special upgrades paid with the st
 
 Options → Language: English, Nederlands, Deutsch, Français, Español, Português. The phone follows the game's language. The alien guide's descriptions are still in English.
 
+## Score, drops and the Workshop
+
+- **Score:** every catch gives points (armoured aliens 250, normal 100, shiny ×5). Catches in quick succession build a **combo**: every 3 catches the multiplier goes up, up to ×5. Taking damage resets it. At the end of a level you get bonuses for no damage, accuracy and speed. The best score per level is kept and shown on the level map; a new best shows **New high score!**
+- **Armoured aliens** (from level 3, more in later worlds) have a metal ring and hit-point pips and need several hits. Rare **shiny** golden aliens give 5× points and crystals and always drop rare materials.
+- **Drops:** caught aliens sometimes drop materials: crystal shards (common), alien goo (rare) and star dust (epic). Every boss drops its own **trophy** (for example the Nebula Crown) plus a handful of materials. Drops are saved immediately.
+- **Workshop** (button on the world screen): upgrade the **Blaster** (Mk 1–5: more damage, faster lock-on and firing; Mk 5 needs the Nebula Crown), the **Net grenade** (Mk 1–3: bigger net, more damage) and the **Shield** (Mk 1–3: blocks more hits), paid with crystals and materials. Costs are in `UPGRADES` in `js/app.js`.
+
+## Home base
+
+The **Home** button opens your base. Tap a building to build or upgrade it (crystals, materials, and for the top levels a boss trophy). Every level gives a permanent bonus:
+
+| Building | Bonus |
+|---|---|
+| Alien sanctuary (5 levels) | Your caught aliens live here (shown floating inside) and make crystals every hour, even when you are not playing. Collect them with the button (or the +number badge on the building). More kinds of aliens discovered = more crystals. |
+| Observatory (3) | More shiny aliens and more drops |
+| Med bay (5) | Your health slowly comes back during levels |
+| Lab (5) | Extra net grenades, a faster shield recharge, and an extra time grenade |
+| Hangar (5) | Helper drones fire more often and hit harder |
+| Workshop | Opens the Workshop (blaster, net grenade, shield upgrades) |
+| Command center | Overview of all buildings and your base level |
+| Crew quarters | Coming soon |
+
+Built buildings glow gold, brighter with each level; unbuilt ones show a +. Costs are in `MODULES` in `js/app.js`.
+
+## Boss phases
+
+Every boss fights in **3 phases** (markers on its health bar, and a message when a new phase starts):
+
+| Boss | Phase 2 | Phase 3 |
+|---|---|---|
+| King Nebula | Splits into 3 copies; only the real one has a twinkling star on its crown | Bubble shield with 3 glowing weak spots; pop them, then hit it for 5 seconds |
+| Ember Lord | Walls of fire sweep over the screen after a warning: only the shield blocks them | Furious: moves faster, 5 fireballs at once |
+| Tidequeen | Dives (can't be hit) and comes up elsewhere; charges a water beam that you stop by shooting the glowing orb | Also calls waves of helpers |
+| Prism Empress | Numbered crystal shields: break them in order 1, 2, 3 (wrong order resets them). She also glows red now and then: shots bounce back at you | Crystals and red glows more often |
+| Echo Monarch | Throws sound rings (shoot them down); the lights go out, you only see around your aiming circle | More sound rings |
+| Vortex King | Spinning blades block your shots while they pass in front; tornado helpers | Faster blades, and its pull drags your aiming circle (not with a mouse) |
+
+Settings per boss are in `BOSS_ATTACKS` and `PHASE_MSG` in `js/level.js`.
+
+## Goals: achievements and missions
+
+The **Goals** button on the world screen (a gold dot shows when a reward is ready) opens:
+
+- **Daily missions** (3, new every day) and **weekly missions** (3, new every Monday), such as "Catch 40 aliens", "Reach a combo of 8" or "Catch 1 bosses". Finished missions give crystals and materials with **Claim**.
+- **22 achievements** that unlock once, each with a reward: catching aliens, shiny and armoured aliens, combos, bosses (also without taking damage), stars, score, base level, upgrades, the alien guide and Endless waves.
+
+Missions are in `MISSIONS`, achievements in `ACHIEVEMENTS` in `js/app.js`.
+
+## Endless mode
+
+The **Endless** card (opens after clearing Crystal Shores) is survival: wave after wave, each bigger and faster. Every 5 waves the world changes (background and aliens), and every 5th wave is that world's boss, with its phases. Every new wave heals 10%. The best wave and score are shown on the card.
+
 ## Time grenades
 
 Buy **Time grenades** in the shop (2 per level, or 4 with the Time grenade pouch). Throw one like a net grenade: everything (aliens, rocks and the boss) moves at a quarter of its speed for 3 seconds. Choose it on the gear belt, with the **Time** button on the phone, or key `4`.
