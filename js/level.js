@@ -1,6 +1,9 @@
 // Level 1 gameplay. Everything is drawn in a 1920x1080 coordinate space.
 (function () {
-  const W = 1920, H = 1080;
+  // Height is always 1080; the width follows the screen shape ("expand" mode): 1920 on a 16:9 TV,
+  // about 2376 on a wide phone. Everything is placed relative to W, so wider screens show more world.
+  let W = 1920;
+  const H = 1080;
   let GOAL = 10;                                     // goal of the level being played (largest per kind)
   let GOALMAP = {};                                  // how many of each kind this level asks for
   const goalOf = (t) => (GOALMAP[t] != null ? GOALMAP[t] : GOAL);
@@ -374,12 +377,20 @@
       if (q === 'auto') q = this.autoQuality || 'fast';
       this.quality = q;
       const w = q === 'sharp' ? 1920 : q === 'low' ? 960 : q === 'vlow' ? 640 : 1280;
-      this.canvas.width = w; this.canvas.height = Math.round(w * 9 / 16);
-      this.scale = w / W;
+      this.scale = w / 1920;                                // drawing resolution per game unit
+      this.canvas.width = Math.round(W * this.scale); this.canvas.height = Math.round(H * this.scale);
       this.lowFx = q !== 'sharp';
       this.bgCache = null;
     },
     glow(n) { return this.lowFx ? 0 : n; },
+    // The screen got wider or narrower: the game area follows (called by the menu code on resize)
+    setViewWidth(w) {
+      w = Math.round(w);
+      if (w === W) return;
+      W = w;
+      this.viewW = W;
+      if (this.quality) this.setQuality(this.quality);
+    },
 
     // Automatic graphics: if the game runs below ~45 frames per second, step down to lighter settings
     trackSpeed(rawDt) {
@@ -1790,6 +1801,7 @@
       return true;
     },
     inBeltZone(p, pt) {
+      if (this.touchMode) return false;
       const b = this.beltPos(p);
       if (dist(pt, b) < BELT.r * 1.7) return true;
       if (!p.belt.open) return false;
@@ -1798,6 +1810,7 @@
     },
 
     updateBelt(p, dt) {
+      if (this.touchMode) return;          // touch mode switches gear with its own buttons
       const a = p.smoothAim, b = this.beltPos(p), belt = p.belt, inp = p.input;
       const fresh = inp.poseFresh();
       const click = inp.mouseFire && this.inBeltZone(p, a);
@@ -2184,14 +2197,16 @@
       const ax = this.players.reduce((a, p) => a + p.smoothAim.x, 0) / n || W / 2;
       const ay = this.players.reduce((a, p) => a + p.smoothAim.y, 0) / n || H / 2;
       const px = (ax / W - 0.5) * -36, py = (ay / H - 0.5) * -20;
-      const bw = W * 1.06, bh = H * 1.06;
+      const src = img[this.bgKey || 'bg' + this.levelId];
+      const cover = src && src.width ? Math.max((W * 1.06) / src.width, (H * 1.06) / src.height) : 1;
+      const bw = src && src.width ? src.width * cover : W * 1.06, bh = src && src.width ? src.height * cover : H * 1.06;
       // The background is scaled once to the canvas size, so each frame is a cheap 1:1 copy
       const bgKey = this.bgKey || 'bg' + this.levelId;
-      if (!this.bgCache || this.bgCacheKey !== bgKey + '/' + this.scale) {
+      if (!this.bgCache || this.bgCacheKey !== bgKey + '/' + this.scale + '/' + W) {
         const bc = document.createElement('canvas');
         bc.width = Math.round(bw * this.scale); bc.height = Math.round(bh * this.scale);
         bc.getContext('2d').drawImage(img[bgKey], 0, 0, bc.width, bc.height);
-        this.bgCache = bc; this.bgCacheKey = bgKey + '/' + this.scale;
+        this.bgCache = bc; this.bgCacheKey = bgKey + '/' + this.scale + '/' + W;
       }
       c.drawImage(this.bgCache, (W - bw) / 2 + px, (H - bh) / 2 + py, bw, bh);
 
@@ -2285,7 +2300,7 @@
       if (this.endless && !this.boss) this.drawWaveLabel();
       if (this.state === 'play') {
         if (this.players.some((p) => p.belt.open)) this.drawSlowMo();
-        for (const p of this.players) { this.drawBelt(p); if (this.players.length > 1) this.drawPlayerHud(p); }
+        for (const p of this.players) { if (!this.touchMode) this.drawBelt(p); if (this.players.length > 1) this.drawPlayerHud(p); }
         this.drawMenuHold();
       }
       if (this.state === 'play' || this.state === 'countdown' || this.state === 'calibrate') {
@@ -2902,5 +2917,5 @@
     },
   };
 
-  window.SV = { REGION_MAT, Assets, Input, inputs, Level, SPR, LEVELS, STAGES, stageConfig, starRating, ALL_TYPES, GEAR, TIME_GEAR, SHIELD_MAX, TROPHIES, shieldMax: () => SHIELD_MAX, get TYPES() { return TYPES; }, get GOAL() { return GOAL; }, goalOf };
+  window.SV = { viewW: () => W, REGION_MAT, Assets, Input, inputs, Level, SPR, LEVELS, STAGES, stageConfig, starRating, ALL_TYPES, GEAR, TIME_GEAR, SHIELD_MAX, TROPHIES, shieldMax: () => SHIELD_MAX, get TYPES() { return TYPES; }, get GOAL() { return GOAL; }, goalOf };
 })();

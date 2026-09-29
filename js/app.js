@@ -62,7 +62,12 @@
   // ---------------- Stage scaling ----------------
   const stage = $('#stage');
   function fitStage() {
-    const s = Math.min(innerWidth / 1920, innerHeight / 1080);
+    // expand mode: the stage is 1080 high and as wide as the screen's shape (at least 16:9, at most ~24:10)
+    const sw = Math.round(Math.max(1920, Math.min(2600, 1080 * innerWidth / Math.max(1, innerHeight))));
+    stage.style.width = sw + 'px';
+    document.documentElement.style.setProperty('--stage-w', sw + 'px');
+    if (window.SV && window.SV.Level) window.SV.Level.setViewWidth(sw);
+    const s = Math.min(innerWidth / sw, innerHeight / 1080);
     stage.style.transform = `scale(${s}) translate(-50%, -50%)`;
     stage.style.transformOrigin = '0 0';
     stage.style.left = '50%'; stage.style.top = '50%';
@@ -79,7 +84,9 @@
     if (name === 'shop') renderShop();
     if (name === 'options') renderOptions();
     if (name === 'levels') renderLevels();
-    if (name === 'connect') { Net.start(); Net.renderQr(); updatePhoneUi(); }
+    if (name === 'connect') { if (window.SV_TOUCH) return go('levels'); Net.start(); Net.renderQr(); updatePhoneUi(); }
+    if (window.Touch && Touch.editing && name !== 'touchedit') Touch.edit(false);
+    if (name === 'touchedit' && window.Touch) Touch.edit(true, $('#screen-touchedit'));
     if (name === 'dex') { Dex.hide(); Dex.render(); }
     if (name === 'workshop') renderWorkshop();
     if (name === 'home') renderHome();
@@ -170,7 +177,8 @@
     if (!stageUnlocked(world, stage)) return;
     Sfx.select();
     pending = { world, stage };
-    if (Net.isConnected()) startLevel('phone', world, stage);
+    if (window.SV_TOUCH) startLevel('phone', world, stage);        // on-screen gamepad: start right away
+    else if (Net.isConnected()) startLevel('phone', world, stage);
     else go('connect');
   }
 
@@ -249,7 +257,11 @@
   // Opening a world: its background zooms in and the 5 levels pop out of the centre along a dotted path
   let openWorldId = null;
   // 10 levels along a winding path across the screen (the boss level last, on the right)
-  const NODE_POS = Array.from({ length: 10 }, (_, i) => [170 + i * 176, Math.round(610 + Math.sin(i * 1.15) * 125)]);
+  // spread over the full (possibly wider) screen width
+  const nodePos = () => {
+    const sw = window.SV.viewW(), m = 170, step = (sw - 2 * m) / 9;
+    return Array.from({ length: 10 }, (_, i) => [Math.round(m + i * step), Math.round(610 + Math.sin(i * 1.15) * 125)]);
+  };
   // A flowing, curved path through the levels: extra bends between the levels, then a smooth
   // curve (Catmull-Rom) through all points
   function smoothPath(nodes) {
@@ -285,6 +297,8 @@
     const map = $('#stage-map');
     map.innerHTML = '';
     const line = $('#stage-path-line');
+    const NODE_POS = nodePos();
+    $('#stage-path').setAttribute('viewBox', `0 0 ${window.SV.viewW()} 1080`);
     line.setAttribute('d', smoothPath(NODE_POS));
     line.classList.remove('on');
     for (let s = 1; s <= STAGES; s++) {
@@ -294,7 +308,7 @@
       n.className = 'stage-node pre' + (boss ? ' boss' : '') + (unlocked ? '' : ' locked') + (stars ? ' cleared' : '');
       n.disabled = !unlocked;
       n.style.left = x + 'px'; n.style.top = y + 'px';
-      n.style.setProperty('--fx', (960 - x) + 'px'); n.style.setProperty('--fy', (560 - y) + 'px');
+      n.style.setProperty('--fx', (window.SV.viewW() / 2 - x) + 'px'); n.style.setProperty('--fy', (560 - y) + 'px');
       n.style.transitionDelay = (0.12 + (s - 1) * 0.11) + 's';
       const inner = unlocked ? (boss ? CROWN_SVG + s : s) : LOCK_SVG.replace('lock-ico', '');
       const sc = stageConfig(w, s);
@@ -701,6 +715,19 @@
   // The Workshop can be opened from the world screen or from its building on the Home base
   let workshopFrom = 'levels';
   actions['workshop-back'] = () => go(workshopFrom);
+  // Touch mode (Android app): arranging the on-screen gamepad
+  actions['arrange-touch'] = () => go('touchedit');
+  actions['touch-done'] = () => go('options');
+  actions['touch-reset'] = () => { if (window.Touch) Touch.resetLayout(); };
+  if (window.SV_TOUCH && window.Touch) {
+    document.body.classList.add('touch');
+    Touch.active = true;
+    Touch.init({
+      getLayout: () => save.options.touchLayout,
+      saveLayout: (L) => { if (L) save.options.touchLayout = L; else delete save.options.touchLayout; persist(); },
+      Level, Net, owns: (id) => !!(save.owned || {})[id],
+    });
+  }
   actions['open-mods'] = () => openMods('weapon', 'workshop');
   actions['base-close'] = () => { $('#ov-base').classList.remove('show'); setTimeout(focusFirst, 30); };
 
@@ -1237,7 +1264,9 @@
     $('#cal-hand').textContent = save.options.hand;
     updatePhoneUi();
     $('#prompt').classList.remove('show');
-    Level.start({ level: world, stage, mode, players: Net.isConnected(2) ? 2 : 1, save, options: save.options, onEnd: endLevel, onHud, getMenuButtons });
+    if (window.SV_TOUCH && window.Touch) Touch.prepare();
+    Level.touchMode = !!window.SV_TOUCH;
+    Level.start({ level: world, stage, mode, players: !window.SV_TOUCH && Net.isConnected(2) ? 2 : 1, save, options: save.options, onEnd: endLevel, onHud, getMenuButtons });
     buildCatches();
     onHud('all', null, Level);
     $('#screen-game').classList.toggle('plat', !!Level.plat);
@@ -1324,7 +1353,7 @@
       if (current === 'options') { e.preventDefault(); closeOptions(); return; }
       if (current === 'intro') { e.preventDefault(); endIntro(); return; }
       if (current === 'home' && $('#ov-base').classList.contains('show')) { e.preventDefault(); actions['base-close'](); return; }
-      const back = { options: 'start', levels: 'start', shop: 'levels', connect: 'levels', quit: 'start', dex: 'levels', home: 'levels', workshop: workshopFrom, goals: 'levels', mods: modsFrom, account: accountFrom }[current];
+      const back = { options: 'start', levels: 'start', shop: 'levels', connect: 'levels', quit: 'start', dex: 'levels', home: 'levels', workshop: workshopFrom, goals: 'levels', mods: modsFrom, account: accountFrom, touchedit: 'options' }[current];
       if (back) { e.preventDefault(); go(back); }
       return;
     }
@@ -1360,7 +1389,15 @@
       v.currentTime = 0;
       v.muted = save.options.sound !== 'on';
       const p = v.play();
-      if (p && p.catch) p.catch(() => endIntro());          // could not play: go straight on
+      // Browsers only allow video *with sound* after a real click or key press on the TV/laptop itself.
+      // Pressing Start with the phone controller doesn't count, so then the intro plays without sound
+      // instead of being skipped.
+      if (p && p.catch) p.catch(() => {
+        if (introDone) return;
+        v.muted = true;
+        const p2 = v.play();
+        if (p2 && p2.catch) p2.catch(() => endIntro());    // could not play at all: go straight on
+      });
     } catch (e) { endIntro(); }
   }
   function endIntro() {
@@ -1462,7 +1499,7 @@
     .then(() => {
       buildHud();
       go('start');
-      Net.start();   // get the room ready so pairing is instant
+      if (!window.SV_TOUCH) Net.start();   // get the room ready so pairing is instant (not needed with touch controls)
     })
     .catch((err) => {
       $('#load-text').textContent = err.message + '. Check that the assets folder was uploaded.';

@@ -220,6 +220,14 @@ The phone page has a **Start on the TV** button: it opens the game on the TV and
 
 Amazon Fire TV does not support Google Cast; for Fire TV the route is an app in the Amazon Appstore.
 
+## Expand mode (wide screens)
+
+The game is always 1080 units high, and as wide as the screen's shape: 1920 on a 16:9 TV, about 2376 on a wide phone (up to 2600). On wider screens you simply see more of the world: the backgrounds fill the full width, aliens also appear at the sides, and the HUD and touch buttons stay at the screen edges. Screens with buttons drawn in the picture (the title screen and the home base) keep their picture in the middle and show a blurred copy of it at the sides. In the Android app the game also uses the strip beside the camera notch, while keeping the HUD and buttons clear of it. In touch mode, menus, world cards, level buttons and options are shown larger for phone screens.
+
+## Touch mode (on-screen gamepad)
+
+In the Android app (and in a browser with `?touch=1` after the address) the game has its own gamepad on the screen, so no phone controller, no QR code and one player: a d-pad on the left moves the aiming circle, the big **FIRE** button on the right shoots, and the small buttons around it switch to the blaster, net grenade, time grenade (once bought) and shield, and reload. In the extra platformer level the big button jumps, and the small ones blast and run. Menus work by tapping. **Options → Touch buttons** lets you drag every button to another place (Reset puts them back).
+
 ## Android app (APK)
 
 `star-voyager.apk` contains the whole game, so it can be installed on an Android phone or tablet (Android 5 or newer) without a browser. It needs an internet connection only for connecting phones.

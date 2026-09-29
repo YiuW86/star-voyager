@@ -92,9 +92,9 @@ p { margin: 0; font-size: 28px; line-height: 1.45; color: var(--text); }
   transition: background 0.15s ease, box-shadow 0.15s ease;
 }
 .hotspot:hover, .hotspot:focus-visible { background: rgba(160, 250, 255, 0.22); outline: none; }
-#hs-start   { left: 51.3%;  top: 45.5%; width: 28.2%; height: 11.9%; }
-#hs-options { left: 51.55%; top: 59.8%; width: 27.5%; height: 11.4%; }
-#hs-quit    { left: 51.55%; top: 73.9%; width: 27.5%; height: 11.2%; }
+#hs-start   { left: calc(50% - 960px + 985px);  top: 45.5%; width: 541px; height: 11.9%; }
+#hs-options { left: calc(50% - 960px + 990px); top: 59.8%; width: 528px; height: 11.4%; }
+#hs-quit    { left: calc(50% - 960px + 990px); top: 73.9%; width: 528px; height: 11.2%; }
 .sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); }
 
 /* ---------- Level select ---------- */
@@ -166,7 +166,7 @@ input[type=range] { width: 100%; accent-color: var(--cyan); height: 40px; }
 .url { font-size: 20px; color: var(--muted); word-break: break-all; }
 
 /* ---------- In-game HUD ---------- */
-#game-canvas { position: absolute; inset: 0; width: 1920px; height: 1080px; cursor: none; }
+#game-canvas { position: absolute; inset: 0; width: 100%; height: 100%; cursor: none; }
 .hud { position: absolute; inset: 0; pointer-events: none; }
 
 .health { position: absolute; left: 40px; top: 36px; display: flex; align-items: center; gap: 0; }
@@ -530,7 +530,7 @@ input[type=range] { width: 100%; accent-color: var(--cyan); height: 40px; }
 .base-level { padding: 10px 22px; font-size: 28px; color: var(--cyan-soft); background: rgba(10, 20, 72, 0.85); border: 2px solid var(--cyan-deep); }
 .base-level b { color: var(--gold); font-size: 34px; margin-left: 6px; }
 .home-inv { margin-left: auto; }
-#buildings { position: absolute; inset: 0; }
+#buildings { position: absolute; top: 0; left: calc(50% - 960px); width: 1920px; height: 1080px; }
 .bld {
   --lv: 0; position: absolute; transform: translate(-50%, -50%); width: 170px; height: 170px; border: 0; padding: 0;
   background: none; cursor: pointer; border-radius: 50%;
@@ -740,3 +740,62 @@ body.fx-reduced #screen-game * { box-shadow: none !important; text-shadow: none 
 .acc-cols code { font-size: 18px; color: #fff; user-select: text; }
 .level-card.lic-lock .face::after { content: ""; position: absolute; inset: 0; background: rgba(6, 12, 44, 0.45); }
 .needs-lic { color: var(--gold) !important; font-weight: 700; }
+
+/* ---------- Touch mode (Android app): on-screen gamepad ---------- */
+.touch-only { display: none; }
+body.touch .touch-only { display: flex; }
+body.touch .start-connect, body.touch [data-go="connect"], body.touch [data-action="connect"], body.touch .phone-status, body.touch #phone-chip, body.touch #use-controller { display: none !important; }
+.touchpad { position: absolute; inset: 0; z-index: 6; pointer-events: none; display: none; }
+.touchpad.show { display: block; }
+.tp-item { position: absolute; transform: translate(-50%, -50%); pointer-events: auto; touch-action: none; user-select: none; -webkit-user-select: none; }
+.tp-stick { width: 320px; height: 320px; }
+.tp-base { position: absolute; inset: 10px; border-radius: 50%; background: radial-gradient(circle, rgba(12, 28, 94, 0.55), rgba(12, 28, 94, 0.35)); border: 4px solid rgba(98, 240, 255, 0.55); }
+.tp-knob { position: absolute; left: 50%; top: 50%; width: 120px; height: 120px; border-radius: 50%; transform: translate(-50%, -50%);
+  background: radial-gradient(circle at 40% 35%, #bff9ff, #1c8fd8); box-shadow: 0 0 20px rgba(98, 240, 255, 0.6); }
+.tp-fire { width: 230px; height: 230px; border-radius: 50%; border: 5px solid #fff4c9; color: #fff; font: 700 42px var(--font);
+  background: radial-gradient(circle at 40% 35%, #ffb3e8, #d64fb0); box-shadow: 0 0 30px rgba(255, 138, 216, 0.6); }
+.tp-small { width: 120px; height: 120px; border-radius: 50%; border: 3px solid var(--cyan); color: var(--cyan);
+  background: rgba(12, 28, 94, 0.75); display: flex; align-items: center; justify-content: center; }
+.tp-small svg { width: 58px; height: 58px; }
+.tp-small .tp-lbl { font: 700 26px var(--font); }
+.tp-small.on { background: var(--cyan); color: var(--space); border-color: #fff; }
+.tp-item.down { transform: translate(-50%, -50%) scale(0.92); filter: brightness(1.3); }
+.tp-small.hidden { display: none; }
+.touchpad.editing .tp-item { outline: 4px dashed var(--gold); outline-offset: 6px; cursor: grab; }
+.touchpad.editing .tp-item.dragging { opacity: 0.8; }
+#screen-touchedit .touchpad { display: block; }
+.touchedit-bar { position: absolute; left: 0; right: 0; top: 0; z-index: 7; display: flex; align-items: center; gap: 20px; padding: 24px 40px;
+  background: rgba(10, 20, 64, 0.92); border-bottom: 3px solid var(--pink); }
+.touchedit-bar span { flex: 1; font-size: 30px; color: var(--gold); font-weight: 600; }
+
+/* ---------- Expand mode (wider screens) ---------- */
+/* Pictures with buttons drawn on them (title screen, home base) keep their 16:9 frame in the middle;
+   the extra width on the sides shows a blurred, darker copy of the same picture */
+#screen-start > img.fill, #screen-home > img.fill { left: calc(50% - 960px); width: 1920px; }
+#screen-start::before, #screen-home::before {
+  content: ""; position: absolute; inset: -40px; filter: blur(28px) brightness(0.55); background-size: cover; background-position: center;
+}
+#screen-start::before { background-image: url(../assets/start-screen.jpg); }
+#screen-home::before { background-image: url(../assets/home.jpg); }
+
+/* ---------- Bigger menus on phones (touch mode) ---------- */
+body.touch .level-card { width: 280px !important; height: 330px !important; }
+body.touch .level-card .label b { font-size: 30px !important; }
+body.touch .level-card .label small, body.touch .level-card .card-stars { font-size: 22px !important; }
+body.touch #screen-levels .title { font-size: 90px; }
+body.touch #screen-levels .row .btn { height: 110px; font-size: 38px; }
+body.touch #screen-levels .row .btn span { padding: 0 36px; }
+body.touch .btn { font-size: 38px; height: 108px; }
+body.touch .btn.small { font-size: 30px; height: 84px; }
+body.touch .stage-node .hex { width: 180px; height: 180px; }
+body.touch .stage-node .hex > div { font-size: 64px; }
+body.touch .stage-node.boss .hex { width: 220px; height: 220px; }
+body.touch .stage-node .node-label { font-size: 26px; }
+body.touch .stage-node .node-stars .star { width: 32px; height: 32px; }
+body.touch .world-head .title { font-size: 96px; }
+body.touch #screen-options .opt-list label { font-size: 32px; }
+body.touch #screen-options .seg button { height: 68px; font-size: 26px; }
+body.touch .item b, body.touch .upgrade b, body.touch .mod-head b { font-size: 34px; }
+body.touch .item p, body.touch .upgrade p, body.touch .mod p { font-size: 24px; }
+/* Phones with a camera notch: the game picture goes behind it, but the HUD and touch buttons stay clear of it */
+body.touch #screen-game .hud, body.touch .touchpad { left: env(safe-area-inset-left, 0px); right: env(safe-area-inset-right, 0px); }

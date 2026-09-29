@@ -3,7 +3,8 @@
 // that transitions to the next one; the last one ends at the big crystal.
 (function () {
   const { Assets, Input, SPR, Level } = window.SV;
-  const W = 1920, H = 1080;
+  let W = 1920;            // follows the game's screen width (wider on wide phones)
+  const H = 1080;
   const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
   const lerp = (a, b, t) => a + (b - a) * t;
   const rand = (a, b) => a + Math.random() * (b - a);
@@ -170,7 +171,9 @@
       this.platEffects(dt);
 
       const p = this.pl;
-      const target = clamp(p.x - W * 0.38, 0, this.sec.w - W);
+      W = window.SV.viewW();
+      // a background narrower than the screen is centred (with dark edges); otherwise follow the robot
+      const target = this.sec.w <= W ? (this.sec.w - W) / 2 : clamp(p.x - W * 0.38, 0, this.sec.w - W);
       this.camX = lerp(this.camX, target, Math.min(1, dt * 8));
       if (this.platDeviceWarn) this.setPrompt('The extra level needs the Gamepad on your phone (or a keyboard)', 0.3);
     },
@@ -353,6 +356,7 @@
 
     // ---------------- Drawing ----------------
     platDraw() {
+      W = window.SV.viewW();
       const c = this.ctx, img = Assets.images, s = this.sec, p = this.pl;
       c.setTransform(this.scale, 0, 0, this.scale, 0, 0);
       if (this.shake > 0) c.translate(rand(-1, 1) * this.shake * 30, rand(-1, 1) * this.shake * 30);
