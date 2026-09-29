@@ -373,7 +373,7 @@
     setQuality(q) {
       if (q === 'auto') q = this.autoQuality || 'fast';
       this.quality = q;
-      const w = q === 'sharp' ? 1920 : q === 'low' ? 960 : 1280;
+      const w = q === 'sharp' ? 1920 : q === 'low' ? 960 : q === 'vlow' ? 640 : 1280;
       this.canvas.width = w; this.canvas.height = Math.round(w * 9 / 16);
       this.scale = w / W;
       this.lowFx = q !== 'sharp';
@@ -385,10 +385,17 @@
     trackSpeed(rawDt) {
       this.fpsFrames = (this.fpsFrames || 0) + 1;
       this.fpsTime = (this.fpsTime || 0) + rawDt;
+      this.gapMax = Math.max(this.gapMax || 0, rawDt);
+      if (rawDt > (this.frameCap ? 0.045 : 0.025)) this.slowFrames = (this.slowFrames || 0) + 1;
       if (this.fpsTime < 2) return;
       this.fps = Math.round(this.fpsFrames / this.fpsTime);
-      this.fpsFrames = 0; this.fpsTime = 0;
-      this.hud('fps', this.fps);
+      const n = this.fpsFrames;
+      this.hud('fps', {
+        fps: this.fps,
+        logic: (this.msUpdate || 0) / n, draw: (this.msDraw || 0) / n,     // average milliseconds per frame
+        slow: Math.round(((this.slowFrames || 0) / n) * 100), gap: Math.round((this.gapMax || 0) * 1000),
+      });
+      this.fpsFrames = 0; this.fpsTime = 0; this.msUpdate = 0; this.msDraw = 0; this.slowFrames = 0; this.gapMax = 0;
       if (this.options && this.options.quality === 'auto' && this.state === 'play' && this.fps < 45) {
         const next = this.quality === 'sharp' ? 'fast' : this.quality === 'fast' ? 'low' : null;
         if (next) { this.autoQuality = next; this.setQuality(next); this.hud('toast', 'Graphics lowered for smoother play'); }
@@ -397,6 +404,7 @@
 
     start({ level = 1, stage = 1, mode, players = 1, save, options, onEnd, onHud, getMenuButtons }) {
       Object.assign(this, { save, options, onEnd, onHud, getMenuButtons });
+      this.perfOptions(options);
       this.levelId = level;
       this.stage = stage;
       this.levelCfg = stageConfig(level, stage);
@@ -477,6 +485,7 @@
       this.state = !this.plat && this.players.some((p) => p.input.isCam()) ? 'calibrate' : 'countdown';
       if (this.plat) this.platInit();
       this.endless = !!LEVELS[level].endless; this.wave = 0; this.bgKey = null;
+      if (!this.plat) this.warmSprites();
       if (this.endless) this.nextWave(true);
       this.stateT = 0;
       this.running = true;
@@ -486,13 +495,19 @@
       const id = ++this.loopId;
       const loop = (now) => {
         if (!this.running || id !== this.loopId) return;
+        // "Frame rate: 30": only every other screen refresh, so each frame stays on screen equally long
+        if (this.frameCap && now - this.last < 1000 / this.frameCap - 4) { requestAnimationFrame(loop); return; }
         const rawDt = (now - this.last) / 1000;
-        const dt = Math.min(0.05, rawDt);
+        const dt = Math.min(this.frameCap ? 0.07 : 0.05, rawDt);
         this.last = now;
         this.trackSpeed(rawDt);
+        const t0 = performance.now();
         if (this.paused || this.state === 'done') { if (!this.menuSuspended) this.updateMenuCursor(dt); }
         else this.update(dt);
+        const t1 = performance.now();
         this.draw();
+        this.msUpdate = (this.msUpdate || 0) + (t1 - t0);
+        this.msDraw = (this.msDraw || 0) + (performance.now() - t1);
         requestAnimationFrame(loop);
       };
       requestAnimationFrame(loop);
@@ -543,8 +558,15 @@
     stop() { this.running = false; this.hud('cursor', null); },
 
     // Options changed from the in-game menu
+    // frame rate cap and reduced effects (used at level start and when options change)
+    perfOptions(o) {
+      this.frameCap = o && o.frameRate === '30' ? 30 : 0;
+      this.fxReduced = !!(o && o.effects === 'reduced');
+      document.body.classList.toggle('fx-reduced', this.fxReduced);
+    },
     applyOptions(o) {
       this.options = o;
+      this.perfOptions(o);
       for (const inp of inputs) {
         inp.hand = o.hand;
         inp.sens = o.sens;
@@ -629,7 +651,7 @@
       this.updateFlying(dt);
       if (this.boss) this.updateBoss(gdt, dt);
       if (this.hazards.length) this.updateHazards(gdt);
-      if (this.levelCfg.underwater) this.updateBubbles(dt);
+      if (this.levelCfg.underwater && !this.fxReduced) this.updateBubbles(dt);
 
       for (const p of this.players) { this.handlePhoneButtons(p); if (this.paused) return; }
       for (const p of this.players) { this.updatePauseGestures(p, dt); if (this.paused) return; }
@@ -1992,7 +2014,8 @@
     // sq = square "pixel" particles: the alien dissolves into data when it is caught
     burst(x, y, color, count, sq) {
       if (this.lowFx) count = Math.ceil(count / 2);
-      if (this.particles.length > 120) return;
+      if (this.fxReduced) count = Math.min(4, Math.ceil(count / 4));
+      if (this.particles.length > (this.fxReduced ? 30 : 120)) return;
       for (let i = 0; i < count; i++) {
         const a = rand(0, Math.PI * 2), sp = rand(150, 520);
         this.particles.push({ x, y, vx: Math.cos(a) * sp, vy: Math.sin(a) * sp, life: rand(0.4, 0.8), max: 0.8, r: rand(4, 10), color, sq });
@@ -2098,7 +2121,40 @@
       return { x: g.x + lx * Math.cos(g.rot) - ly * Math.sin(g.rot), y: g.y + lx * Math.sin(g.rot) + ly * Math.cos(g.rot) };
     },
 
+    // Pre-shrunk spritesheets: shrinking a big sheet while drawing costs weak TVs a lot on every frame,
+    // so a copy at 60% and at 35% is made once, and the smallest copy that is still big enough is used.
+    scaledSheet(img, meta, drawH) {
+      if (!img || !img.width) return { img, meta };
+      const need = (drawH * (this.scale || 1)) / meta.fh;
+      const level = need <= 0.35 ? 0.35 : need <= 0.6 ? 0.6 : 1;
+      if (level === 1) return { img, meta };
+      if (!this._sc) this._sc = new WeakMap();
+      let cache = this._sc.get(img);
+      if (!cache) { cache = {}; this._sc.set(img, cache); }
+      if (!cache[level]) {
+        const fw = Math.max(1, Math.round(meta.fw * level)), fh = Math.max(1, Math.round(meta.fh * level));
+        const cols = Math.max(1, Math.round(img.width / meta.fw)), rows = Math.max(1, Math.round(img.height / meta.fh));
+        const cv = document.createElement('canvas');
+        cv.width = fw * cols; cv.height = fh * rows;
+        const g = cv.getContext('2d');
+        g.imageSmoothingQuality = 'high';
+        g.drawImage(img, 0, 0, meta.fw * cols, meta.fh * rows, 0, 0, cv.width, cv.height);
+        cache[level] = { img: cv, meta: { fw, fh } };
+      }
+      return cache[level];
+    },
+    // make the shrunk copies of this level's sheets before playing, so there is no hiccup later
+    warmSprites() {
+      const sheets = [...TYPES.map((t) => [Assets.images[t], SPR[t]]), [Assets.images.gun, SPR.gun]];
+      for (const [img, meta] of sheets) {
+        if (!img || !meta) continue;
+        [0.3, 0.55].forEach((k) => this.scaledSheet(img, meta, (k * meta.fh) / (this.scale || 1)));
+      }
+    },
+
     drawFrame(img, meta, idx, cx, cy, h, flip, alpha, rot = 0, sx = 1, sy = 1) {
+      const scd = this.scaledSheet(img, meta, h * Math.max(Math.abs(sx), Math.abs(sy)));
+      img = scd.img; meta = scd.meta;
       const fx = (idx % 5) * meta.fw, fy = Math.floor(idx / 5) * meta.fh;
       const w = h * meta.fw / meta.fh;
       const c = this.ctx;
@@ -2118,7 +2174,8 @@
       c.setTransform(this.scale, 0, 0, this.scale, 0, 0);
 
       // Screen shake
-      if (this.shake > 0 && !matchMedia('(prefers-reduced-motion: reduce)').matches) {
+      if (this.reducedMotion === undefined) this.reducedMotion = matchMedia('(prefers-reduced-motion: reduce)').matches;
+      if (this.shake > 0 && !this.reducedMotion && !this.fxReduced) {
         c.translate(rand(-1, 1) * this.shake * 40, rand(-1, 1) * this.shake * 40);
       }
 
@@ -2138,7 +2195,7 @@
       }
       c.drawImage(this.bgCache, (W - bw) / 2 + px, (H - bh) / 2 + py, bw, bh);
 
-      if (this.levelCfg.underwater) this.drawBubbles();
+      if (this.levelCfg.underwater && !this.fxReduced) this.drawBubbles();
       if (this.boss) this.drawBoss();
 
       // Monsters, far ones first
@@ -2214,7 +2271,8 @@
         c.translate(g.x, g.y);
         c.rotate(g.rot);
         if (g.mirror) c.scale(-1, 1);
-        c.drawImage(this.gunImage(), (g.idx % 5) * SPR.gun.fw, Math.floor(g.idx / 5) * SPR.gun.fh, SPR.gun.fw, SPR.gun.fh, -g.gw / 2, -g.gh, g.gw, g.gh);
+        const gs = this.scaledSheet(this.gunImage(), SPR.gun, g.gh);
+        c.drawImage(gs.img, (g.idx % 5) * gs.meta.fw, Math.floor(g.idx / 5) * gs.meta.fh, gs.meta.fw, gs.meta.fh, -g.gw / 2, -g.gh, g.gw, g.gh);
         c.restore();
         if ((p.equipped === 'grenade' || p.equipped === 'time') && this.state === 'play') {
           const side = g.mirror ? -1 : 1;

@@ -31,6 +31,8 @@
     <button class="hotspot" id="hs-start" data-action="start-game"><span class="sr">Start</span></button>
     <button class="hotspot" id="hs-options" data-go="options"><span class="sr">Options</span></button>
     <button class="hotspot" id="hs-quit" data-action="quit"><span class="sr">Quit</span></button>
+    <!-- only in the Android app: turn this phone into a controller for a game on a TV or laptop -->
+    <button class="btn small app-only" id="use-controller" data-action="use-controller"><span>Use as controller</span></button>
     <div class="start-connect" id="start-connect">
       <div class="mini-qr" data-qr data-size="150"></div>
       <div>
@@ -101,7 +103,27 @@
       <h1 class="title">Workshop</h1>
       <div class="inventory" id="inventory"></div>
       <div class="upgrades" id="upgrades"></div>
-      <button class="btn" data-action="workshop-back"><span>Back</span></button>
+      <div class="row">
+        <button class="btn" data-action="workshop-back"><span>Back</span></button>
+        <button class="btn pink" data-action="open-mods"><span>Abilities</span></button>
+      </div>
+    </div>
+  </section>
+
+  <!-- Region abilities: weapon mods and drone abilities, and the loadout -->
+  <section id="screen-mods" class="screen dim-bg">
+    <img class="fill" src="assets/home.jpg" alt="">
+    <div class="center-col mods">
+      <h1 class="title">Abilities</h1>
+      <div class="row">
+        <button class="btn small" data-action="mods-weapon" id="tab-mw"><span>Weapon mods</span></button>
+        <button class="btn small" data-action="mods-drone" id="tab-md"><span>Drone abilities</span></button>
+      </div>
+      <div class="loadout" id="loadout"></div>
+      <div class="inventory" id="mods-inv"></div>
+      <p class="mods-note" id="mods-note"></p>
+      <div class="mods-grid" id="mods-grid"></div>
+      <button class="btn" data-action="mods-back"><span>Back</span></button>
     </div>
   </section>
 
@@ -156,6 +178,22 @@
     </div>
   </section>
 
+  <!-- Account & saves: parent account with cloud save, and a save code to move progress by hand -->
+  <section id="screen-account" class="screen dim-bg">
+    <img class="fill" src="assets/start-screen.jpg" alt="">
+    <div class="center-col account">
+      <h1 class="title">Account</h1>
+      <div class="acc-cols">
+        <div class="panel"><div class="inner" id="acc-cloud"></div></div>
+      </div>
+      <button class="btn" data-action="account-back"><span>Back</span></button>
+    </div>
+    <!-- asked when this device and the cloud both have (different) progress -->
+    <div class="overlay" id="ov-choice">
+      <div class="panel"><div class="inner" id="choice-box"></div></div>
+    </div>
+  </section>
+
   <!-- Options -->
   <section id="screen-options" class="screen dim-bg">
     <img class="fill" src="assets/start-screen.jpg" alt="">
@@ -176,7 +214,11 @@
           <label>Aim smoothing</label>
           <div class="seg" data-opt="smoothing"><button data-v="low">Fast</button><button data-v="normal">Normal</button><button data-v="high">Extra smooth</button></div>
           <label>Graphics</label>
-          <div class="seg" data-opt="quality"><button data-v="auto">Auto</button><button data-v="low">Low</button><button data-v="fast">Fast</button><button data-v="sharp">Sharp</button></div>
+          <div class="seg" data-opt="quality"><button data-v="auto">Auto</button><button data-v="vlow">Very low</button><button data-v="low">Low</button><button data-v="fast">Fast</button><button data-v="sharp">Sharp</button></div>
+          <label>Frame rate</label>
+          <div class="seg" data-opt="frameRate"><button data-v="60">60</button><button data-v="30">30 (steady)</button></div>
+          <label>Effects</label>
+          <div class="seg" data-opt="effects"><button data-v="full">Full</button><button data-v="reduced">Reduced</button></div>
           <label>Unlock all levels</label>
           <div class="seg" data-opt="unlockAll"><button data-v="off">Off</button><button data-v="on">On</button></div>
           <label>Show speed (FPS)</label>
@@ -185,6 +227,7 @@
       </div></div>
       <div class="row">
         <button class="btn pink" data-action="options-back"><span>Back</span></button>
+        <button class="btn" data-action="open-account"><span>Account</span></button>
         <button class="btn" data-action="reset"><span>Reset progress</span></button>
       </div>
     </div>
@@ -303,6 +346,7 @@
 <script src="js/level.js"></script>
 <script src="js/platformer.js"></script>
 <script src="js/dex.js"></script>
+<script src="js/cloud.js"></script>
 <script src="js/app.js"></script>
 <script src="js/cast-receiver.js"></script>
 </body>

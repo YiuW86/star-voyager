@@ -16,7 +16,9 @@ js/audio.js         Synthesized sound effects
 js/dex.js           Alien guide: facts about every alien and the guide screen
 js/platformer.js    Experimental level 6: the side-scrolling platformer
 js/i18n.js          Languages: all translations of the game's texts
-js/config.js        Your settings (the Google Cast App ID)
+js/config.js        Your settings (Google Cast App ID, Firebase accounts, licences)
+js/cloud.js         Accounts, cloud save and licence check (Firebase)
+firestore.rules     Security rules to paste into Firebase
 js/cast-receiver.js Makes the game work as a Google Cast receiver on the TV
 assets/             Your artwork (spritesheets sliced into even frames)
 ```
@@ -139,6 +141,38 @@ Settings per boss are in `BOSS_ATTACKS` and `PHASE_MSG` in `js/level.js`.
 
 **Boss artwork:** King Nebula uses its own sheets: `assets/nebula_king.png` (5×4: idle, rock throw with red warning, splitting into copies, hurt/angry/bubble shield/dizzy) and `assets/nebula_king_fx.png` (5×3: rocks and rocks breaking, weak spots and popping, bubble shield popping). Other bosses still use their crowned alien sprite until their artwork is added to `BOSS_ART` in `js/level.js`.
 
+## Accounts, cloud save and licences (Firebase)
+
+Parents can make an account (Options → **Account**). Progress is then saved on the device *and* online, and can be continued on any other device by signing in there. Creating an account asks a small sum first ("grown-ups only"), and only the parent's email address is stored. If a device and the cloud both have different progress, the game asks once which one to keep. Settings like graphics and language stay per device.
+
+### Switching it on (about 15 minutes, free)
+
+1. Go to **console.firebase.google.com**, sign in with a Google account and click **Create a project** (name: Star Voyager). Google Analytics is not needed.
+2. In the project: **Build → Authentication → Get started**, then under **Sign-in method** switch on **Email/Password**.
+3. **Authentication → Settings → Authorized domains**: add your game's address, for example `yourname.github.io`.
+4. **Build → Firestore Database → Create database**: choose a location close to your players (for Europe `eur3` or `europe-west`), start in **production mode**.
+5. Firestore → **Rules**: replace everything with the contents of `firestore.rules` from the game folder, and press **Publish**. These rules make sure every account can only see its own progress, and that nobody can give themselves a licence.
+6. **Project settings (gear icon) → General → Your apps → Web app (</>)**: register an app (name: Star Voyager, no hosting). Firebase shows a `firebaseConfig` with apiKey, authDomain, projectId, storageBucket, messagingSenderId and appId. Copy those six values into `firebase` in `js/config.js` and upload that file.
+
+The free Spark plan is enough to start (50,000 monthly active users, 50,000 reads and 20,000 writes per day). The config values are not secret: they only identify your project; the rules in step 5 do the protecting.
+
+### Licences
+
+In `js/config.js`, `licensing.enabled: false` keeps the whole game open (as now). With `enabled: true`, players without a licence can only play the worlds in `freeWorlds` (Crystal Shores and Skyline Run by default); the other world cards show **Full game** and lead to the Account screen.
+
+A licence is a document in Firestore → collection `licenses` → document named after the player's **Account ID** (shown on the Account screen) with a field `full` = true (for ever) or `until` = a date (for example a school year). You can add one by hand in the Firebase console (for testers, schools, giveaways). Later a payment service (Paddle, Lemon Squeezy or Stripe) will do this automatically after a payment: set `licensing.buyUrl` to the payment page (it receives `?account=…&email=…`), and a small Firebase Cloud Function (needs the pay-as-you-go Blaze plan) receives the payment message and writes the licence.
+
+## Performance settings (for TVs)
+
+Options has four settings for slower devices:
+
+- **Graphics:** Sharp 1920×1080 (with glow effects), Fast 1280×720, Low 960×540, Very low 640×360. Auto starts at Fast and steps down below 45 FPS.
+- **Frame rate:** 60, or **30 (steady)**: the game then draws exactly every other screen refresh. On a 60 Hz TV, a steady 30 often feels smoother than an uneven 45.
+- **Effects:** Full or **Reduced** (few sparkles, no screen shake, no bubbles, no moving glows and shadows over the game).
+- **Show speed (FPS):** shows frames per second and a speed test: *logic* and *draw* are the milliseconds the game itself spends per frame, *slow* is the share of frames that came too late, *worst* the longest wait between two frames. If logic + draw are small (a few ms) but the FPS is still low, the TV's graphics chip or browser is the limit, not the game code.
+
+The game also makes shrunk copies (60% and 35%) of the spritesheets once, and draws from the smallest copy that is still big enough; that saves weak devices a lot of work every frame without looking different.
+
 ## Region abilities
 
 Every world has its own **material** that only drops there (and in Endless waves in that world): Nebula mist, Ember sparks, Lagoon shells, Prism glass, Echo crystals and Vortex dust. Armoured and shiny aliens drop more, and bosses drop 4.
@@ -185,6 +219,16 @@ The phone page has a **Start on the TV** button: it opens the game on the TV and
 6. When everything works, press **Publish** in the console so every Cast device can use it.
 
 Amazon Fire TV does not support Google Cast; for Fire TV the route is an app in the Amazon Appstore.
+
+## Android app (APK)
+
+`star-voyager.apk` contains the whole game, so it can be installed on an Android phone or tablet (Android 5 or newer) without a browser. It needs an internet connection only for connecting phones.
+
+- Play on the phone itself by tapping on aliens (the "Play with mouse" way), or connect a controller phone.
+- The app has an extra button on the title screen, **Use as controller**: this turns the phone into a controller for a game running on a TV or laptop (enter the code shown there).
+- Inside the app the QR code can't point to the app itself. Put your online address in `publicUrl` in `js/config.js` (for example `https://yourname.github.io/star-voyager/`) and rebuild the app, and the QR code will point other phones to the online controller page.
+- The phone's back button works like Escape; on the title screen it closes the app.
+- Keep the signing key (`starvoyager.keystore` and its password) safe: every update of the app must be signed with the same key, otherwise Android refuses to install it over the old version.
 
 ## Two players
 

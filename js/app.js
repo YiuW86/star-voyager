@@ -12,13 +12,14 @@
     mats: { shard: 0, goo: 0, dust: 0 },   // materials dropped by aliens
     trophies: {},                           // boss trophies
     upg: { blaster: 1, net: 1, shield: 1 }, // Workshop upgrade levels
+    mods: {}, loadout: {},                  // region abilities: levels, and the equipped drone ability / weapon mod
     base: {},                               // Home base building levels (+ sanctuary timer)
     owned: {},
     best: {},
     stages: {},     // 'w1s3' -> { stars, time } for every cleared level
     dex: {},        // alien id -> times caught (all time)
     dexNew: {},     // aliens caught but not yet viewed in the guide
-    options: { sound: 'on', assist: 2, hand: 'right', sens: 1, smoothing: 'normal', quality: 'auto', fps: 'off', unlockAll: 'off' },
+    options: { sound: 'on', assist: 2, hand: 'right', sens: 1, smoothing: 'normal', quality: 'auto', fps: 'off', unlockAll: 'off', frameRate: '60', effects: 'full' },
   };
   let save = load();
   // Older saves: the extra platformer level used to be world 6 (now world 7)
@@ -31,6 +32,8 @@
   if (!save.trophies) save.trophies = {};
   if (!save.upg) save.upg = { blaster: 1, net: 1, shield: 1 };
   if (!save.base) save.base = {};
+  if (!save.mods) save.mods = {};
+  if (!save.loadout) save.loadout = {};
   try { localStorage.setItem('starvoyager.save', JSON.stringify(save)); } catch (e) {}
 
   function load() {
@@ -41,7 +44,9 @@
     return JSON.parse(JSON.stringify(DEFAULT_SAVE));
   }
   function persist() {
+    save.meta = { updated: Date.now() };
     try { localStorage.setItem('starvoyager.save', JSON.stringify(save)); } catch (e) {}
+    if (window.Cloud) window.Cloud.queueSave();       // also online, when a parent is signed in
   }
 
   const SHOP = [
@@ -79,6 +84,8 @@
     if (name === 'workshop') renderWorkshop();
     if (name === 'home') renderHome();
     if (name === 'goals') renderGoals();
+    if (name === 'account') renderAccount();
+    if (name === 'mods') renderMods();
     if (name === 'levels') Progress.updateDot();
     if (name === 'game') renderMatsHud();
     if (name === 'start') updatePhoneUi();
@@ -132,6 +139,7 @@
     'skip-cal'() { Level.skipCalibration(); },
     menu() { Level.pause(); },
     'start-game'() { playIntro(); },
+    'use-controller'() { location.href = 'controller.html'; },
     'intro-skip'() { endIntro(); },
     'dex-close'() { Dex.hide(); setTimeout(focusFirst, 30); },
     resume() { Level.resume(); },
@@ -189,8 +197,9 @@
   // Options → "Unlock all levels" opens everything (handy for testing or for younger players)
   const unlockAll = () => save.options.unlockAll === 'on';
   // Endless opens after the first world is cleared
-  const worldUnlocked = (w) => unlockAll() || w === WORLD_IDS[0] || !!LEVELS[w].experimental
-    || (LEVELS[w].endless ? worldCleared(1) : worldCleared(w - 1));
+  const needsLicence = (w) => !isFreeWorld(w) && !hasFullGame();
+  const worldUnlocked = (w) => !needsLicence(w) && (unlockAll() || w === WORLD_IDS[0] || !!LEVELS[w].experimental
+    || (LEVELS[w].endless ? worldCleared(1) : worldCleared(w - 1)));
   const stageUnlocked = (w, s) => unlockAll() || (worldUnlocked(w) && (s === 1 || stageCleared(w, s - 1)));
   const worldStars = (w) => Array.from({ length: STAGES }, (_, i) => stageStars(w, i + 1)).reduce((a, b) => a + b, 0);
   function nextStage(w, s) {
@@ -212,19 +221,26 @@
     for (const w of WORLD_IDS) {
       const cfg = LEVELS[w];
       const open = worldUnlocked(w);
+      const lic = needsLicence(w);        // needs the full game (licence)
       const b = document.createElement('button');
       b.className = 'level-card' + (open ? '' : ' locked');
-      b.disabled = !open;
+      b.disabled = !open && !lic;
+      if (lic) b.classList.add('lic-lock');
       b.dataset.world = w;
       const maxStars = cfg.plat ? 3 : STAGES * 3;
       const eb = save.endlessBest || {};
-      const sub = cfg.endless ? (open ? `<small>${t('Best')}: ${t('wave')} ${eb.wave || 0}</small><span class="card-stars">${(eb.score || 0).toLocaleString()}</span>` : `<small>Clear ${LEVELS[1].name} first</small>`)
+      const sub = lic ? `<small class="needs-lic">${t('Full game')}</small>`
+        : cfg.endless ? (open ? `<small>${t('Best')}: ${t('wave')} ${eb.wave || 0}</small><span class="card-stars">${(eb.score || 0).toLocaleString()}</span>` : `<small>Clear ${LEVELS[1].name} first</small>`)
         : cfg.experimental && open ? `<small>Extra level</small><span class="card-stars">${starSvg(true)} ${worldStars(w)}/${maxStars}</span>`
         : open ? `<span class="card-stars">${starSvg(true)} ${worldStars(w)}/${maxStars}</span>` : `<small>Clear ${LEVELS[w - 1].name} first</small>`;
       b.innerHTML = `<div class="face"><img src="${cfg.bg}" alt="">${open ? '' : LOCK_SVG}<div class="label"><b>${cfg.name}</b>${sub}</div></div>`;
       b.setAttribute('aria-label', open ? `${cfg.name}, ${worldStars(w)} of ${STAGES * 3} stars` : `${cfg.name}, locked`);
       // the experimental platformer is a single level: start it right away
-      b.addEventListener('click', () => { if (!worldUnlocked(w)) return; Sfx.select(); if (cfg.plat || cfg.endless) chooseStage(w, 1); else openWorld(w); });
+      b.addEventListener('click', () => {
+        if (needsLicence(w)) { Sfx.select(); accountFrom = 'levels'; go('account'); return; }     // shows how to unlock the full game
+        if (!worldUnlocked(w)) return;
+        Sfx.select(); if (cfg.plat || cfg.endless) chooseStage(w, 1); else openWorld(w);
+      });
       box.appendChild(b);
     }
     updatePhoneUi();
@@ -310,10 +326,17 @@
 
   // ---------------- Shop ----------------
   // ---------------- Materials, trophies and the Workshop ----------------
-  const MAT_NAMES = { shard: 'Crystal shards', goo: 'Alien goo', dust: 'Star dust' };
+  const MAT_NAMES = { shard: 'Crystal shards', goo: 'Alien goo', dust: 'Star dust',
+    mist: 'Nebula mist', spark: 'Ember sparks', pearl: 'Lagoon shells', glass: 'Prism glass', echo: 'Echo crystals', vdust: 'Vortex dust' };
   const TROPHY_NAMES = { nebulaCrown: 'Nebula Crown', emberCore: 'Ember Core', tidePearl: 'Tide Pearl', prismHeart: 'Prism Heart', echoBell: 'Echo Bell', vortexEye: 'Vortex Eye' };
   // Placeholder icons (to be replaced by artwork)
   const MAT_SVG = {
+    mist: '<svg class="mat" viewBox="0 0 24 24"><circle cx="8" cy="13" r="5" fill="#c9b6ff"/><circle cx="14" cy="11" r="6" fill="#c9b6ff"/><circle cx="18" cy="15" r="4" fill="#c9b6ff"/></svg>',
+    spark: '<svg class="mat" viewBox="0 0 24 24"><path d="M12 2c5 6 6 9 6 12a6 6 0 0 1-12 0c0-3 1-6 6-12z" fill="#ff9a3a" stroke="#fff" stroke-width="1.3"/></svg>',
+    pearl: '<svg class="mat" viewBox="0 0 24 24"><circle cx="12" cy="12" r="8" fill="#fde8ff" stroke="#fff" stroke-width="1.3"/><circle cx="9" cy="9" r="2" fill="#fff"/></svg>',
+    glass: '<svg class="mat" viewBox="0 0 24 24"><path d="M12 3l9 17H3z" fill="#bff9ff" stroke="#fff" stroke-width="1.3"/></svg>',
+    echo: '<svg class="mat" viewBox="0 0 24 24" fill="none" stroke="#b99bff" stroke-width="2"><circle cx="12" cy="12" r="3"/><circle cx="12" cy="12" r="6.5"/><circle cx="12" cy="12" r="10"/></svg>',
+    vdust: '<svg class="mat" viewBox="0 0 24 24" fill="none" stroke="#ff8ad8" stroke-width="2.2"><path d="M12 12a2 2 0 1 1 2 2 4 4 0 1 1-4-4 6 6 0 1 1 6 6 8 8 0 0 1-8-8"/></svg>',
     crystal: '<i class="crystal"></i>',
     shard: '<svg class="mat" viewBox="0 0 24 24"><path d="M12 2l6 10-6 10-6-10z" fill="#62f0ff" stroke="#fff" stroke-width="1.5"/></svg>',
     goo: '<svg class="mat" viewBox="0 0 24 24"><circle cx="12" cy="13" r="8" fill="#7dffb0" stroke="#fff" stroke-width="1.5"/><circle cx="9.5" cy="11" r="2.2" fill="#ff8ad8"/></svg>',
@@ -323,7 +346,8 @@
 
   function renderMatsHud() {
     const m = save.mats || {};
-    $('#mats-hud').innerHTML = ['shard', 'goo', 'dust'].map((k) => `<span>${MAT_SVG[k]}<b>${m[k] || 0}</b></span>`).join('');
+    const reg = window.SV.REGION_MAT[Level.regionWorld || lastWorld];
+    $('#mats-hud').innerHTML = ['shard', 'goo', 'dust', ...(reg ? [reg] : [])].map((k) => `<span>${MAT_SVG[k]}<b>${m[k] || 0}</b></span>`).join('');
   }
 
   // Upgrade paths: cost of each next level (crystals + materials, the last blaster level also needs a boss trophy)
@@ -349,7 +373,8 @@
 
   function renderWorkshop() {
     if (!save.upg) save.upg = { blaster: 1, net: 1, shield: 1 };
-    const inv = [['crystal', save.crystals, 'Crystals'], ...['shard', 'goo', 'dust'].map((k) => [k, save.mats[k] || 0, MAT_NAMES[k]])];
+    const inv = [['crystal', save.crystals, 'Crystals'], ...['shard', 'goo', 'dust'].map((k) => [k, save.mats[k] || 0, MAT_NAMES[k]]),
+      ...Object.values(window.SV.REGION_MAT).filter((k) => save.mats[k] > 0).map((k) => [k, save.mats[k], MAT_NAMES[k]])];
     const trophies = Object.entries(save.trophies || {}).filter(([, n]) => n > 0);
     $('#inventory').innerHTML = inv.map(([k, n, name]) => `<span class="inv">${MAT_SVG[k]}<b>${n}</b><small>${t(name)}</small></span>`).join('')
       + (trophies.length ? trophies.map(([id]) => `<span class="inv trophy">${MAT_SVG.trophy}<small>${t(TROPHY_NAMES[id] || id)}</small></span>`).join('')
@@ -647,6 +672,13 @@
     const row = document.createElement('div');
     row.className = 'row';
     if (btn) row.appendChild(btn);
+    if (m.id === 'hangar') {
+      const d = document.createElement('button');
+      d.className = 'btn small';
+      d.innerHTML = `<span>${t('Drone abilities')}</span>`;
+      d.addEventListener('click', () => { $('#ov-base').classList.remove('show'); openMods('drone', 'home'); });
+      row.appendChild(d);
+    }
     if (m.id === 'sanctuary' && sanctPending() > 0) {
       const c = document.createElement('button');
       c.className = 'btn small pink';
@@ -669,7 +701,251 @@
   // The Workshop can be opened from the world screen or from its building on the Home base
   let workshopFrom = 'levels';
   actions['workshop-back'] = () => go(workshopFrom);
+  actions['open-mods'] = () => openMods('weapon', 'workshop');
   actions['base-close'] = () => { $('#ov-base').classList.remove('show'); setTimeout(focusFirst, 30); };
+
+  // ---------------- Account & saves ----------------
+  // Replace the progress on this device (keeps this device's own options such as graphics and language)
+  function replaceSave(data) {
+    const opts = save.options;
+    Object.keys(save).forEach((k) => { delete save[k]; });
+    Object.assign(save, JSON.parse(JSON.stringify(DEFAULT_SAVE)), data, { options: opts });
+    if (!save.mats) save.mats = { shard: 0, goo: 0, dust: 0 };
+    if (!save.trophies) save.trophies = {};
+    if (!save.upg) save.upg = { blaster: 1, net: 1, shield: 1 };
+    if (!save.base) save.base = {};
+    if (!save.mods) save.mods = {};
+    if (!save.loadout) save.loadout = {};
+    try { localStorage.setItem('starvoyager.save', JSON.stringify(save)); } catch (e) {}
+    renderLevels();
+  }
+
+  // ---------------- Licences ----------------
+  // With licensing switched on (js/config.js), only the free worlds are open without a licence.
+  // A licence is written by the server (after a payment) or by hand in the Firebase console:
+  // Firestore → licenses → document named after the account ID → field full = true (or until = a date).
+  const LIC = (window.SV_CONFIG || {}).licensing || {};
+  function hasFullGame() {
+    if (!LIC.enabled) return true;
+    const l = window.Cloud && window.Cloud.license;
+    if (!l) return false;
+    if (l.full === true) return true;
+    const until = l.until && (l.until.toDate ? l.until.toDate() : new Date(l.until));
+    return !!(until && until > new Date());
+  }
+  const isFreeWorld = (w) => !LIC.enabled || (LIC.freeWorlds || [1]).includes(Number(w));
+  function licenceHtml() {
+    if (!LIC.enabled) return '';
+    const C = window.Cloud;
+    if (hasFullGame()) return `<p class="lic ok">${t('Licence')}: <b>${t('Full game')}</b></p>`;
+    const id = C && C.user ? C.user.uid : '';
+    return `<p class="lic">${t('Licence')}: <b>${t('Free version')}</b></p>
+      ${LIC.buyUrl ? `<div class="row"><button class="btn small pink" data-acc="buy"><span>${t('Unlock the full game')}</span></button></div>` : `<p class="muted small">${t('The full game can be bought soon.')}</p>`}
+      ${id ? `<p class="muted small">${t('Account ID')}: <code>${id}</code></p>` : ''}`;
+  }
+
+  let accMsg = '', accGate = null, accountFrom = 'options';
+  const summaryText = (p) => `${p.stars} ★ · ${p.crystals} ${t('crystals')} · ${p.aliens} ${t('aliens')}`;
+
+  function renderAccount() {
+    const box = $('#acc-cloud');
+    const C = window.Cloud;
+    let html = `<h2>${t('Parent account')}</h2>`;
+    if (!C || !C.enabled) {
+      html += `<p class="muted">${t('Online accounts are not switched on yet for this game.')}</p>
+        <p class="muted small">${t('The game owner can switch them on in js/config.js (see README).')}</p>`;
+    } else if (C.status === 'loading') {
+      html += `<p>${t('Connecting…')}</p>`;
+    } else if (C.status === 'error' && !C.user) {
+      html += `<p class="bad">${t('Could not reach the account service.')}</p><p class="muted small">${C.error}</p>`;
+    } else if (C.user) {
+      const when = C.lastSync ? new Date(C.lastSync).toLocaleTimeString() : '–';
+      html += `<p>${t('Signed in as')} <b>${C.user.email || ''}</b></p>
+        <p class="muted">${C.status === 'syncing' ? t('Saving…') : C.status === 'error' ? `<span class="bad">${t('Could not save online')}</span>` : `${t('Saved online')} · ${when}`}</p>
+        <p class="muted small">${t('Your progress is saved on this device and online, so you can continue on another TV or laptop.')}</p>
+        ${licenceHtml()}
+        <div class="row"><button class="btn small pink" data-acc="sync"><span>${t('Save now')}</span></button>
+        <button class="btn small" data-acc="signout"><span>${t('Sign out')}</span></button></div>`;
+    } else {
+      // Signing in / creating an account is for grown-ups: a small sum first (parental gate)
+      html += `<p class="muted small">${t('For parents: sign in to save progress online and continue on other devices.')}</p>
+        <label class="field"><span>${t('Email')}</span><input id="acc-email" type="email" autocomplete="email"></label>
+        <label class="field"><span>${t('Password')}</span><input id="acc-pw" type="password" autocomplete="current-password"></label>`;
+      if (accGate) html += `<label class="field"><span>${t('Grown-ups only')}: ${accGate.a} + ${accGate.b} =</span><input id="acc-gate" inputmode="numeric"></label>`;
+      html += `<div class="row">
+        <button class="btn small pink" data-acc="signin"><span>${t('Sign in')}</span></button>
+        <button class="btn small" data-acc="signup"><span>${accGate ? t('Create account') : t('New account')}</span></button>
+        <button class="btn small" data-acc="reset"><span>${t('Forgot password')}</span></button></div>`;
+    }
+    if (accMsg) html += `<p class="acc-msg">${accMsg}</p>`;
+    box.innerHTML = html;
+
+    bindAccount();
+  }
+
+  function bindAccount() {
+    const C = window.Cloud;
+    const val = (id) => (($(id) || {}).value || '').trim();
+    const say = (m) => { accMsg = m; renderAccount(); };
+    const errText = (e) => {
+      const code = (e && e.code) || '';
+      if (code.includes('wrong-password') || code.includes('invalid-credential') || code.includes('user-not-found')) return t('Email or password is not correct.');
+      if (code.includes('email-already-in-use')) return t('There is already an account with this email.');
+      if (code.includes('weak-password')) return t('Choose a password of at least 6 characters.');
+      if (code.includes('invalid-email')) return t('This email address is not valid.');
+      return t('Something went wrong. Please try again.');
+    };
+    $$('[data-acc]').forEach((b) => b.addEventListener('click', async () => {
+      const a = b.dataset.acc;
+      try {
+        if (a === 'signin') { accMsg = ''; await C.signIn(val('#acc-email'), val('#acc-pw')); say(''); }
+        if (a === 'signup') {
+          if (!accGate) { accGate = { a: 7 + Math.floor(Math.random() * 12), b: 5 + Math.floor(Math.random() * 9) }; return say(t('Grown-ups: please solve the sum to create an account.')); }
+          if (Number(val('#acc-gate')) !== accGate.a + accGate.b) { accGate = null; return say(t('That is not right. Please ask a grown-up.')); }
+          await C.signUp(val('#acc-email'), val('#acc-pw')); accGate = null; say(t('Account created!'));
+        }
+        if (a === 'reset') { if (!val('#acc-email')) return say(t('Enter your email first.')); await C.resetPassword(val('#acc-email')); say(t('We sent an email to reset your password.')); }
+        if (a === 'signout') { await C.signOut(); say(''); }
+        if (a === 'buy' && LIC.buyUrl) {
+          // the payment page gets the account ID, so the payment can be linked to this account
+          const u = LIC.buyUrl + (LIC.buyUrl.includes('?') ? '&' : '?') + 'account=' + encodeURIComponent(C.user.uid) + '&email=' + encodeURIComponent(C.user.email || '');
+          window.open(u, '_blank');
+        }
+        if (a === 'sync') { await C.push(); say(''); }
+      } catch (e) { say(errText(e)); }
+      Sfx.select();
+    }));
+  }
+
+  // Asked once, after signing in, if this device and the cloud have different progress
+  function askSaveChoice(local, cloud) {
+    return new Promise((resolve) => {
+      const box = $('#choice-box');
+      box.innerHTML = `<h2>${t('Which progress do you want to keep?')}</h2>
+        <div class="choice">
+          <button class="btn pink" data-choice="cloud"><span>${t('Online')}: ${summaryText(cloud)}</span></button>
+          <button class="btn" data-choice="local"><span>${t('This device')}: ${summaryText(local)}</span></button>
+        </div>
+        <p class="muted small">${t('The other one is replaced.')}</p>`;
+      if (current !== 'account') go('account');
+      $('#ov-choice').classList.add('show');
+      $$('[data-choice]').forEach((b) => b.addEventListener('click', () => {
+        $('#ov-choice').classList.remove('show');
+        resolve(b.dataset.choice);
+      }));
+      setTimeout(focusFirst, 30);
+    });
+  }
+
+  actions['open-account'] = () => { accountFrom = 'options'; go('account'); };
+  actions['account-back'] = () => { accMsg = ''; accGate = null; go(accountFrom); };
+  if (window.Cloud) {
+    window.Cloud.onChange(() => { if (current === 'account') renderAccount(); if (current === 'levels') renderLevels(); });
+    window.Cloud.init({ getLocal: () => save, useCloud: (data) => replaceSave(data), ask: askSaveChoice });
+  }
+
+  // ---------------- Region abilities: weapon mods and drone abilities ----------------
+  // Each world: one drone ability and one weapon mod, made with that world's material and its boss trophy.
+  const REGION_BY_WORLD = window.SV.REGION_MAT;
+  const MODS = [
+    { id: 'mirror', kind: 'drone', world: 1, name: 'Mirror drones', desc: 'Your drones make hologram copies of themselves. Aliens get confused and stop throwing.',
+      eff: (l) => t('{a} copies · aliens confused {b} s · every {c} s').replace('{a}', [2, 3, 4][l - 1]).replace('{b}', [3, 4, 5][l - 1]).replace('{c}', [14, 12, 10][l - 1]) },
+    { id: 'bubble', kind: 'weapon', world: 1, name: 'Bubble shot', desc: 'Armoured aliens you hit are trapped in a floating bubble: they cannot move or throw.',
+      eff: (l) => t('Bubble {a} s').replace('{a}', [2, 3, 4][l - 1]) + (l === 3 ? ' · ' + t('+1 damage to bubbled aliens') : '') },
+    { id: 'flare', kind: 'drone', world: 2, name: 'Flare drone', desc: 'The drone fires a fan of sparks that also hits other aliens.',
+      eff: (l) => t('Hits {a} extra aliens').replace('{a}', [2, 3, 3][l - 1]) + (l === 3 ? ' · ' + t('double damage') : '') },
+    { id: 'ember', kind: 'weapon', world: 2, name: 'Ember rounds', desc: 'Your shots set armoured aliens on fire, so they lose extra armour.',
+      eff: (l) => t('Burns after {a} s').replace('{a}', [2, 1.5, 1][l - 1]) + (l >= 2 ? ' · ' + t('the flame jumps to a neighbour') : '') },
+    { id: 'wave', kind: 'drone', world: 3, name: 'Wave drone', desc: 'Sends a wave that pushes all aliens back and washes away flying rocks.',
+      eff: (l) => t('Every {a} s · pushes back {b}%').replace('{a}', [12, 10, 8][l - 1]).replace('{b}', [15, 20, 25][l - 1]) },
+    { id: 'whirl', kind: 'weapon', world: 3, name: 'Whirlpool net', desc: 'The net grenade leaves a whirlpool that keeps catching aliens.',
+      eff: (l) => t('Whirlpool {a} s').replace('{a}', [2, 3, 4][l - 1]) },
+    { id: 'prismd', kind: 'drone', world: 4, name: 'Prism drone', desc: 'Prism beams strip the armour off armoured aliens.',
+      eff: (l) => t('Up to {a} armoured aliens per shot').replace('{a}', [2, 3, 4][l - 1]) },
+    { id: 'pshield', kind: 'weapon', world: 4, name: 'Prism shield', desc: 'Rocks you block with the shield bounce back and hit an alien.',
+      eff: (l) => t('{a} damage per bounce').replace('{a}', l) },
+    { id: 'sonar', kind: 'drone', world: 5, name: 'Sonar drone', desc: 'A sonar pulse stuns nearby aliens and lights up the dark.',
+      eff: (l) => t('Stun {a} s · every {b} s').replace('{a}', [1.5, 2, 2.5][l - 1]).replace('{b}', [10, 8, 6][l - 1]) },
+    { id: 'homing', kind: 'weapon', world: 5, name: 'Homing shot', desc: 'Your shots find aliens more easily.',
+      eff: (l) => t('+{a}% hit area').replace('{a}', [20, 35, 50][l - 1]) },
+    { id: 'blades', kind: 'drone', world: 6, name: 'Blade drone', desc: 'Throws blades that destroy rocks flying at you.',
+      eff: (l) => t('A rock every {a} s').replace('{a}', [4, 3, 2][l - 1]) },
+    { id: 'vnet', kind: 'weapon', world: 6, name: 'Vortex net', desc: 'The net grenade pulls in aliens from much further away.',
+      eff: (l) => t('Net {a}% bigger').replace('{a}', [25, 40, 60][l - 1]) },
+  ];
+  const WORLD_TROPHY = { 1: 'nebulaCrown', 2: 'emberCore', 3: 'tidePearl', 4: 'prismHeart', 5: 'echoBell', 6: 'vortexEye' };
+  function modCost(m, lvl) {       // cost of getting level `lvl` (1..3)
+    const c = { crystal: [80, 150, 250][lvl - 1], [REGION_BY_WORLD[m.world]]: [6, 12, 20][lvl - 1] };
+    if (lvl >= 2) c.goo = [0, 4, 8][lvl - 1];
+    if (lvl >= 3) c.dust = 3;
+    if (lvl === 1) c.trophy = WORLD_TROPHY[m.world];
+    return c;
+  }
+  let modsTab = 'weapon', modsFrom = 'workshop';
+  actions['mods-weapon'] = () => { modsTab = 'weapon'; renderMods(); };
+  actions['mods-drone'] = () => { modsTab = 'drone'; renderMods(); };
+  actions['mods-back'] = () => go(modsFrom);
+  function openMods(tab, from) { modsTab = tab; modsFrom = from; go('mods'); }
+
+  function renderMods() {
+    if (!save.mods) save.mods = {};
+    if (!save.loadout) save.loadout = {};
+    $('#tab-mw').classList.toggle('pink', modsTab === 'weapon');
+    $('#tab-md').classList.toggle('pink', modsTab === 'drone');
+    const name = (id) => { const m = MODS.find((q) => q.id === id); return m ? t(m.name) : t('None'); };
+    $('#loadout').innerHTML = `<span>${t('Loadout')}:</span> <b>${name(save.loadout.weapon)}</b> + <b>${name(save.loadout.drone)}</b>`;
+    const hasDrone = save.owned.helperDrone || save.owned.droneTwo;
+    $('#mods-note').textContent = modsTab === 'drone' && !hasDrone ? t('Needs a helper drone from the Star shop') : '';
+    const inv = Object.values(REGION_BY_WORLD).map((k) => `<span class="inv">${MAT_SVG[k]}<b>${save.mats[k] || 0}</b></span>`).join('');
+    $('#mods-inv').innerHTML = inv;
+    const grid = $('#mods-grid');
+    grid.innerHTML = '';
+    for (const m of MODS.filter((q) => q.kind === modsTab)) {
+      const lvl = save.mods[m.id] || 0, maxed = lvl >= 3;
+      const cost = maxed ? null : modCost(m, lvl + 1);
+      const locked = !lvl && !(save.trophies[WORLD_TROPHY[m.world]] > 0);
+      const equipped = save.loadout[m.kind] === m.id;
+      const card = document.createElement('div');
+      card.className = 'mod' + (locked ? ' locked' : '') + (equipped ? ' equipped' : '');
+      const pips = [1, 2, 3].map((i) => `<i class="${i <= lvl ? 'on' : ''}"></i>`).join('');
+      const bossName = LEVELS[m.world].boss.name;
+      card.innerHTML = `<div class="mod-head">${MAT_SVG[REGION_BY_WORLD[m.world]]}<div><b>${t(m.name)}</b><small>${t(LEVELS[m.world].name)}</small></div></div>
+        <div class="pips">${pips}</div><p>${t(m.desc)}</p>
+        ${lvl ? `<p class="now">${m.eff(lvl)}</p>` : ''}
+        ${locked ? `<p class="lock">${t('Beat the {a} to unlock').replace('{a}', bossName)}</p>`
+          : cost ? `<p class="next">${t(lvl ? 'Next' : 'When built')}: ${m.eff(lvl + 1)}</p><div class="cost">${Object.entries(cost).map(([k, v]) => {
+            const ok = k === 'trophy' ? have('trophy', v) > 0 : have(k) >= v;
+            return `<span class="${ok ? '' : 'short'}">${k === 'trophy' ? MAT_SVG.trophy + t(TROPHY_NAMES[v]) : MAT_SVG[k] + v}</span>`;
+          }).join('')}</div>` : `<p class="next">${t('Fully upgraded!')}</p>`}`;
+      const row = document.createElement('div');
+      row.className = 'row';
+      if (!locked && !maxed) {
+        const b = document.createElement('button');
+        b.className = 'btn small pink';
+        b.innerHTML = `<span>${lvl ? t('Upgrade') : t('Build')}</span>`;
+        b.disabled = !canPay(cost);
+        b.addEventListener('click', () => {
+          if (!canPay(cost)) return;
+          pay(cost); save.mods[m.id] = lvl + 1;
+          if (!save.loadout[m.kind]) save.loadout[m.kind] = m.id;      // the first one you make is equipped
+          persist(); Sfx.win(); renderMods(); focusFirst();
+        });
+        row.appendChild(b);
+      }
+      if (lvl) {
+        const e = document.createElement('button');
+        e.className = 'btn small';
+        e.innerHTML = `<span>${equipped ? t('Equipped') : t('Equip')}</span>`;
+        e.addEventListener('click', () => {
+          save.loadout[m.kind] = equipped ? null : m.id;
+          persist(); Sfx.select(); renderMods(); focusFirst();
+        });
+        row.appendChild(e);
+      }
+      card.appendChild(row);
+      grid.appendChild(card);
+    }
+  }
 
   // Star items: special upgrades bought with the stars you earn on levels
   const STAR_SHOP = [
@@ -858,7 +1134,10 @@
     if (kind === 'fps') {
       const el = $('#fps');
       el.style.display = save.options.fps === 'on' ? 'block' : 'none';
-      el.textContent = `${value} FPS · ${L.quality}`;
+      // speed test: frames per second, and where the time goes (game logic / drawing, in milliseconds per frame)
+      const v = typeof value === 'object' ? value : { fps: value };
+      el.innerHTML = `<b>${v.fps} FPS</b> · ${L.quality}${L.frameCap ? ' · 30 cap' : ''}`
+        + (v.logic != null ? `<br>logic ${v.logic.toFixed(1)} ms · draw ${v.draw.toFixed(1)} ms<br>slow ${v.slow}% · worst ${v.gap} ms` : '');
     }
     if (kind === 'cursor') {
       const cur = $('#menu-cursor');
@@ -1027,6 +1306,8 @@
   // ---------------- Keyboard and TV remote ----------------
   document.addEventListener('keydown', (e) => {
     Sfx.unlock();
+    // typing in a text field (email, password, save code): leave the keys alone, except Escape
+    if (e.target && /^(INPUT|TEXTAREA)$/.test(e.target.tagName) && e.key !== 'Escape') return;
     const inGame = current === 'game' && Level.state === 'play';
     if (inGame && (e.key === 'r' || e.key === 'R')) { Level.keyReload(); return; }
     if (inGame && ['1', '2', '3', '4'].includes(e.key)) { Level.keyEquipIndex(Number(e.key) - 1); return; }
@@ -1043,7 +1324,7 @@
       if (current === 'options') { e.preventDefault(); closeOptions(); return; }
       if (current === 'intro') { e.preventDefault(); endIntro(); return; }
       if (current === 'home' && $('#ov-base').classList.contains('show')) { e.preventDefault(); actions['base-close'](); return; }
-      const back = { options: 'start', levels: 'start', shop: 'levels', connect: 'levels', quit: 'start', dex: 'levels', home: 'levels', workshop: workshopFrom, goals: 'levels' }[current];
+      const back = { options: 'start', levels: 'start', shop: 'levels', connect: 'levels', quit: 'start', dex: 'levels', home: 'levels', workshop: workshopFrom, goals: 'levels', mods: modsFrom, account: accountFrom }[current];
       if (back) { e.preventDefault(); go(back); }
       return;
     }
@@ -1058,6 +1339,14 @@
     }
   });
   document.addEventListener('pointerdown', () => Sfx.unlock(), { once: false });
+
+  // Android app: the phone's back button. On the title screen it closes the app, elsewhere it acts like Escape.
+  window.SVBack = () => {
+    if (current === 'start') return 'exit';
+    document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
+    return 'ok';
+  };
+  if (window.SV_APP) document.body.classList.add('in-app');
 
   // ---------------- Intro video ----------------
   // After Start, the intro video plays full screen; when it ends (or Skip is pressed) a bright

@@ -645,3 +645,98 @@ input[type=range] { width: 100%; accent-color: var(--cyan); height: 40px; }
   background: linear-gradient(270deg, #070d33 0%, #070d33 76%, rgba(7, 13, 51, 0) 100%);
 }
 .intro-skip { z-index: 2; opacity: 1; right: 28px; bottom: 28px; }
+
+/* Scrollbars in the game's style (Goals lists, alien guide and any other scrolling panel):
+   a slim glowing cyan-to-violet bar on a dark track, instead of the grey system scrollbar */
+@supports not selector(::-webkit-scrollbar) {
+  * { scrollbar-width: thin; scrollbar-color: #62f0ff rgba(7, 13, 51, 0.7); }
+}
+::-webkit-scrollbar { width: 14px; height: 14px; }
+::-webkit-scrollbar-track { background: rgba(7, 13, 51, 0.7); border-radius: 8px; box-shadow: inset 0 0 0 1px rgba(98, 240, 255, 0.2); }
+::-webkit-scrollbar-thumb {
+  background: linear-gradient(180deg, #62f0ff, #b99bff); border-radius: 8px;
+  border: 3px solid rgba(7, 13, 51, 0.7); box-shadow: 0 0 10px rgba(98, 240, 255, 0.6);
+}
+::-webkit-scrollbar-thumb:hover { background: linear-gradient(180deg, #bff9ff, #ff8ad8); }
+::-webkit-scrollbar-corner { background: transparent; }
+::-webkit-scrollbar-button { display: none; height: 0; }
+
+/* Abilities screen */
+.mods { gap: 18px; }
+.loadout { font-size: 26px; color: var(--muted); }
+.loadout b { color: var(--gold); }
+.mods-note { font-size: 22px; color: var(--pink); margin: 0; min-height: 0; }
+.mods-grid { display: grid; grid-template-columns: repeat(3, 520px); gap: 20px; }
+.mod { display: flex; flex-direction: column; gap: 8px; padding: 18px 22px; background: rgba(12, 28, 94, 0.92); border-left: 6px solid var(--violet); }
+.mod.equipped { border-left-color: var(--gold); box-shadow: 0 0 22px rgba(255, 210, 122, 0.35); }
+.mod.locked { opacity: 0.6; }
+.mod-head { display: flex; align-items: center; gap: 12px; }
+.mod-head .mat { width: 44px; height: 44px; }
+.mod-head b { display: block; font-size: 28px; color: #fff; }
+.mod-head small { font-size: 18px; color: var(--muted); }
+.mod p { font-size: 20px; margin: 0; color: var(--muted); }
+.mod p.now { color: #fff; }
+.mod p.next { color: var(--cyan-soft); }
+.mod p.lock { color: var(--pink); }
+.mod .pips { display: flex; gap: 6px; }
+.mod .pips i { width: 50px; height: 10px; background: rgba(255, 255, 255, 0.15); }
+.mod .pips i.on { background: linear-gradient(90deg, var(--cyan), var(--gold)); }
+.mod .cost { display: flex; flex-wrap: wrap; gap: 12px; font-size: 21px; color: #fff; }
+.mod .cost span { display: flex; align-items: center; gap: 4px; }
+.mod .cost span.short { color: var(--danger); }
+.mod .cost .mat { width: 26px; height: 26px; }
+.mod .row { justify-content: flex-start; gap: 12px; margin-top: 2px; }
+/* Abilities screen: compact enough for 6 cards + tabs + Back on one screen */
+#screen-mods .center-col { gap: 10px; }
+#screen-mods .title { font-size: 56px; }
+#screen-mods .mod { padding: 12px 18px; gap: 5px; }
+#screen-mods .mod p { font-size: 18px; }
+#screen-mods .mod-head b { font-size: 24px; }
+#screen-mods .mod-head .mat { width: 36px; height: 36px; }
+#screen-mods .mod .btn { height: 58px; font-size: 22px; }
+#screen-mods .inv { padding: 6px 12px; }
+
+/* Android app only */
+.app-only { display: none; }
+body.in-app .app-only { display: flex; }
+#use-controller { position: absolute; right: 40px; bottom: 40px; z-index: 2; }
+.mini-qr.no-qr, .qr.no-qr { display: flex; align-items: center; justify-content: center; font-size: 28px; font-weight: 700; color: var(--space); background: #fff; }
+
+/* Reduced effects (Options → Effects): no moving glows and shadows over the game, which weak TVs redraw every frame */
+body.fx-reduced #screen-game *:not(.combo):not(.combo *) { animation: none !important; }
+body.fx-reduced #screen-game * { box-shadow: none !important; text-shadow: none !important; filter: none !important; backdrop-filter: none !important; }
+.fps { line-height: 1.35; font-size: 20px; }
+.fps b { font-size: 24px; }
+
+/* Options: two columns of settings, so everything fits on one screen */
+#screen-options .opt-list { grid-template-columns: 250px 560px 250px 560px; gap: 18px 30px; }
+#screen-options .opt-list label { font-size: 26px; }
+#screen-options .seg button { height: 54px; font-size: 22px; }
+#screen-options .seg.lang-seg button { height: 44px; font-size: 19px; }
+#screen-options .center-col { gap: 22px; }
+
+/* Account & saves */
+.account { gap: 22px; }
+.acc-cols { display: grid; grid-template-columns: 900px; gap: 30px; align-items: start; }
+.acc-cols .inner { display: flex; flex-direction: column; gap: 14px; min-height: 420px; }
+.acc-cols h2 { margin: 0; }
+.acc-cols p { font-size: 24px; margin: 0; }
+.acc-cols p.small { font-size: 20px; }
+.acc-cols .bad, .acc-msg.bad { color: var(--danger); }
+.acc-msg { font-size: 22px; color: var(--gold); }
+.acc-cols .row { justify-content: flex-start; gap: 12px; flex-wrap: wrap; }
+.field { display: flex; flex-direction: column; gap: 6px; font-size: 22px; color: var(--cyan-soft); }
+.field input, #code-box {
+  font: inherit; font-size: 26px; padding: 12px 16px; color: #fff; background: #0a1440;
+  border: 2px solid var(--cyan-deep); outline: none; user-select: text;
+}
+.field input:focus, #code-box:focus { border-color: var(--gold); }
+#code-box { font-family: monospace; font-size: 18px; resize: none; width: 100%; box-sizing: border-box; }
+#ov-choice { background: rgba(6, 12, 44, 0.75); align-items: center; justify-content: center; }
+#ov-choice .inner { display: flex; flex-direction: column; gap: 18px; align-items: center; }
+#ov-choice .choice { display: flex; gap: 20px; }
+
+.lic { font-size: 24px; } .lic.ok b { color: #7dffb0; } .lic b { color: var(--gold); }
+.acc-cols code { font-size: 18px; color: #fff; user-select: text; }
+.level-card.lic-lock .face::after { content: ""; position: absolute; inset: 0; background: rgba(6, 12, 44, 0.45); }
+.needs-lic { color: var(--gold) !important; font-weight: 700; }
