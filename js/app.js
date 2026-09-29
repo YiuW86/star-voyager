@@ -91,6 +91,8 @@
     if (name === 'workshop') renderWorkshop();
     if (name === 'home') renderHome();
     if (name === 'goals') renderGoals();
+    if (name === 'planets') showPlanets();
+    if (name === 'start') optionsFrom = 'start';
     if (name === 'account') renderAccount();
     if (name === 'mods') renderMods();
     if (name === 'levels') Progress.updateDot();
@@ -141,6 +143,8 @@
       hideOverlays();
       startLevel(lastMode, n.world, n.stage);
     },
+    'planet-options'() { optionsFrom = 'planets'; go('options'); },
+    'choose-planet'() { choosePlanet(); },
     'options-game'() { optionsFromGame = true; Level.menuSuspended = true; go('options'); },
     'options-back'() { closeOptions(); },
     'skip-cal'() { Level.skipCalibration(); },
@@ -191,7 +195,7 @@
       Level.applyOptions(save.options);
       go('game');
       Level.menuSuspended = false;
-    } else go('start');
+    } else go(optionsFrom);
   }
 
   // ---------------- Worlds and levels ----------------
@@ -1353,7 +1357,7 @@
       if (current === 'options') { e.preventDefault(); closeOptions(); return; }
       if (current === 'intro') { e.preventDefault(); endIntro(); return; }
       if (current === 'home' && $('#ov-base').classList.contains('show')) { e.preventDefault(); actions['base-close'](); return; }
-      const back = { options: 'start', levels: 'start', shop: 'levels', connect: 'levels', quit: 'start', dex: 'levels', home: 'levels', workshop: workshopFrom, goals: 'levels', mods: modsFrom, account: accountFrom, touchedit: 'options' }[current];
+      const back = { options: 'start', levels: 'planets', planets: 'start', shop: 'levels', connect: 'levels', quit: 'start', dex: 'levels', home: 'levels', workshop: workshopFrom, goals: 'levels', mods: modsFrom, account: accountFrom, touchedit: 'options' }[current];
       if (back) { e.preventDefault(); go(back); }
       return;
     }
@@ -1376,6 +1380,56 @@
     return 'ok';
   };
   if (window.SV_APP) document.body.classList.add('in-app');
+
+  // ---------------- Planet choice ----------------
+  // The planet spins: its 12 frames blend into each other while the whole picture slowly turns.
+  let optionsFrom = 'start';
+  const planetImg = new Image();
+  planetImg.src = 'assets/planet1.png';
+  const PLANET_FRAMES = 12, PLANET_CELL = 340;
+  let planetLoop = 0, planetZoom = false;
+  function showPlanets() {
+    const totalStars = Object.values(save.stages || {}).reduce((a, s) => a + (s.stars || 0), 0);
+    const worlds = Object.values(LEVELS).filter((l) => !l.plat && !l.endless).length;
+    $('#planet1-info').innerHTML = `${starSvg(true)} ${totalStars}/${worlds * STAGES * 3} · ${worlds} ${t('worlds')}`;
+    $('.planet').classList.remove('zoom');
+    planetZoom = false;
+    const cv = $('.planet-canvas'), c = cv.getContext('2d');
+    const id = ++planetLoop;
+    const draw = (now) => {
+      if (id !== planetLoop || current !== 'planets') return;
+      const t = now / 1000;
+      c.clearRect(0, 0, cv.width, cv.height);
+      if (planetImg.complete && planetImg.naturalWidth) {
+        const pos = (t * 2.2) % PLANET_FRAMES, i = Math.floor(pos), k = pos - i;
+        const size = cv.width * 0.92;
+        c.save();
+        c.translate(cv.width / 2, cv.height / 2 + Math.sin(t * 1.2) * 8);
+        c.rotate(t * 0.12);
+        const frame = (n, alpha) => { c.globalAlpha = alpha; c.drawImage(planetImg, n * PLANET_CELL, 0, PLANET_CELL, PLANET_CELL, -size / 2, -size / 2, size, size); };
+        frame(i, 1);
+        frame((i + 1) % PLANET_FRAMES, k);
+        c.restore();
+      }
+      requestAnimationFrame(draw);
+    };
+    requestAnimationFrame(draw);
+    setTimeout(focusFirst, 30);
+  }
+  // choosing the planet: it grows toward you with a flash, then its worlds appear
+  function choosePlanet() {
+    if (planetZoom) return;
+    planetZoom = true;
+    Sfx.select();
+    $('.planet').classList.add('zoom');
+    const warp = $('#warp');
+    setTimeout(() => { warp.classList.remove('out'); warp.classList.add('in'); }, 250);
+    setTimeout(() => {
+      go('levels');
+      warp.classList.remove('in'); warp.classList.add('out');
+      setTimeout(() => warp.classList.remove('out'), 900);
+    }, 700);
+  }
 
   // ---------------- Intro video ----------------
   // After Start, the intro video plays full screen; when it ends (or Skip is pressed) a bright
@@ -1408,7 +1462,7 @@
     warp.classList.remove('out'); warp.classList.add('in');   // flash in
     setTimeout(() => {
       try { v.pause(); } catch (e) {}
-      go('levels');
+      go('planets');
       warp.classList.remove('in'); warp.classList.add('out');  // and fade out on the world screen
       setTimeout(() => warp.classList.remove('out'), 900);
     }, 450);

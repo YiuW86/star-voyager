@@ -220,6 +220,10 @@ The phone page has a **Start on the TV** button: it opens the game on the TV and
 
 Amazon Fire TV does not support Google Cast; for Fire TV the route is an app in the Amazon Appstore.
 
+## Planet choice
+
+After Start and the intro, the **Choose your planet** screen appears on the space background (`assets/space.jpg`), with the spinning planet **Novara** (`assets/planet1.png`: 12 frames that blend into each other while the planet slowly turns), its total stars, and **Back** and **Options** buttons. Choosing the planet zooms into it and opens the world screen; Back on the world screen returns to the planets.
+
 ## Expand mode (wide screens)
 
 The game is always 1080 units high, and as wide as the screen's shape: 1920 on a 16:9 TV, about 2376 on a wide phone (up to 2600). On wider screens you simply see more of the world: the backgrounds fill the full width, aliens also appear at the sides, and the HUD and touch buttons stay at the screen edges. Screens with buttons drawn in the picture (the title screen and the home base) keep their picture in the middle and show a blurred copy of it at the sides. In the Android app the game also uses the strip beside the camera notch, while keeping the HUD and buttons clear of it. In touch mode, menus, world cards, level buttons and options are shown larger for phone screens.

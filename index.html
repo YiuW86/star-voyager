@@ -49,6 +49,23 @@
     <button class="btn small intro-skip" data-action="intro-skip"><span>Skip</span></button>
   </section>
 
+  <!-- Planet choice (after the intro): for now one planet; its worlds are chosen on the next screen -->
+  <section id="screen-planets" class="screen">
+    <img class="fill" src="assets/space.jpg" alt="">
+    <div class="planets-head"><h1 class="title">Choose your planet</h1></div>
+    <div class="planet-row">
+      <button class="planet" data-action="choose-planet" data-planet="1" aria-label="Novara">
+        <canvas class="planet-canvas" width="560" height="560"></canvas>
+        <span class="planet-name">Novara</span>
+        <span class="planet-info" id="planet1-info"></span>
+      </button>
+    </div>
+    <div class="planets-bar">
+      <button class="btn" data-go="start"><span>Back</span></button>
+      <button class="btn" data-action="planet-options"><span>Options</span></button>
+    </div>
+  </section>
+
   <!-- Level select -->
   <section id="screen-levels" class="screen dim-bg">
     <img class="fill" src="assets/level1.jpg" alt="">
@@ -56,7 +73,7 @@
       <h1 class="title">Choose a world</h1>
       <div class="levels" id="worlds"></div>
       <div class="row">
-        <button class="btn" data-go="start"><span>Back</span></button>
+        <button class="btn" data-go="planets"><span>Back</span></button>
         <button class="btn" data-go="home"><span>Home</span></button>
         <button class="btn pink" data-go="shop"><span>Shop</span></button>
         <button class="btn" data-go="workshop" data-from="levels"><span>Workshop</span></button>
@@ -194,6 +211,16 @@
     </div>
   </section>
 
+  <!-- Touch mode: drag the on-screen gamepad buttons to where you want them -->
+  <section id="screen-touchedit" class="screen dim-bg">
+    <img class="fill" src="assets/level1.jpg" alt="">
+    <div class="touchedit-bar">
+      <span>Drag the buttons to where you want them</span>
+      <button class="btn small" data-action="touch-reset"><span>Reset</span></button>
+      <button class="btn small pink" data-action="touch-done"><span>Done</span></button>
+    </div>
+  </section>
+
   <!-- Options -->
   <section id="screen-options" class="screen dim-bg">
     <img class="fill" src="assets/start-screen.jpg" alt="">
@@ -227,6 +254,7 @@
       </div></div>
       <div class="row">
         <button class="btn pink" data-action="options-back"><span>Back</span></button>
+        <button class="btn touch-only" data-action="arrange-touch"><span>Touch buttons</span></button>
         <button class="btn" data-action="open-account"><span>Account</span></button>
         <button class="btn" data-action="reset"><span>Reset progress</span></button>
       </div>
@@ -278,6 +306,7 @@
       <div class="fps" id="fps"></div>
       <div class="prompt" id="prompt"></div>
       <div class="toast" id="toast"></div>
+      <div class="touchpad" id="touchpad"></div>
       <div class="score-box"><div class="score" id="score">0</div><div class="combo" id="combo"></div></div>
       <div class="mats-hud" id="mats-hud"></div>
     </div>
@@ -347,6 +376,7 @@
 <script src="js/platformer.js"></script>
 <script src="js/dex.js"></script>
 <script src="js/cloud.js"></script>
+<script src="js/touch.js"></script>
 <script src="js/app.js"></script>
 <script src="js/cast-receiver.js"></script>
 </body>

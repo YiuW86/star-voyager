@@ -799,3 +799,24 @@ body.touch .item b, body.touch .upgrade b, body.touch .mod-head b { font-size: 3
 body.touch .item p, body.touch .upgrade p, body.touch .mod p { font-size: 24px; }
 /* Phones with a camera notch: the game picture goes behind it, but the HUD and touch buttons stay clear of it */
 body.touch #screen-game .hud, body.touch .touchpad { left: env(safe-area-inset-left, 0px); right: env(safe-area-inset-right, 0px); }
+
+/* ---------- Planet choice ---------- */
+.planets-head { position: absolute; left: 0; right: 0; top: 70px; text-align: center; }
+.planets-head .title { font-size: 92px; }
+.planet-row { position: absolute; left: 0; right: 0; top: 190px; bottom: 170px; display: flex; align-items: center; justify-content: center; gap: 120px; }
+.planet { position: relative; border: 0; background: none; padding: 0; cursor: pointer; display: flex; flex-direction: column; align-items: center; gap: 8px;
+  transition: transform 0.7s cubic-bezier(0.5, 0, 0.8, 0.4), opacity 0.7s; }
+.planet-canvas { width: 560px; height: 560px; filter: drop-shadow(0 0 40px rgba(98, 240, 255, 0.45)); }
+.planet::before { content: ""; position: absolute; left: 50%; top: 280px; width: 600px; height: 600px; transform: translate(-50%, -50%); border-radius: 50%;
+  border: 3px dashed rgba(191, 249, 255, 0.35); animation: planet-ring 30s linear infinite; pointer-events: none; }
+@keyframes planet-ring { to { transform: translate(-50%, -50%) rotate(360deg); } }
+.planet-name { font-size: 52px; font-weight: 700; color: #fff; text-shadow: 0 0 18px rgba(98, 240, 255, 0.8); margin-top: -10px; }
+.planet-info { display: flex; align-items: center; gap: 8px; font-size: 28px; color: var(--gold); }
+.planet-info .star { width: 30px; height: 30px; }
+.planet:hover .planet-canvas, .planet:focus-visible .planet-canvas, .planet.pointed .planet-canvas { filter: drop-shadow(0 0 60px rgba(255, 210, 122, 0.8)); }
+.planet:focus-visible { outline: none; }
+.planet.zoom { transform: scale(2.6); opacity: 0; }
+.planets-bar { position: absolute; left: 0; right: 0; bottom: 60px; display: flex; justify-content: center; gap: 30px; }
+body.touch .planet-name { font-size: 60px; }
+body.touch .planet-info { font-size: 34px; }
+@media (prefers-reduced-motion: reduce) { .planet::before { animation: none; } .planet { transition: none; } }
