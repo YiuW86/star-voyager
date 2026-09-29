@@ -137,6 +137,25 @@ Every boss fights in **3 phases** (markers on its health bar, and a message when
 
 Settings per boss are in `BOSS_ATTACKS` and `PHASE_MSG` in `js/level.js`.
 
+**Boss artwork:** King Nebula uses its own sheets: `assets/nebula_king.png` (5×4: idle, rock throw with red warning, splitting into copies, hurt/angry/bubble shield/dizzy) and `assets/nebula_king_fx.png` (5×3: rocks and rocks breaking, weak spots and popping, bubble shield popping). Other bosses still use their crowned alien sprite until their artwork is added to `BOSS_ART` in `js/level.js`.
+
+## Region abilities
+
+Every world has its own **material** that only drops there (and in Endless waves in that world): Nebula mist, Ember sparks, Lagoon shells, Prism glass, Echo crystals and Vortex dust. Armoured and shiny aliens drop more, and bosses drop 4.
+
+With that material and the world's **boss trophy** you build two abilities in the world's theme (3 levels each) in the **Abilities** screen (Workshop → Abilities, or Home base → Hangar → Drone abilities). Your **loadout** is one weapon mod and one drone ability (Equip).
+
+| World | Drone ability | Weapon mod |
+|---|---|---|
+| Crystal Shores | Mirror drones: hologram copies confuse aliens (they wobble with a "?" and stop throwing) | Bubble shot: armoured aliens you hit float in a bubble and can't move or throw |
+| Glowwood Forest | Flare drone: a fan of sparks also hits other aliens | Ember rounds: armoured aliens burn and lose extra armour; the flame jumps to a neighbour |
+| Sunken Lagoon | Wave drone: pushes all aliens back and washes away rocks | Whirlpool net: the net leaves a whirlpool that keeps catching |
+| Sunfire Dunes | Prism drone: strips the armour off armoured aliens | Prism shield: blocked rocks bounce back at an alien |
+| Moonlit Cavern | Sonar drone: stuns nearby aliens and lights up the dark | Homing shot: bigger hit area for your shots |
+| Starfall Wetlands | Blade drone: destroys rocks flying at you | Vortex net: a much bigger net |
+
+Drone abilities need a helper drone from the Star shop. Settings are in `MODS` in `js/app.js` and in the region-abilities section of `js/level.js`.
+
 ## Goals: achievements and missions
 
 The **Goals** button on the world screen (a gold dot shows when a reward is ready) opens:

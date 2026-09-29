@@ -89,6 +89,19 @@
     vortex: { 2: 'Phase 2: shoot between the spinning blades!', 3: 'Phase 3: the vortex pulls your aim!' },
   };
 
+  // Every world has its own material, dropped only there (and in Endless waves in that world)
+  const REGION_MAT = { 1: 'mist', 2: 'spark', 3: 'pearl', 4: 'glass', 5: 'echo', 6: 'vdust' };
+
+  const REGION_ICON = { mist: ['#c9b6ff', 'cloud'], spark: ['#ff9a3a', 'flame'], pearl: ['#fde8ff', 'pearl'], glass: ['#bff9ff', 'prism'], echo: ['#b99bff', 'rings'], vdust: ['#ff8ad8', 'swirl'] };
+
+  // Bosses with their own artwork (a 5x4 boss sheet and a 5x3 effects sheet).
+  // Boss sheet: row 1 idle, row 2 rock throw (6 = red warning, 7-8 fling), row 3 splitting (11-13),
+  // row 4: 15 bright flash, 16 hurt, 17 angry, 18 bubble shield, 19 dizzy/caught.
+  // Effects sheet: 0-2 rocks, 3-4 rock breaking, 5-7 weak spot, 8-9 weak spot popping, 13-14 bubble popping.
+  const BOSS_ART = {
+    nebula: { img: 'nebula_king', fx: 'nebula_king_fx', meta: { fw: 255, fh: 234 }, fxMeta: { fw: 249, fh: 236 }, crown: true },
+  };
+
   // Every boss drops its own trophy (needed for the strongest Workshop upgrades)
   const TROPHIES = { nebula: 'nebulaCrown', ember: 'emberCore', splash: 'tidePearl', prism: 'prismHeart', echo: 'echoBell', vortex: 'vortexEye' };
   // Time grenade: bought in the shop. Slows all aliens, rocks and the boss down for a few seconds.
@@ -143,6 +156,7 @@
     images: {},
     load(onProgress) {
       const list = [...Object.entries(LEVELS).map(([id, l]) => ['bg' + id, l.bg]), ...['gun', ...ALL_TYPES].map((k) => [k, SPR[k].src]),
+        ['nebula_king', 'assets/nebula_king.png'], ['nebula_king_fx', 'assets/nebula_king_fx.png'],
         ['robot', 'assets/robot.png'], ['blast', 'assets/blast.png'], ['drone1', 'assets/drone1.png'], ['drone2', 'assets/drone2.png'],
         ['platA', 'assets/plat_bgA.jpg'], ['platB', 'assets/plat_bgB.jpg'], ['platC', 'assets/plat_bgC.jpg']];
       let done = 0;
@@ -414,6 +428,14 @@
       SHOT_COOLDOWN = [0.28, 0.25, 0.22, 0.2, 0.18][bl - 1];
       this.blasterDmg = [1, 1, 2, 2, 3][bl - 1];
       NET_R = 210 * (1 + 0.15 * (nl - 1));
+      // region abilities in the loadout (one drone ability, one weapon mod)
+      const mods = save.mods || {}, lo = save.loadout || {};
+      this.dAb = lo.drone && mods[lo.drone] ? { id: lo.drone, lv: mods[lo.drone] } : null;
+      this.wAb = lo.weapon && mods[lo.weapon] ? { id: lo.weapon, lv: mods[lo.weapon] } : null;
+      if (this.wAb && this.wAb.id === 'vnet') NET_R *= [1.25, 1.4, 1.6][this.wAb.lv - 1];
+      this.homing = this.wAb && this.wAb.id === 'homing' ? [0.2, 0.35, 0.5][this.wAb.lv - 1] : 0;
+      this.whirls = [];
+      this.regionWorld = level <= 6 ? level : null;
       this.netDmg = 2 + nl;
       SHIELD_MAX = 10 + 4 * (sl - 1);
       // Home base buildings
@@ -617,6 +639,7 @@
         this.updateReload(p, dt);
       }
       this.updateDrone(dt);
+      if (this.whirls.length) this.updateWhirls(dt);
       if (this.regenEvery && this.health > 0 && this.health < 100) {
         this.regenT += dt;
         if (this.regenT >= this.regenEvery) { this.regenT = 0; this.health = Math.min(100, this.health + 1); this.hud('health'); }
@@ -807,7 +830,8 @@
       }
       const zRate = s0.pulse ? 0.25 + 2.2 * Math.max(0, Math.sin(m.age * 3 + m.phase))
         : s0.swim === 'jelly' ? 0.35 + 1.4 * stroke : 1;
-      if (!frozen) m.z += (dt / m.dur) * zRate;
+      this.updateStatus(m, dt);
+      if (!frozen) m.z += (dt / m.dur) * zRate * this.alienSlow(m);
       const e = Math.pow(Math.min(m.z, 1), 1.35);
       const wobFreq = s0.swim === 'jelly' ? m.freq * 0.6 : m.freq;
       const wob = Math.sin(m.phase + m.age * wobFreq) * m.amp * (0.35 + 0.65 * m.z);
@@ -840,12 +864,14 @@
       else { m.frame = s.front[step % s.front.length]; m.flip = false; }
 
       // Some monsters throw rocks from mid-distance
-      if (!frozen && s.thrower && m.z > 0.25 && m.z < 0.9) {
+      if (!frozen && s.thrower && m.z > 0.25 && m.z < 0.9 && this.alienSlow(m) === 1) {
         m.throwT -= dt;
         if (m.throwT <= 0) { this.throwRock(m); m.throwT = rand(3.5, 6.5); }
       }
 
-      if (m.z >= 1 && !frozen) { m.state = 'attacking'; m.t = 0; }
+      if (m.confT > 0) m.px += Math.sin(this.time * 7 + m.phase) * 3;     // confused wobble
+      if (m.bubbleRise) m.py -= m.bubbleRise;
+      if (m.z >= 1 && !frozen && this.alienSlow(m) > 0) { m.state = 'attacking'; m.t = 0; }
     },
 
     // ---------------- Rocks thrown at the players ----------------
@@ -858,6 +884,7 @@
         x0: m.px, y0: m.py, tx: this.gunBase(target) + rand(this.players.length > 1 ? -200 : -380, this.players.length > 1 ? 200 : 380), ty: H * 0.8,
         t: 0, dur: kind === 'ring' ? rand(2.3, 2.8) : rand(1.6, 2.1), color: SPR[m.type].color, spin: rand(-4, 4), pts,
         x: m.px, y: m.py, size: 20, r: 10, state: 'fly', rock: true, target: target.id, kind: kind || 'rock',
+        art: m.bossArt || null, variant: Math.floor(Math.random() * 3),
       });
     },
 
@@ -878,6 +905,7 @@
     smashRock(r) {
       r.state = 'gone';
       Sfx.pop();
+      if (r.art) this.playFx(r.art, [3, 4], r.x, r.y, r.size * 2.2, 0.35);
       this.burst(r.x, r.y, r.color, 14);
     },
 
@@ -898,6 +926,11 @@
         p.shieldHP--;
         p.shieldFlash = 0.35;
         Sfx.block();
+        const pl = this.modLv('weapon', 'pshield');
+        if (pl) {
+          const m = this.monsters.filter((q) => q.state === 'alive').sort((a, b) => b.z - a.z)[0];
+          if (m) { this.lasers.push({ x1: this.gunBase(p), y1: H - 260, x2: m.px, y2: m.py, t: 0.18, color: '#bff9ff' }); this.damageMonster(m, pl); }
+        }
         if (p.shieldHP === 0) {
           p.shieldRecharge = SHIELD_RECHARGE;
           this.equip(p, 'gun');
@@ -978,6 +1011,7 @@
       }
       for (const d of this.drones) {
         d.t += dt; d.animT += dt;
+        this.droneAbility(d, dt);
         // wander to a new spot now and then (both drones independently)
         d.wander -= dt;
         if (d.wander <= 0 && d.state === 'idle') {
@@ -1002,6 +1036,7 @@
             this.lasers.push({ x1: d.x, y1: d.y - 10, x2: m.px, y2: m.py, t: 0.16, color: d.img === 'drone2' ? '#b99bff' : '#62f0ff' });
             Sfx.laser();
             this.damageMonster(m, this.droneDmg || 3);
+            this.droneShotExtra(d, m);
           }
           d.state = 'fire'; d.t = 0;
         } else if (d.state === 'fire' && d.t > 0.45) {
@@ -1053,6 +1088,7 @@
         else if (Math.abs(d.vx) > 60) { row = 1; flip = d.vx < 0; }        // moving sideways
         else row = Math.floor(d.animT / 3) % 2 ? 4 : 0;                    // idle: face to us
         const h = 150, w = h * meta.fw / meta.fh;
+        this.drawHolos(d, img, meta, h, w);
         c.save();
         c.translate(d.x, d.y);
         if (flip) c.scale(-1, 1);
@@ -1118,9 +1154,13 @@
       if (tg.bossPart === 'spot') {
         const sp = b.spots[tg.idx];
         sp.hp = Math.max(0, sp.hp - dmg);
+        if (sp.hp <= 0 && BOSS_ART[b.sprite]) this.playFx(BOSS_ART[b.sprite], [9], sp.x, sp.y, 150, 0.35);
         Sfx.clink(); this.burst(sp.x, sp.y, '#ffd27a', 10, true);
         this.addScore(50, sp.x, sp.y - 40, true);
-        if (b.spots.every((q) => q.hp <= 0)) { b.shield = false; b.openT = 5; Sfx.win(); this.hud('toast', 'Now! Hit ' + b.name + '!'); }
+        if (b.spots.every((q) => q.hp <= 0)) {
+          b.shield = false; b.openT = 5; Sfx.win(); this.hud('toast', 'Now! Hit ' + b.name + '!');
+          if (BOSS_ART[b.sprite]) this.playFx(BOSS_ART[b.sprite], [13, 14], b.x, b.y, b.size * 1.15, 0.5);
+        }
         return;
       }
       if (tg.bossPart === 'crystal') {
@@ -1185,6 +1225,7 @@
       const b = this.boss, s = SPR[b.sprite];
       b.t += gdt;
       b.flash = Math.max(0, b.flash - dt);
+      if (b.throwAnim > 0) b.throwAnim -= dt;
       // Jellyfish bosses swim in strokes; the others float and bob, Ember flickers like a flame
       const jelly = !!s.push;
       const ph = (b.t * 0.55) % 1;
@@ -1211,7 +1252,8 @@
           const warn = 0.7;
           b.tele = b.phased && b.throwT < warn ? 1 - b.throwT / warn : 0;
           if (b.throwT <= 0) {
-            const from = { px: b.x, py: b.y + b.size * 0.2, type: b.sprite };
+            const from = { px: b.x, py: b.y + b.size * 0.2, type: b.sprite, bossArt: BOSS_ART[b.sprite] };
+            b.throwAnim = 0.45;
             const a = BOSS_ATTACKS[b.sprite] || BOSS_ATTACKS.nebula;
             const volley = a.volley[b.phase - 1];
             if (b.submerged <= 0) for (let i = 0; i < volley; i++) setTimeout(() => { if (this.boss === b && b.state === 'fight') this.throwRock(from, a.kind); }, i * 220);
@@ -1395,8 +1437,159 @@
         // the boss's own trophy, plus a handful of rare materials
         const trophy = TROPHIES[b.sprite];
         if (trophy) this.giveDrop('trophy:' + trophy, b.x, b.y);
+        const reg = REGION_MAT[this.regionWorld];
+        if (reg) for (let i = 0; i < 4; i++) setTimeout(() => this.giveDrop(reg, b.x + rand(-90, 90), b.y + rand(-60, 60)), 120 * i + 60);
         ['dust', 'goo', 'goo', 'shard', 'shard', 'shard'].forEach((k, i) => setTimeout(() => this.giveDrop(k, b.x + rand(-80, 80), b.y + rand(-60, 60)), 150 * i));
         this.hud('catch');
+      }
+    },
+
+    // ---------------- Region abilities (drone abilities and weapon mods) ----------------
+    // Each world has its own material and two abilities in its theme; the loadout holds one of each.
+    modLv(kind, id) {
+      const a = kind === 'drone' ? this.dAb : this.wAb;
+      return a && a.id === id ? a.lv : 0;
+    },
+    // statuses on aliens: confused (wobble, no throwing), stunned (frozen), bubbled (frozen, floating), burning
+    alienSlow(m) {
+      if (m.stunT > 0 || m.bubbleT > 0) return 0;
+      if (m.confT > 0) return 0.4;
+      return 1;
+    },
+    updateStatus(m, dt) {
+      if (m.confT > 0) m.confT -= dt;
+      if (m.stunT > 0) m.stunT -= dt;
+      if (m.bubbleT > 0) { m.bubbleT -= dt; m.bubbleRise = (m.bubbleRise || 0) + dt * 40; }
+      else if (m.bubbleRise) m.bubbleRise = Math.max(0, m.bubbleRise - dt * 120);
+      if (m.burnT > 0) {
+        m.burnT -= dt;
+        if (Math.random() < 0.3) this.burst(m.px + rand(-0.3, 0.3) * m.r, m.py, '#ff9a3a', 1);
+        if (m.burnT <= 0) {
+          const lv = this.modLv('weapon', 'ember');
+          // the flame jumps to a neighbour (level 2+)
+          if (lv >= 2) {
+            const near = this.monsters.filter((o) => o !== m && o.state === 'alive' && !(o.burnT > 0) && Math.hypot(o.px - m.px, o.py - m.py) < 320)[0];
+            if (near) { near.burnT = [2, 1.5, 1][lv - 1]; this.lasers.push({ x1: m.px, y1: m.py, x2: near.px, y2: near.py, t: 0.12, color: '#ff9a3a' }); }
+          }
+          this.damageMonster(m, 1);
+        }
+      }
+    },
+    drawStatus(m) {
+      const c = this.ctx;
+      if (m.bubbleT > 0) {
+        c.save(); c.globalAlpha = 0.5; c.strokeStyle = '#e8f7ff'; c.lineWidth = 4; c.fillStyle = 'rgba(159, 216, 255, 0.18)';
+        c.beginPath(); c.arc(m.px, m.py, m.size * 0.5, 0, Math.PI * 2); c.fill(); c.stroke();
+        c.globalAlpha = 0.8; c.fillStyle = '#fff'; c.beginPath(); c.arc(m.px - m.size * 0.2, m.py - m.size * 0.22, m.size * 0.06, 0, Math.PI * 2); c.fill();
+        c.restore();
+      }
+      if (m.confT > 0) {
+        c.save(); c.font = `700 ${Math.round(28 + m.size * 0.08)}px ${FONT}`; c.textAlign = 'center';
+        c.fillStyle = '#ff8ad8'; c.strokeStyle = '#0a1440'; c.lineWidth = 5;
+        const y = m.py - m.size * 0.62 + Math.sin(this.time * 6) * 6;
+        c.strokeText('?', m.px, y); c.fillText('?', m.px, y); c.restore();
+      }
+      if (m.stunT > 0) {
+        c.save(); c.fillStyle = '#ffd27a';
+        for (let i = 0; i < 3; i++) {
+          const a = this.time * 5 + i * 2.1;
+          const x = m.px + Math.cos(a) * m.size * 0.3, y = m.py - m.size * 0.5 + Math.sin(a) * m.size * 0.08;
+          c.beginPath();
+          for (let k = 0; k < 8; k++) { const q = k * Math.PI / 4, r = k % 2 ? 4 : 11; c.lineTo(x + Math.cos(q) * r, y + Math.sin(q) * r); }
+          c.closePath(); c.fill();
+        }
+        c.restore();
+      }
+    },
+
+    // Drone abilities, each drone on its own timer
+    droneAbility(d, dt) {
+      const a = this.dAb;
+      if (!a) return;
+      const lv = a.lv;
+      d.abT = (d.abT == null ? 4 + Math.random() * 3 : d.abT) - dt;
+      if (d.holoT > 0) d.holoT -= dt;
+      if (d.abT > 0) return;
+      const alive = this.monsters.filter((m) => m.state === 'alive');
+      if (a.id === 'mirror') {
+        // hologram copies of the drone: aliens get confused
+        d.holoT = 6; d.abT = [14, 12, 10][lv - 1];
+        const secs = [3, 4, 5][lv - 1];
+        alive.forEach((m) => { m.confT = Math.max(m.confT || 0, secs); });
+        Sfx.slow();
+      } else if (a.id === 'wave') {
+        // a wave pushes all aliens back and washes away flying rocks
+        d.abT = [12, 10, 8][lv - 1];
+        alive.forEach((m) => { m.z = Math.max(0, m.z - [0.15, 0.2, 0.25][lv - 1]); });
+        this.rocks.forEach((r) => this.smashRock(r));
+        this.waves.push({ x: d.x, y: d.y, t: 0, color: '#9fd8ff' });
+        Sfx.net();
+      } else if (a.id === 'sonar') {
+        // a sonar pulse stuns nearby aliens
+        d.abT = [10, 8, 6][lv - 1];
+        const r = [380, 480, 580][lv - 1];
+        alive.forEach((m) => { if (Math.hypot(m.px - d.x, m.py - d.y) < r) m.stunT = [1.5, 2, 2.5][lv - 1]; });
+        this.waves.push({ x: d.x, y: d.y, t: 0, color: '#b99bff' });
+        Sfx.slow();
+      } else if (a.id === 'blades') {
+        // throws a blade at the incoming rock closest to hitting you
+        d.abT = [4, 3, 2][lv - 1];
+        const r = this.rocks.filter((q) => q.state === 'fly').sort((p1, p2) => p2.t / p2.dur - p1.t / p1.dur)[0];
+        if (r) { this.lasers.push({ x1: d.x, y1: d.y, x2: r.x, y2: r.y, t: 0.14, color: '#c79bff' }); this.smashRock(r); Sfx.clink(); }
+        else d.abT = 0.5;
+      } else d.abT = 999;       // flare and prism work on the drone's normal shot
+    },
+    // Flare and Prism drones change the drone's own shot
+    droneShotExtra(d, main) {
+      const a = this.dAb;
+      if (!a) return;
+      const others = this.monsters.filter((m) => m.state === 'alive' && m !== main);
+      if (a.id === 'flare') {
+        // a fan of sparks: also hits the nearest other aliens
+        others.sort((p1, p2) => p2.z - p1.z).slice(0, [2, 3, 3][a.lv - 1]).forEach((m) => {
+          this.lasers.push({ x1: d.x, y1: d.y, x2: m.px, y2: m.py, t: 0.16, color: '#ff9a3a' });
+          this.damageMonster(m, a.lv === 3 ? 2 : 1);
+        });
+      }
+      if (a.id === 'prismd') {
+        // prism beams strip the armour off armoured aliens
+        others.filter((m) => m.elite && m.hp > 1).slice(0, [2, 3, 4][a.lv - 1]).forEach((m) => {
+          this.lasers.push({ x1: d.x, y1: d.y, x2: m.px, y2: m.py, t: 0.16, color: '#bff9ff' });
+          m.hp = 1; m.hitFlash = 0.3;
+          this.floater(m.px, m.py - m.r, window.t ? t('Armour off!') : 'Armour off!', '#bff9ff');
+        });
+      }
+    },
+    // Whirlpool net: the net leaves a whirlpool that keeps catching
+    updateWhirls(dt) {
+      for (const w of this.whirls) {
+        w.t += dt; w.tick -= dt;
+        if (w.tick <= 0) {
+          w.tick = 0.5;
+          this.monsters.forEach((m) => { if (m.state === 'alive' && Math.hypot(m.px - w.x, m.py - w.y) < NET_R * 0.85) this.damageMonster(m, 1, true); });
+        }
+      }
+      this.whirls = this.whirls.filter((w) => w.t < w.dur);
+    },
+    drawWhirls() {
+      const c = this.ctx;
+      for (const w of this.whirls) {
+        c.save(); c.translate(w.x, w.y); c.rotate(w.t * 4);
+        c.globalAlpha = Math.min(1, (w.dur - w.t) * 2) * 0.8; c.strokeStyle = '#9fd8ff'; c.lineWidth = 5;
+        for (let i = 0; i < 3; i++) { c.beginPath(); c.arc(0, 0, NET_R * (0.3 + i * 0.25), i, i + 3.6); c.stroke(); }
+        c.restore();
+      }
+    },
+    // Hologram copies around a drone (Mirror drones)
+    drawHolos(d, img, meta, h, w) {
+      if (!(d.holoT > 0)) return;
+      const c = this.ctx, n = [2, 3, 4][this.dAb.lv - 1];
+      for (let i = 0; i < n; i++) {
+        const a = this.time * 1.5 + i * (Math.PI * 2 / n);
+        const x = d.x + Math.cos(a) * 150, y = d.y + Math.sin(a) * 70;
+        c.save(); c.globalAlpha = 0.35 * Math.min(1, d.holoT); c.globalCompositeOperation = 'lighter';
+        c.drawImage(img, 0, 0, meta.fw, meta.fh, x - w / 2, y - h / 2, w, h);
+        c.restore();
       }
     },
 
@@ -1410,6 +1603,7 @@
       TYPES = cfg.types.slice(); this.types = TYPES;
       TYPES.forEach((t) => { if (this.caught[t] == null) this.caught[t] = 0; });
       this.bgKey = 'bg' + world;
+      this.regionWorld = world;
       this.levelCfg = { ...this.levelCfg, underwater: !!cfg.underwater, speedMul: 1 + 0.04 * (this.wave - 1), boss: null };
       this.waveCaught = 0;
       this.waveTarget = 10 + 2 * this.wave;
@@ -1453,6 +1647,8 @@
     },
     // Materials: shards (common), goo (rare), star dust (epic); armoured and shiny aliens drop more
     rollDrop(m) {
+      const reg = REGION_MAT[this.regionWorld];
+      if (reg && Math.random() < (m.shiny ? 1 : m.elite ? 0.45 : 0.18) * (this.dropBoost || 1)) this.giveDrop(reg, m.px + 30, m.py);
       const r = Math.random();
       const boost = this.dropBoost || 1;
       const [pShard, pGoo, pDust] = (m.shiny ? [1, 1, 1] : m.elite ? [0.6, 0.25, 0.08] : [0.3, 0.07, 0.015]).map((q) => q * boost);
@@ -1511,6 +1707,16 @@
         c.beginPath();
         for (let i = 0; i < 8; i++) { const a = i * Math.PI / 4, r = i % 2 ? s * 0.18 : s * 0.55; c.lineTo(Math.cos(a) * r, Math.sin(a) * r); }
         c.closePath(); c.fill(); c.stroke();
+      } else if (REGION_ICON[kind]) {
+        // region materials (placeholder icons)
+        const [col, shape] = REGION_ICON[kind];
+        c.fillStyle = col;
+        if (shape === 'cloud') { [[-0.2, 0.05, 0.28], [0.12, -0.05, 0.32], [0.3, 0.12, 0.22]].forEach(([a, b, r]) => { c.beginPath(); c.arc(a * s, b * s, r * s, 0, Math.PI * 2); c.fill(); }); }
+        if (shape === 'flame') { c.beginPath(); c.moveTo(0, -s * 0.55); c.quadraticCurveTo(s * 0.45, 0, 0, s * 0.45); c.quadraticCurveTo(-s * 0.45, 0, 0, -s * 0.55); c.fill(); c.stroke(); }
+        if (shape === 'pearl') { c.beginPath(); c.arc(0, 0, s * 0.4, 0, Math.PI * 2); c.fill(); c.stroke(); c.fillStyle = '#fff'; c.beginPath(); c.arc(-s * 0.13, -s * 0.13, s * 0.1, 0, Math.PI * 2); c.fill(); }
+        if (shape === 'prism') { c.beginPath(); c.moveTo(0, -s * 0.5); c.lineTo(s * 0.45, s * 0.4); c.lineTo(-s * 0.45, s * 0.4); c.closePath(); c.fill(); c.stroke(); }
+        if (shape === 'rings') { c.strokeStyle = col; c.lineWidth = 4; [0.18, 0.34, 0.5].forEach((r) => { c.beginPath(); c.arc(0, 0, r * s, 0, Math.PI * 2); c.stroke(); }); }
+        if (shape === 'swirl') { c.strokeStyle = col; c.lineWidth = 5; c.beginPath(); for (let a = 0; a < 12; a += 0.3) c.lineTo(Math.cos(a) * a * s * 0.04, Math.sin(a) * a * s * 0.04); c.stroke(); }
       } else {
         // trophy: a golden crown with a gem
         c.fillStyle = '#ffd27a';
@@ -1679,7 +1885,7 @@
       if (!blocked) {
         for (const m of targets) {
           const d = Math.hypot(m.px - pos.x, m.py - pos.y);
-          if (d < m.r * (1 + (pullAim ? 0.3 : 0.7) * this.assist) && d < td) { target = m.ref || m; td = d; }
+          if (d < m.r * (1 + (pullAim ? 0.3 : 0.7) * this.assist) * (1 + (this.homing || 0)) && d < td) { target = m.ref || m; td = d; }
         }
       }
       if (target !== p.dwellTarget) {
@@ -1710,7 +1916,14 @@
       Sfx.laser();
       if (target && target.rock) { this.hits++; this.smashRock(target); }
       else if (target && target.bossPart) { this.hits++; this.bossPartHit(target, this.blasterDmg, end, p); }
-      else if (target) { this.hits++; this.damageMonster(target, this.blasterDmg); }
+      else if (target) {
+        this.hits++;
+        const wl = this.wAb ? this.wAb.lv : 0;
+        const bonus = this.wAb && this.wAb.id === 'bubble' && wl >= 3 && target.bubbleT > 0 ? 1 : 0;
+        const caught = this.damageMonster(target, this.blasterDmg + bonus);
+        if (!caught && this.wAb && this.wAb.id === 'bubble') target.bubbleT = [2, 3, 4][wl - 1];
+        if (!caught && this.wAb && this.wAb.id === 'ember' && !(target.burnT > 0)) target.burnT = [2, 1.5, 1][wl - 1];
+      }
       if (p.ammo === 0) this.setPrompt(this.reloadHint(p), 2, p);
       this.hud('ammo');
     },
@@ -1737,6 +1950,7 @@
 
     openNet(x, y) {
       this.nets.push({ x, y, t: 0 });
+      if (this.wAb && this.wAb.id === 'whirl') this.whirls.push({ x, y, t: 0, tick: 0.5, dur: [2, 3, 4][this.wAb.lv - 1] });
       Sfx.net();
       let n = 0;
       for (const m of this.monsters) {
@@ -1826,6 +2040,7 @@
       for (const n of this.nets) n.t += dt;
       this.nets = this.nets.filter((n) => n.t < (n.big ? 1.8 : 1.1));
       for (const w of this.waves) w.t += dt;
+      if (this.fxAnims) { for (const f of this.fxAnims) f.t += dt; this.fxAnims = this.fxAnims.filter((f) => f.t < f.dur); }
       this.waves = this.waves.filter((w) => w.t < 1.2);
       const show = this.time < this.promptUntil ? this.promptText : '';
       if (show !== this._shownPrompt) { this._shownPrompt = show; this.hud('prompt', show); }
@@ -1955,6 +2170,7 @@
             c.restore();
           }
           if (m.elite) this.drawArmor(m);
+          this.drawStatus(m);
           if (m.shiny && Math.random() < 0.15) this.burst(m.px + rand(-1, 1) * m.r, m.py + rand(-1, 1) * m.r, '#ffd27a', 1, true);
         }
       }
@@ -1962,6 +2178,8 @@
       if (this.boss && this.boss.dark && this.boss.state === 'fight') this.drawDarkness();
       this.drawRocks();
       if (this.hazards.length) this.drawHazards();
+      if (this.whirls.length) this.drawWhirls();
+      if (this.fxAnims && this.fxAnims.length) this.drawFxAnims();
       this.drawDrone();
       this.drawNets();
       this.drawFlying();
@@ -2020,6 +2238,11 @@
     drawRocks() {
       const c = this.ctx;
       for (const r of this.rocks) {
+        if (r.art && Assets.images[r.art.fx]) {
+          const img = Assets.images[r.art.fx], m = r.art.fxMeta;
+          this.drawFrame(img, m, r.variant, r.x, r.y, r.size * 1.9, false, 1, r.t * 3);
+          continue;
+        }
         if (r.kind === 'ring') {
           // Echo Monarch's sound ring: glowing circles that grow as they come closer
           c.save(); c.globalCompositeOperation = 'lighter';
@@ -2129,7 +2352,7 @@
       if (b.submerged > 0) alpha *= b.submerged > 1.7 ? (b.submerged - 1.7) / 0.3 : b.submerged < 0.3 ? 1 - b.submerged / 0.3 : 0.12;
       if (b.phased && b.phase === 2 && b.copies && b.state === 'fight') {
         // three identical copies; only the real one has a tiny sparkle on its crown
-        b.copies.forEach((cp, i) => { if (!cp.gone) this.drawBossBody(b, cp.x, cp.y, alpha * cp.alpha, i === b.realIdx); });
+        b.copies.forEach((cp, i) => { if (!cp.gone) this.drawBossBody(b, cp.x, cp.y, BOSS_ART[b.sprite] ? alpha * Math.max(0.35, cp.alpha) : alpha * cp.alpha, i === b.realIdx, cp.alpha); });
       } else this.drawBossBody(b, b.x, b.y, alpha, true);
 
       const c = this.ctx;
@@ -2140,7 +2363,7 @@
       }
       // phase 3: bubble shield and the glowing weak spots
       if (b.phase === 3 && b.state === 'fight') {
-        if (b.shield) {
+        if (b.shield && !BOSS_ART[b.sprite]) {
           c.save();
           c.globalAlpha = 0.28 + 0.08 * Math.sin(this.time * 4);
           c.fillStyle = '#9fd8ff'; c.strokeStyle = '#e8f7ff'; c.lineWidth = 6;
@@ -2150,6 +2373,14 @@
         }
         if (b.spots && b.shield) for (const sp of b.spots) {
           if (sp.hp <= 0) continue;
+          const art = BOSS_ART[b.sprite];
+          if (art && Assets.images[art.fx]) {
+            this.drawFrame(Assets.images[art.fx], art.fxMeta, sp.hp < 2 ? 8 : 5 + Math.floor(this.time * 6) % 3, sp.x, sp.y, 110, false, 1);
+            c.save(); c.fillStyle = '#ffffff';
+            for (let i = 0; i < sp.hp; i++) c.fillRect(sp.x - 12 + i * 14, sp.y + 62, 10, 6);
+            c.restore();
+            continue;
+          }
           c.save();
           const r = 26 + 5 * Math.sin(this.time * 6 + sp.x);
           const g = c.createRadialGradient(sp.x, sp.y, 2, sp.x, sp.y, r * 1.8);
@@ -2261,11 +2492,55 @@
       c.fillStyle = 'rgba(2, 4, 22, 0.86)';
       c.beginPath(); c.rect(0, 0, W, H);
       for (const p of this.players) { const a = p.reticle || p.smoothAim; c.moveTo(a.x + 230, a.y); c.arc(a.x, a.y, 230, 0, Math.PI * 2, true); }
+      if (this.dAb && this.dAb.id === 'sonar' && this.drones) for (const d of this.drones) { c.moveTo(d.x + 200, d.y); c.arc(d.x, d.y, 200, 0, Math.PI * 2, true); }
       c.fill('evenodd');
       c.restore();
     },
 
-    drawBossBody(b, x, y, alpha, real) {
+    // short effect animations from a boss effects sheet (rock breaking, weak spot popping, shield popping)
+    playFx(art, frames, x, y, size, dur) {
+      if (!this.fxAnims) this.fxAnims = [];
+      this.fxAnims.push({ art, frames, x, y, size, dur, t: 0 });
+    },
+    drawFxAnims() {
+      for (const f of this.fxAnims) {
+        const img = Assets.images[f.art.fx];
+        if (!img) continue;
+        const k = f.t / f.dur, i = Math.min(f.frames.length - 1, Math.floor(k * f.frames.length));
+        this.drawFrame(img, f.art.fxMeta, f.frames[i], f.x, f.y, f.size, false, i === f.frames.length - 1 ? 1 - (k * f.frames.length - i) : 1);
+      }
+    },
+    // which frame of the boss artwork fits what the boss is doing
+    bossArtFrame(b, copyAlpha) {
+      const idle = Math.floor(b.t * 6) % 5;
+      if (b.state === 'caught') return 19;
+      if (b.transT > 1.2) return 15;
+      if (b.transT > 0) return 17;
+      if (copyAlpha < 0.95) return copyAlpha < 0.35 ? 12 : copyAlpha < 0.7 ? 13 : 11;
+      if (b.flash > 0.05) return 16;
+      if (b.shield && b.spots) return 18;
+      if (b.throwAnim > 0) return b.throwAnim > 0.22 ? 7 : 8;
+      if (b.tele > 0.45) return 6;
+      if (b.tele > 0) return 5;
+      return idle;
+    },
+
+    drawBossBody(b, x, y, alpha, real, copyAlpha = 1) {
+      const art = BOSS_ART[b.sprite];
+      if (art && Assets.images[art.img]) {
+        // the boss's own artwork (crown included)
+        const frame = this.bossArtFrame(b, copyAlpha);
+        this.drawFrame(Assets.images[art.img], art.meta, frame, x, y, b.size * 1.12, false, alpha, b.rot, b.sx, b.sy);
+        if (real && b.phase === 2 && b.state === 'fight') {
+          // the tell: a twinkling star on the real crown
+          const c = this.ctx, k = 0.6 + 0.4 * Math.sin(this.time * 8), cy = y - b.size * 0.5;
+          c.save(); c.fillStyle = '#ffffff'; c.globalAlpha = alpha * k; c.shadowColor = '#fff'; c.shadowBlur = this.glow(16);
+          c.beginPath();
+          for (let i = 0; i < 8; i++) { const a = i * Math.PI / 4, r = i % 2 ? 6 : 18; c.lineTo(x + b.size * 0.09 + Math.cos(a) * r, cy + Math.sin(a) * r); }
+          c.closePath(); c.fill(); c.restore();
+        }
+        return;
+      }
       const c = this.ctx, s = SPR[b.sprite], img = Assets.images[b.sprite];
       c.save();
       const g = c.createRadialGradient(x, y, b.size * 0.1, x, y, b.size * 0.7);
@@ -2326,7 +2601,7 @@
       for (const wv of this.waves) {
         const k = wv.t / 1.2;
         c.save();
-        c.globalAlpha = 1 - k; c.strokeStyle = '#9fd8ff'; c.lineWidth = 8 * (1 - k) + 2; c.shadowColor = '#9fd8ff'; c.shadowBlur = this.glow(20);
+        c.globalAlpha = 1 - k; c.strokeStyle = wv.color || '#9fd8ff'; c.lineWidth = 8 * (1 - k) + 2; c.shadowColor = wv.color || '#9fd8ff'; c.shadowBlur = this.glow(20);
         c.beginPath(); c.arc(wv.x, wv.y, 40 + k * 900, 0, Math.PI * 2); c.stroke();
         c.beginPath(); c.arc(wv.x, wv.y, 20 + k * 500, 0, Math.PI * 2); c.stroke();
         c.restore();
@@ -2569,5 +2844,5 @@
     },
   };
 
-  window.SV = { Assets, Input, inputs, Level, SPR, LEVELS, STAGES, stageConfig, starRating, ALL_TYPES, GEAR, TIME_GEAR, SHIELD_MAX, TROPHIES, shieldMax: () => SHIELD_MAX, get TYPES() { return TYPES; }, get GOAL() { return GOAL; }, goalOf };
+  window.SV = { REGION_MAT, Assets, Input, inputs, Level, SPR, LEVELS, STAGES, stageConfig, starRating, ALL_TYPES, GEAR, TIME_GEAR, SHIELD_MAX, TROPHIES, shieldMax: () => SHIELD_MAX, get TYPES() { return TYPES; }, get GOAL() { return GOAL; }, goalOf };
 })();
