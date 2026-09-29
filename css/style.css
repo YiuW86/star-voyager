@@ -630,3 +630,18 @@ input[type=range] { width: 100%; accent-color: var(--cyan); height: 40px; }
 .ach p { font-size: 17px; margin: 2px 0; color: var(--muted); }
 .ach small { font-size: 16px; color: var(--gold); }
 #screen-game.endless .catches { display: none; }
+
+/* Intro: two solid corner plates hide the video's corner marks without touching the video itself.
+   Top left: a Star Voyager badge. Bottom right: a solid plate under the Skip button. */
+.screen.intro::before, .screen.intro::after { content: ""; position: absolute; z-index: 1; pointer-events: none; }
+.screen.intro::before {
+  content: "STAR VOYAGER"; left: 0; top: 0; width: 360px; height: 118px; padding: 0 0 0 34px;
+  display: flex; align-items: center; font-size: 34px; font-weight: 700; letter-spacing: 3px; color: var(--cyan-soft);
+  text-shadow: 0 0 14px rgba(98, 240, 255, 0.7);
+  background: linear-gradient(90deg, #070d33 0%, #070d33 76%, rgba(7, 13, 51, 0) 100%);
+}
+.screen.intro::after {
+  right: 0; bottom: 0; width: 360px; height: 140px;
+  background: linear-gradient(270deg, #070d33 0%, #070d33 76%, rgba(7, 13, 51, 0) 100%);
+}
+.intro-skip { z-index: 2; opacity: 1; right: 28px; bottom: 28px; }
