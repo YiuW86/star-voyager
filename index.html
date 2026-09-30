@@ -53,15 +53,13 @@
   <section id="screen-planets" class="screen">
     <img class="fill" src="assets/space.jpg" alt="">
     <div class="planets-head"><h1 class="title">Choose your planet</h1></div>
-    <div class="planet-row">
-      <button class="planet" data-action="choose-planet" data-planet="1" aria-label="Novara">
-        <canvas class="planet-canvas" width="560" height="560"></canvas>
-        <span class="planet-name">Novara</span>
-        <span class="planet-info" id="planet1-info"></span>
-      </button>
-    </div>
+    <div class="planet-row" id="planet-row"></div>
     <div class="planets-bar">
       <button class="btn" data-go="start"><span>Back</span></button>
+      <button class="btn" data-go="home"><span>Home</span></button>
+      <button class="btn pink continue-btn" data-action="continue" id="continue-btn"><span>Continue<small id="continue-where"></small></span></button>
+      <button class="btn" data-go="goals"><span>Goals</span><i class="goal-dot" id="goal-dot"></i></button>
+      <button class="btn pink" data-go="shop"><span>Shop</span></button>
       <button class="btn" data-action="planet-options"><span>Options</span></button>
     </div>
   </section>
@@ -74,10 +72,7 @@
       <div class="levels" id="worlds"></div>
       <div class="row">
         <button class="btn" data-go="planets"><span>Back</span></button>
-        <button class="btn" data-go="home"><span>Home</span></button>
-        <button class="btn pink" data-go="shop"><span>Shop</span></button>
         <button class="btn" data-go="workshop" data-from="levels"><span>Workshop</span></button>
-        <button class="btn pink" data-go="goals"><span>Goals</span><i class="goal-dot" id="goal-dot"></i></button>
         <button class="btn" data-go="dex"><span>Alien guide</span></button>
         <button class="btn" data-action="connect"><span>Connect phone</span></button>
       </div>
@@ -103,7 +98,7 @@
   <section id="screen-home" class="screen">
     <img class="fill" src="assets/home.jpg" alt="Your home base">
     <div class="home-top">
-      <button class="btn small" data-go="levels"><span>Back</span></button>
+      <button class="btn small" data-go="planets"><span>Back</span></button>
       <div class="base-level" id="base-level"></div>
       <div class="inventory home-inv" id="home-inv"></div>
     </div>
@@ -155,7 +150,7 @@
       </div>
       <div class="wallet" id="shop-wallet"></div>
       <div class="shop-grid" id="shop-grid"></div>
-      <button class="btn" data-go="levels"><span>Back</span></button>
+      <button class="btn" data-go="planets"><span>Back</span></button>
     </div>
   </section>
 
@@ -184,7 +179,7 @@
     <img class="fill" src="assets/level1.jpg" alt="">
     <div class="goals-wrap">
       <header class="goals-head">
-        <button class="btn small" data-go="levels"><span>Back</span></button>
+        <button class="btn small" data-go="planets"><span>Back</span></button>
         <h1 class="title">Goals</h1>
         <div class="goals-count" id="ach-count"></div>
       </header>
@@ -351,6 +346,8 @@
 
   <!-- Transition flash between the intro and the world screen -->
   <div id="warp" aria-hidden="true"></div>
+  <!-- soft fade between screens -->
+  <div id="fade" aria-hidden="true"></div>
 
   <!-- Hand cursor for menus while paused or at the end of a level -->
   <div id="menu-cursor" aria-hidden="true"></div>

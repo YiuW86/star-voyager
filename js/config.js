@@ -27,5 +27,8 @@ window.SV_CONFIG = {
 };
 // Running inside the Star Voyager Android app (the app adds this to its browser name)
 window.SV_APP = /StarVoyagerApp/.test(navigator.userAgent);
+// Touch mode: the game has its own on-screen gamepad (no phone controller, no QR code, one player).
+// On in the Android app; in a browser it can be tried by adding ?touch=1 to the address.
+window.SV_TOUCH = window.SV_APP || /[?&]touch=1\b/.test(location.search);
 // Message channel between the phone and the TV for casting (must be the same on both sides)
 window.SV_CAST_NS = 'urn:x-cast:com.starvoyager.game';

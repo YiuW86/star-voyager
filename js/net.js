@@ -20,7 +20,10 @@ window.Net = {
   },
 
   controllerUrl() {
-    return new URL('controller.html?room=' + this.roomCode, location.href).href;
+    // Inside the Android app the page itself is not online, so use the public address if one is set
+    const base = window.SV_APP ? ((window.SV_CONFIG || {}).publicUrl || '') : location.href;
+    if (!base) return '';
+    return new URL('controller.html?room=' + this.roomCode, base).href;
   },
 
   start() {
@@ -134,10 +137,11 @@ window.Net = {
     const url = this.controllerUrl();
     document.querySelectorAll('[data-room-code]').forEach((el) => { el.textContent = this.roomCode.toUpperCase(); });
     const urlEl = document.getElementById('room-url');
-    if (urlEl) urlEl.textContent = url;
+    if (urlEl) urlEl.textContent = url || 'Star Voyager app → Use as controller';
     document.querySelectorAll('[data-qr]').forEach((box) => {
       if (box.dataset.made === this.roomCode) return;
       box.innerHTML = '';
+      if (!url) { box.textContent = 'App'; box.classList.add('no-qr'); box.dataset.made = this.roomCode; return; }
       if (typeof QRCode === 'undefined') { box.textContent = 'Use the link'; return; }
       const size = Number(box.dataset.size) || 260;
       new QRCode(box, { text: url, width: size, height: size, colorDark: '#0a1440', colorLight: '#ffffff', correctLevel: QRCode.CorrectLevel.M });

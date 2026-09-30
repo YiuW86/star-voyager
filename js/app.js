@@ -144,7 +144,6 @@
       startLevel(lastMode, n.world, n.stage);
     },
     'planet-options'() { optionsFrom = 'planets'; go('options'); },
-    'choose-planet'() { choosePlanet(); },
     'options-game'() { optionsFromGame = true; Level.menuSuspended = true; go('options'); },
     'options-back'() { closeOptions(); },
     'skip-cal'() { Level.skipCalibration(); },
@@ -227,9 +226,28 @@
   const LOCK_SVG = '<svg class="lock-ico" viewBox="0 0 24 24" fill="none" stroke="#bff9ff" stroke-width="1.8"><rect x="5" y="11" width="14" height="10" rx="2"/><path d="M8 11V8a4 4 0 0 1 8 0v3"/></svg>';
   const CROWN_SVG = '<svg class="boss-crown" viewBox="0 0 64 40"><path d="M4 36V10l14 12L32 4l14 18 14-12v26z" fill="#ffd27a" stroke="#fff4c9" stroke-width="2.5" stroke-linejoin="round"/></svg>';
 
+  let currentPlanet = 1;
   function renderLevels() {
     const box = $('#worlds');
     box.innerHTML = '';
+    const planet = PLANETS.find((p) => p.id === currentPlanet);
+    // the world screen shows the chosen planet's own scenery
+    const bgImg = $('#screen-levels > img.fill');
+    bgImg.src = planet && planet.worlds ? planet.worlds[planet.worlds.length - 1].bg : 'assets/level1.jpg';
+    $('#screen-levels').classList.toggle('planet-soon', !!(planet && planet.worlds));
+    if (planet && planet.worlds) {
+      // a planet whose worlds are not ready yet: show them, locked, as "soon available"
+      planet.worlds.forEach((wd, i) => {
+        const b = document.createElement('button');
+        b.className = 'level-card locked soon-card';
+        b.style.setProperty('--i', i);
+        b.innerHTML = `<div class="face"><img src="${wd.bg}" alt="">${LOCK_SVG}<div class="label"><b>${t(wd.name)}</b><small class="needs-lic">${t('Soon available')}</small></div></div>`;
+        b.addEventListener('click', () => { Sfx.clink(); showToast(t('Soon available')); });
+        box.appendChild(b);
+      });
+      updatePhoneUi();
+      return;
+    }
     for (const w of WORLD_IDS) {
       const cfg = LEVELS[w];
       const open = worldUnlocked(w);
@@ -239,6 +257,7 @@
       b.disabled = !open && !lic;
       if (lic) b.classList.add('lic-lock');
       b.dataset.world = w;
+      b.style.setProperty('--i', box.children.length);
       const maxStars = cfg.plat ? 3 : STAGES * 3;
       const eb = save.endlessBest || {};
       const sub = lic ? `<small class="needs-lic">${t('Full game')}</small>`
@@ -1259,6 +1278,7 @@
   // ---------------- Level flow ----------------
   let lastMode = 'mouse', lastWorld = 1, lastStage = 1;
   function startLevel(mode, world = lastWorld, stage = lastStage) {
+    currentPlanet = 1;
     if (!stageUnlocked(world, stage)) return;
     lastMode = mode; lastWorld = world; lastStage = stage;
     $('#ov-world').classList.remove('show');
@@ -1357,7 +1377,7 @@
       if (current === 'options') { e.preventDefault(); closeOptions(); return; }
       if (current === 'intro') { e.preventDefault(); endIntro(); return; }
       if (current === 'home' && $('#ov-base').classList.contains('show')) { e.preventDefault(); actions['base-close'](); return; }
-      const back = { options: 'start', levels: 'planets', planets: 'start', shop: 'levels', connect: 'levels', quit: 'start', dex: 'levels', home: 'levels', workshop: workshopFrom, goals: 'levels', mods: modsFrom, account: accountFrom, touchedit: 'options' }[current];
+      const back = { options: 'start', levels: 'planets', planets: 'start', shop: 'planets', connect: 'levels', quit: 'start', dex: 'levels', home: 'planets', workshop: workshopFrom, goals: 'planets', mods: modsFrom, account: accountFrom, touchedit: 'options' }[current];
       if (back) { e.preventDefault(); go(back); }
       return;
     }
@@ -1382,53 +1402,109 @@
   if (window.SV_APP) document.body.classList.add('in-app');
 
   // ---------------- Planet choice ----------------
-  // The planet spins: its 12 frames blend into each other while the whole picture slowly turns.
+  // Each planet spins slowly: its 12 frames blend into each other while the picture turns a little.
+  // Novara holds all current worlds; Cindera is the next planet (coming soon).
   let optionsFrom = 'start';
-  const planetImg = new Image();
-  planetImg.src = 'assets/planet1.png';
-  const PLANET_FRAMES = 12, PLANET_CELL = 340;
+  const PLANETS = [
+    { id: 1, name: 'Novara', img: 'assets/planet1.png', cell: 340, frames: 12, open: true },
+    { id: 2, name: 'Cindera', img: 'assets/planet2.png', cell: 400, frames: 12, open: true, soon: true,
+      worlds: [{ name: 'Glimmer Coast', bg: 'assets/cindera1.jpg' }, { name: 'Emberfall Rift', bg: 'assets/cindera2.jpg' },
+        { name: 'Thunder Spires', bg: 'assets/cindera3.jpg' }] },
+    { id: 3, name: 'Prismara', img: 'assets/planet3.png', cell: 370, frames: 12, open: false },
+  ];
+  PLANETS.forEach((p) => { p.image = new Image(); p.image.src = p.img; });
   let planetLoop = 0, planetZoom = false;
+
+  // the next level to play: the first one not yet cleared, in order
+  function nextToPlay() {
+    for (const w of WORLD_IDS) {
+      const cfg = LEVELS[w];
+      if (cfg.plat || cfg.endless) continue;
+      for (let s = 1; s <= STAGES; s++) if (!stageCleared(w, s) && stageUnlocked(w, s)) return { world: w, stage: s };
+    }
+    const endless = WORLD_IDS.find((w) => LEVELS[w].endless);
+    return endless && worldUnlocked(endless) ? { world: endless, stage: 1 } : null;
+  }
+  actions['continue'] = () => { const n = nextToPlay(); if (n) chooseStage(n.world, n.stage); };
+
   function showPlanets() {
     const totalStars = Object.values(save.stages || {}).reduce((a, s) => a + (s.stars || 0), 0);
-    const worlds = Object.values(LEVELS).filter((l) => !l.plat && !l.endless).length;
-    $('#planet1-info').innerHTML = `${starSvg(true)} ${totalStars}/${worlds * STAGES * 3} · ${worlds} ${t('worlds')}`;
-    $('.planet').classList.remove('zoom');
+    const worlds = Object.values(LEVELS).filter((l) => !l.plat && !l.endless);
+    const aliens = new Set(worlds.flatMap((l) => l.types)).size;
+    const row = $('#planet-row');
+    row.innerHTML = '';
+    for (const p of PLANETS) {
+      const b = document.createElement('button');
+      b.className = 'planet' + (p.open ? '' : ' locked') + (p.soon ? ' soon' : '');
+      b.dataset.planet = p.id;
+      const info = p.soon
+        ? `<span class="planet-info">${(p.worlds || []).length} ${t('worlds')}</span><span class="planet-info soon">${t('Soon available')}</span>`
+        : p.open
+        ? `<span class="planet-info">${worlds.length} ${t('worlds')} · ${aliens} ${t('aliens')} · ${worlds.length} ${t('bosses')}</span>
+           <span class="planet-info stars">${starSvg(true)} ${totalStars}/${worlds.length * STAGES * 3}</span>`
+        : `<span class="planet-info soon">${t('Coming soon')}</span>`;
+      b.innerHTML = `<canvas class="planet-canvas" width="560" height="560"></canvas><span class="planet-name">${t(p.name)}</span>${info}`;
+      b.setAttribute('aria-label', p.open ? p.name : `${p.name}, ${t('Coming soon')}`);
+      b.addEventListener('click', () => {
+        if (p.open) choosePlanet(b, p);
+        else { Sfx.clink(); showToast(t('Coming soon')); }
+      });
+      row.appendChild(b);
+      p.canvas = b.querySelector('canvas');
+    }
+    // Continue: straight to the next level
+    const n = nextToPlay();
+    $('#continue-btn').style.display = n ? '' : 'none';
+    if (n) $('#continue-where').textContent = LEVELS[n.world].endless ? t('Endless') : `${t(LEVELS[n.world].name)} · ${t('Level')} ${n.stage}`;
+    Progress.updateDot();
     planetZoom = false;
-    const cv = $('.planet-canvas'), c = cv.getContext('2d');
     const id = ++planetLoop;
     const draw = (now) => {
       if (id !== planetLoop || current !== 'planets') return;
-      const t = now / 1000;
-      c.clearRect(0, 0, cv.width, cv.height);
-      if (planetImg.complete && planetImg.naturalWidth) {
-        const pos = (t * 2.2) % PLANET_FRAMES, i = Math.floor(pos), k = pos - i;
-        const size = cv.width * 0.92;
+      const t2 = now / 1000;
+      PLANETS.forEach((p, idx) => {
+        const cv = p.canvas, c = cv.getContext('2d');
+        c.clearRect(0, 0, cv.width, cv.height);
+        if (!p.image.complete || !p.image.naturalWidth) return;
+        // slow: a new frame every ~1.4 s, and a very gentle turn
+        const pos = (t2 * 0.7 + idx * 4) % p.frames, i = Math.floor(pos), k = pos - i;
+        const size = cv.width * 0.94;
         c.save();
-        c.translate(cv.width / 2, cv.height / 2 + Math.sin(t * 1.2) * 8);
-        c.rotate(t * 0.12);
-        const frame = (n, alpha) => { c.globalAlpha = alpha; c.drawImage(planetImg, n * PLANET_CELL, 0, PLANET_CELL, PLANET_CELL, -size / 2, -size / 2, size, size); };
+        c.translate(cv.width / 2, cv.height / 2 + Math.sin(t2 * 0.9 + idx) * 7);
+        c.rotate(Math.sin(t2 * 0.08 + idx) * 0.12);
+        const frame = (n2, alpha) => { c.globalAlpha = alpha; c.drawImage(p.image, n2 * p.cell, 0, p.cell, p.cell, -size / 2, -size / 2, size, size); };
         frame(i, 1);
-        frame((i + 1) % PLANET_FRAMES, k);
+        frame((i + 1) % p.frames, k);
         c.restore();
-      }
+      });
       requestAnimationFrame(draw);
     };
     requestAnimationFrame(draw);
     setTimeout(focusFirst, 30);
   }
   // choosing the planet: it grows toward you with a flash, then its worlds appear
-  function choosePlanet() {
+  // Screen changes with a soft fade (instead of a hard cut); `enter` plays the arrival animation
+  function fadeTo(name, { tint = '#050a24', out = 450, hold = 120 } = {}) {
+    const f = $('#fade');
+    f.style.background = tint;
+    f.classList.add('on');
+    return new Promise((resolve) => setTimeout(() => {
+      go(name);
+      const scr = $('#screen-' + name);
+      scr.classList.remove('enter'); void scr.offsetWidth; scr.classList.add('enter');
+      setTimeout(() => scr.classList.remove('enter'), 2200);
+      setTimeout(() => { f.classList.remove('on'); resolve(); }, hold);
+    }, out));
+  }
+
+  // choosing a planet: it grows toward you, the screen fills with its glow, then its worlds appear
+  function choosePlanet(el, p) {
     if (planetZoom) return;
     planetZoom = true;
+    currentPlanet = p ? p.id : 1;
     Sfx.select();
-    $('.planet').classList.add('zoom');
-    const warp = $('#warp');
-    setTimeout(() => { warp.classList.remove('out'); warp.classList.add('in'); }, 250);
-    setTimeout(() => {
-      go('levels');
-      warp.classList.remove('in'); warp.classList.add('out');
-      setTimeout(() => warp.classList.remove('out'), 900);
-    }, 700);
+    el.classList.add('zoom');
+    setTimeout(() => fadeTo('levels', { tint: 'radial-gradient(circle, #bff9ff 0%, #6a5cff 45%, #0a1440 100%)', out: 380, hold: 150 }), 350);
   }
 
   // ---------------- Intro video ----------------
@@ -1458,15 +1534,14 @@
     if (introDone) return;
     introDone = true;
     const v = $('#intro-video');
-    const warp = $('#warp');
-    warp.classList.remove('out'); warp.classList.add('in');   // flash in
-    setTimeout(() => {
-      try { v.pause(); } catch (e) {}
-      go('planets');
-      warp.classList.remove('in'); warp.classList.add('out');  // and fade out on the world screen
-      setTimeout(() => warp.classList.remove('out'), 900);
-    }, 450);
+    // the video (and its sound) fades out into the dark, then the planets appear out of the stars
+    const start = performance.now(), vol = v.volume;
+    const fadeSound = () => { const k = Math.min(1, (performance.now() - start) / 600); try { v.volume = vol * (1 - k); } catch (e) {} if (k < 1) requestAnimationFrame(fadeSound); };
+    fadeSound();
+    fadeTo('planets', { tint: '#02040f', out: 650, hold: 200 }).then(() => { try { v.pause(); v.volume = vol; } catch (e) {} });
   }
+  // touching the screen anywhere during the intro skips it
+  $('#screen-intro').addEventListener('pointerdown', (e) => { if (!e.target.closest('.intro-skip')) endIntro(); });
   $('#intro-video').addEventListener('ended', endIntro);
   $('#intro-video').addEventListener('error', endIntro);
 

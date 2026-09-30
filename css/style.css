@@ -820,3 +820,87 @@ body.touch #screen-game .hud, body.touch .touchpad { left: env(safe-area-inset-l
 body.touch .planet-name { font-size: 60px; }
 body.touch .planet-info { font-size: 34px; }
 @media (prefers-reduced-motion: reduce) { .planet::before { animation: none; } .planet { transition: none; } }
+
+/* Planet screen: two planets, Continue in the middle of the button row */
+.planet-row { gap: 160px; }
+.planet-canvas { width: 520px; height: 520px; }
+.planet::before { top: 260px; width: 560px; height: 560px; }
+.planet.locked .planet-canvas { filter: grayscale(0.35) brightness(0.7) drop-shadow(0 0 20px rgba(98, 240, 255, 0.2)); }
+.planet.locked .planet-name { color: var(--muted); text-shadow: none; }
+.planet-info.soon { color: var(--pink); font-weight: 700; }
+.planet-info.stars { font-weight: 600; }
+.planet-info:not(.stars):not(.soon) { color: var(--cyan-soft); }
+.planets-bar { gap: 22px; align-items: center; }
+.planets-bar .btn { position: relative; }
+.continue-btn { height: 120px; min-width: 380px; flex-direction: column; justify-content: center; font-size: 44px; }
+.continue-btn small { display: block; font-size: 22px; font-weight: 600; color: #fff4c9; margin-top: -2px; }
+body.touch .continue-btn { height: 128px; font-size: 46px; }
+body.touch .continue-btn small { font-size: 26px; }
+
+/* Goals on phones: bigger text, two roomy columns */
+body.touch .goals-cols { grid-template-columns: 1000px 1fr; gap: 36px; }
+body.touch .goals-head .title { font-size: 84px; }
+body.touch .goals-count { font-size: 40px; }
+body.touch .missions h2 { font-size: 46px; }
+body.touch .missions h2 small { font-size: 26px; }
+body.touch .mission { padding: 18px 22px; gap: 10px 20px; }
+body.touch .mission b { font-size: 34px; }
+body.touch .mission .bar { height: 16px; }
+body.touch .mission .prog { font-size: 26px; }
+body.touch .mission .reward { font-size: 28px; }
+body.touch .mission .reward .mat, body.touch .ach .mat { width: 30px; height: 30px; }
+body.touch .claimed-tag { font-size: 28px; }
+body.touch .achievements { grid-template-columns: 1fr; gap: 14px; }
+body.touch .ach { padding: 16px 20px; gap: 18px; }
+body.touch .ach .medal { width: 80px; height: 80px; }
+body.touch .ach b { font-size: 32px; }
+body.touch .ach p { font-size: 24px; }
+body.touch .ach small { font-size: 24px; }
+
+.continue-btn span { flex-direction: column; gap: 0; line-height: 1.1; }
+.planet-row { top: 170px; bottom: 220px; }
+.planet-canvas { width: 480px; height: 480px; }
+.planet::before { top: 240px; width: 520px; height: 520px; }
+body.touch .planet-canvas { width: 520px; height: 520px; }
+body.touch .planet::before { top: 260px; width: 560px; height: 560px; }
+
+/* three planets side by side */
+.planet-row { gap: 90px; }
+.planet-canvas { width: 440px; height: 440px; }
+.planet::before { top: 220px; width: 470px; height: 470px; }
+body.touch .planet-canvas { width: 480px; height: 480px; }
+body.touch .planet::before { top: 240px; width: 510px; height: 510px; }
+
+/* ---------- Soft screen transitions ---------- */
+#fade { position: absolute; inset: 0; z-index: 61; opacity: 0; pointer-events: none; transition: opacity 0.45s ease; background: #050a24; }
+#fade.on { opacity: 1; pointer-events: auto; }
+@keyframes sv-bg-in { from { transform: scale(1.14); filter: blur(10px) brightness(0.6); } to { transform: scale(1); filter: none; } }
+@keyframes sv-drop-in { from { opacity: 0; transform: translateY(-40px); } to { opacity: 1; transform: none; } }
+@keyframes sv-rise-in { from { opacity: 0; transform: translateY(60px); } to { opacity: 1; transform: none; } }
+@keyframes sv-pop-in { from { opacity: 0; transform: scale(0.6); } to { opacity: 1; transform: none; } }
+/* planets appear out of the stars */
+#screen-planets.enter > img.fill { animation: sv-bg-in 1.6s ease-out both; }
+#screen-planets.enter .planets-head { animation: sv-drop-in 0.9s 0.25s ease-out both; }
+#screen-planets.enter .planet { animation: sv-pop-in 0.9s cubic-bezier(0.34, 1.4, 0.64, 1) both; }
+#screen-planets.enter .planet:nth-child(1) { animation-delay: 0.35s; }
+#screen-planets.enter .planet:nth-child(2) { animation-delay: 0.5s; }
+#screen-planets.enter .planet:nth-child(3) { animation-delay: 0.65s; }
+#screen-planets.enter .planets-bar { animation: sv-rise-in 0.8s 0.7s ease-out both; }
+/* choosing a planet: it grows toward you */
+.planet.zoom { transform: scale(4.2); opacity: 0; transition: transform 0.75s cubic-bezier(0.55, 0, 0.9, 0.5), opacity 0.75s ease-in; }
+/* worlds: the background comes into focus, the cards rise one after another */
+#screen-levels.enter > img.fill { animation: sv-bg-in 1.3s ease-out both; }
+#screen-levels.enter .title { animation: sv-drop-in 0.8s 0.15s ease-out both; }
+#screen-levels.enter .level-card { animation: sv-rise-in 0.7s calc(0.25s + var(--i, 0) * 0.07s) ease-out both; }
+#screen-levels.enter .row { animation: sv-rise-in 0.7s 0.75s ease-out both; }
+.planet.soon .planet-name { color: #fff; }
+@media (prefers-reduced-motion: reduce) {
+  #screen-planets.enter *, #screen-levels.enter *, #screen-planets.enter > img.fill, #screen-levels.enter > img.fill { animation: none !important; }
+  #fade { transition-duration: 0.01s; }
+}
+
+/* a planet whose worlds come soon: colourful cards (not greyed out), only the Back button */
+.level-card.soon-card { filter: brightness(0.85); cursor: pointer; }
+.level-card.soon-card .lock-ico { width: 56px; height: 56px; opacity: 0.8; }
+#screen-levels.planet-soon .row .btn:not([data-go="planets"]) { display: none !important; }
+#screen-levels.planet-soon .connect-line, #screen-levels.planet-soon .phone-status { display: none !important; }

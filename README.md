@@ -222,7 +222,9 @@ Amazon Fire TV does not support Google Cast; for Fire TV the route is an app in 
 
 ## Planet choice
 
-After Start and the intro, the **Choose your planet** screen appears on the space background (`assets/space.jpg`), with the spinning planet **Novara** (`assets/planet1.png`: 12 frames that blend into each other while the planet slowly turns), its total stars, and **Back** and **Options** buttons. Choosing the planet zooms into it and opens the world screen; Back on the world screen returns to the planets.
+After Start and the intro, the **Choose your planet** screen appears on the space background (`assets/space.jpg`). Planets spin slowly (their 12 frames blend into each other, with a gentle sway): **Novara** (`assets/planet1.png`) holds all current worlds and shows "6 worlds · 13 aliens · 6 bosses" and its stars; **Cindera** (`assets/planet2.png`) can be visited: its world screen shows its first three worlds, Glimmer Coast (`assets/cindera1.jpg`) Emberfall Rift (`assets/cindera2.jpg`) and Thunder Spires (`assets/cindera3.jpg`), as *Soon available* (no aliens yet). **Prismara** (`assets/planet3.png`) is shown as *Coming soon*. After the intro the screen fades through dark into the planets (the intro's sound fades out too), and choosing a planet zooms into it and fades via its glow into the worlds, which come into focus with the cards rising one after another. Tapping anywhere during the intro skips it. Planets are listed in `PLANETS` in `js/app.js`.
+
+The buttons on this screen: **Back** (title screen), **Home** (base), **Continue** (straight to the next level to play, with its world and number shown on the button), **Goals**, **Shop** and **Options**. Choosing Novara zooms into it and opens the world screen (which keeps Workshop, Alien guide and Connect phone).
 
 ## Expand mode (wide screens)
 
