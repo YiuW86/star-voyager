@@ -207,6 +207,29 @@
   const worldCleared = (w) => Array.from({ length: STAGES }, (_, i) => i + 1).every((s) => stageCleared(w, s));
   // Options → "Unlock all levels" opens everything (handy for testing or for younger players)
   const unlockAll = () => save.options.unlockAll === 'on';
+  // "Unlock all" (Options): every upgrade, shop item, drone, trophy, ability, superpower and building,
+  // plenty of crystals and materials. The real progress is kept aside and comes back when it is switched off.
+  const UNLOCK_KEYS = ['upg', 'owned', 'trophies', 'mods', 'base', 'mats', 'crystals', 'loadout'];
+  function applyUnlockAll(on) {
+    if (on && !save.unlockBackup) {
+      save.unlockBackup = JSON.parse(JSON.stringify(UNLOCK_KEYS.reduce((o, k) => { o[k] = save[k]; return o; }, {})));
+      save.upg = { blaster: 5, net: 3, shield: 3, health: 5 };
+      save.owned = Object.assign({}, save.owned);
+      [...SHOP, ...STAR_SHOP].forEach((it) => { save.owned[it.id] = true; });
+      save.trophies = { nebulaCrown: 1, emberCore: 1, tidePearl: 1, prismHeart: 1, echoBell: 1, vortexEye: 1 };
+      save.mods = {}; MODS.forEach((m) => { save.mods[m.id] = 3; });
+      save.loadout = { weapon: save.loadout && save.loadout.weapon || 'bubble', drone: save.loadout && save.loadout.drone || 'mirror' };
+      save.base = Object.assign({}, save.base);
+      MODULES.forEach((m) => { if (m.max) save.base[m.id] = m.max; });
+      if (!save.base.sanctT) save.base.sanctT = Date.now();
+      save.mats = { shard: 999, goo: 999, dust: 999, mist: 999, spark: 999, pearl: 999, glass: 999, echo: 999, vdust: 999 };
+      save.crystals = Math.max(save.crystals, 99999);
+    } else if (!on && save.unlockBackup) {
+      UNLOCK_KEYS.forEach((k) => { if (save.unlockBackup[k] !== undefined) save[k] = save.unlockBackup[k]; else delete save[k]; });
+      delete save.unlockBackup;
+    }
+    persist();
+  }
   // Endless opens after the first world is cleared
   const needsLicence = (w) => !isFreeWorld(w) && !hasFullGame();
   const worldUnlocked = (w) => !needsLicence(w) && (unlockAll() || w === WORLD_IDS[0] || !!LEVELS[w].experimental
@@ -395,6 +418,9 @@
     { id: 'net', name: 'Net grenade', max: 3,
       stats: (l) => `${t('Net size')} +${(l - 1) * 15}% · ${t('Damage')} ${2 + l}`,
       cost: [null, { crystal: 50, shard: 6, goo: 2 }, { crystal: 120, shard: 12, goo: 6, dust: 2 }] },
+    { id: 'health', name: 'Armour suit', max: 5,
+      stats: (l) => `${t('Health')} ${100 + 50 * (l - 1)} (+${50 * (l - 1)}%)`,
+      cost: [null, { crystal: 60, shard: 8 }, { crystal: 140, shard: 14, goo: 4 }, { crystal: 240, shard: 20, goo: 8, dust: 2 }, { crystal: 380, shard: 28, goo: 12, dust: 5, trophy: 'emberCore' }] },
     { id: 'shield', name: 'Shield', max: 3,
       stats: (l) => `${t('Blocks')} ${10 + 4 * (l - 1)} ${t('hits')}`,
       cost: [null, { crystal: 50, shard: 8, goo: 2 }, { crystal: 120, shard: 14, goo: 5, dust: 3 }] },
@@ -652,6 +678,13 @@
     $('#home-inv').innerHTML = inv.map(([k, n]) => `<span class="inv">${MAT_SVG[k]}<b>${n}</b></span>`).join('');
     const box = $('#buildings');
     box.innerHTML = '';
+    if ((save.champions || {}).nebula) {
+      const st = document.createElement('div');
+      st.className = 'statue';
+      st.style.left = '1040px'; st.style.top = '960px';
+      st.innerHTML = `<i></i><span>${t('Champion')}: ${t('King Nebula')}</span>`;
+      box.appendChild(st);
+    }
     for (const m of MODULES) {
       const l = save.base[m.id] || 0;
       const b = document.createElement('button');
@@ -894,6 +927,64 @@
     window.Cloud.init({ getLocal: () => save, useCloud: (data) => replaceSave(data), ask: askSaveChoice });
   }
 
+  // ---------------- Superpowers: choosing one ----------------
+  // Shockwave from the start; the others are earned by beating bosses (the rest come later).
+  const SUPER_INFO = [
+    { id: 'shockwave', desc: 'A huge ring blasts all aliens far back and smashes every flying rock.' },
+    { id: 'barrier', desc: 'A glowing dome for 8 seconds: nothing gets through, not even fire walls or beams.', trophy: 'nebulaCrown' },
+    { id: 'mindswirl', desc: 'For 8 seconds the aliens get dizzy and bump into each other, catching one another.', trophy: 'emberCore' },
+    { id: 'blackhole', desc: 'A black hole pulls all aliens into one spot: one tap catches the whole bunch.', trophy: 'tidePearl' },
+    { id: 'frost', desc: 'Every alien freezes for 5 seconds; frozen aliens are caught with one hit.', trophy: 'prismHeart' },
+    { id: 'overdrive', desc: 'Rapid fire for 6 seconds: no reloading, double damage.', trophy: 'echoBell' },
+    { id: 'meteor', desc: 'Crystal meteors rain from the sky and catch aliens all over the screen.', trophy: 'vortexEye' },
+    { id: 'aurora', desc: 'A healing light: 40% health back, and a slow heal for a while.', stars: 60 },
+  ];
+  const superIcon = (id, cls = '') => `<i class="super-ico ${cls}" style="--si:${window.SV.SUPERS[id].i}"></i>`;
+  const starsTotal = () => Object.values(save.stages || {}).reduce((a, x) => a + (x.stars || 0), 0);
+  const superUnlocked = (s) => !s.soon && (unlockAll() || ((!s.trophy || (save.trophies || {})[s.trophy] > 0) && (!s.stars || starsTotal() >= s.stars)));
+
+  function renderSupers(grid) {
+    const pick = save.superPick || 'shockwave';
+    for (const s of SUPER_INFO) {
+      const def = window.SV.SUPERS[s.id], open = superUnlocked(s), on = pick === s.id;
+      const card = document.createElement('div');
+      card.className = 'mod super-card' + (open ? '' : ' locked') + (on ? ' equipped' : '');
+      const why = s.soon ? t('Coming soon') : !open && s.stars ? t('Collect {a} stars to unlock').replace('{a}', s.stars) + ` (${starsTotal()}/${s.stars})` : !open ? t('Beat the {a} to unlock').replace('{a}', LEVELS[Object.keys(TROPHY_WORLD).find((w) => TROPHY_WORLD[w] === s.trophy)].boss.name) : '';
+      card.innerHTML = `<div class="mod-head">${superIcon(s.id)}<div><b>${t(def.name)}</b><small>${t('Superpower')}</small></div></div>
+        <p>${t(s.desc)}</p>${why ? `<p class="lock">${why}</p>` : ''}`;
+      if (open) {
+        const row = document.createElement('div');
+        row.className = 'row';
+        const b = document.createElement('button');
+        b.className = 'btn small' + (on ? '' : ' pink');
+        b.innerHTML = `<span>${on ? t('Equipped') : t('Equip')}</span>`;
+        b.addEventListener('click', () => { save.superPick = s.id; persist(); Sfx.select(); renderMods(); focusFirst(); });
+        row.appendChild(b);
+        card.appendChild(row);
+      }
+      grid.appendChild(card);
+    }
+  }
+  const TROPHY_WORLD = { 1: 'nebulaCrown', 2: 'emberCore', 3: 'tidePearl', 4: 'prismHeart', 5: 'echoBell', 6: 'vortexEye' };
+  actions['mods-super'] = () => { modsTab = 'super'; renderMods(); };
+
+  // the Super button in the game (and on the phone controller): fills up, glows when ready
+  function updateSuperHud(v) {
+    const b = $('#super-btn');
+    if (!b) return;
+    b.classList.toggle('hidden', !!v.none);
+    b.classList.toggle('ready', !!v.ready);
+    b.style.setProperty('--p', Math.round((v.p || 0) * 100));
+    b.innerHTML = superIcon(v.id || 'shockwave') + `<span class="super-ring"></span>`;
+    if (window.Touch && Touch.items && Touch.items.super) {
+      const tb = Touch.items.super;
+      tb.classList.toggle('ready', !!v.ready); tb.style.setProperty('--p', Math.round((v.p || 0) * 100));
+      tb.innerHTML = superIcon(v.id || 'shockwave') + `<span class="super-ring"></span>`;
+    }
+    [1, 2].forEach((pl) => { try { Net.sendTo(pl, { m: 'super', p: v.p || 0, r: !!v.ready, none: !!v.none }); } catch (e) { /* no phone */ } });
+  }
+  actions['super'] = () => Level.activateSuper();
+
   // ---------------- Region abilities: weapon mods and drone abilities ----------------
   // Each world: one drone ability and one weapon mod, made with that world's material and its boss trophy.
   const REGION_BY_WORLD = window.SV.REGION_MAT;
@@ -942,6 +1033,7 @@
     if (!save.loadout) save.loadout = {};
     $('#tab-mw').classList.toggle('pink', modsTab === 'weapon');
     $('#tab-md').classList.toggle('pink', modsTab === 'drone');
+    $('#tab-ms').classList.toggle('pink', modsTab === 'super');
     const name = (id) => { const m = MODS.find((q) => q.id === id); return m ? t(m.name) : t('None'); };
     $('#loadout').innerHTML = `<span>${t('Loadout')}:</span> <b>${name(save.loadout.weapon)}</b> + <b>${name(save.loadout.drone)}</b>`;
     const hasDrone = save.owned.helperDrone || save.owned.droneTwo;
@@ -950,6 +1042,8 @@
     $('#mods-inv').innerHTML = inv;
     const grid = $('#mods-grid');
     grid.innerHTML = '';
+    grid.classList.toggle('supers', modsTab === 'super');
+    if (modsTab === 'super') { $('#mods-note').textContent = ''; renderSupers(grid); return; }
     for (const m of MODS.filter((q) => q.kind === modsTab)) {
       const lvl = save.mods[m.id] || 0, maxed = lvl >= 3;
       const cost = maxed ? null : modCost(m, lvl + 1);
@@ -1065,6 +1159,7 @@
     if (key === 'assist' || key === 'sens') v = Number(v);
     save.options[key] = v;
     if (key === 'sound') Sfx.enabled = v === 'on';
+    if (key === 'unlockAll') applyUnlockAll(v === 'on');
     if (key === 'lang') { I18N.setLang(v); [1, 2].forEach((pl) => Net.sendTo(pl, { m: 'welcome', player: pl, lang: v })); }
     persist(); renderOptions(); Sfx.select();
   }));
@@ -1144,7 +1239,7 @@
     if (kind === 'all' || kind === 'health') {
       const on = Math.round(L.health / 5);
       $$('#health-segs .seg-cell').forEach((c, i) => c.classList.toggle('off', i >= on));
-      $('#health-num').textContent = L.health;
+      $('#health-num').textContent = Math.round(L.health * (L.healthMult || 1));      // 100 … 300 with the Armour suit
       const h = $('#health');
       h.classList.toggle('low', L.health <= 30);
       if (kind === 'health') {
@@ -1211,6 +1306,7 @@
       }
     }
     if (kind === 'stat') Progress.event(value);
+    if (kind === 'super') updateSuperHud(value);
     if (kind === 'drop') {
       // materials are saved right away, so they are kept even if you leave the level
       if (value.startsWith('trophy:')) {
@@ -1301,6 +1397,14 @@
   }
 
   function endLevel(r) {
+    // first time King Nebula is beaten: his story cutscene, then the usual end screen
+    if (r.won && r.world === 1 && r.stage === STAGES && !(save.story || {}).kn && window.Story) {
+      save.story = { ...(save.story || {}), kn: true };
+      save.champions = { ...(save.champions || {}), nebula: true };
+      persist();
+      Story.play('kn', () => endLevel(r));
+      return;
+    }
     const bonus = r.won ? 15 : 0;
     save.crystals += r.earned + bonus;
     const rating = starRating(r);
@@ -1359,10 +1463,22 @@
   // ---------------- Keyboard and TV remote ----------------
   document.addEventListener('keydown', (e) => {
     Sfx.unlock();
+    // during a cutscene: Enter / Space / → next line, Escape skips
+    if (window.Story && Story.active) {
+      if (e.key === 'Enter' || e.key === ' ' || e.key === 'ArrowRight') { e.preventDefault(); Story.advance(); }
+      else if (e.key === 'Escape') { e.preventDefault(); Story.finish(); }
+      return;
+    }
     // typing in a text field (email, password, save code): leave the keys alone, except Escape
     if (e.target && /^(INPUT|TEXTAREA)$/.test(e.target.tagName) && e.key !== 'Escape') return;
+    if (current === 'planets' && (e.key === 'ArrowLeft' || e.key === 'ArrowRight') && document.activeElement && document.activeElement.closest('#planet-row')) {
+      e.preventDefault(); rotatePlanets(e.key === 'ArrowLeft' ? -1 : 1);
+      const mid = $('#planet-row .planet[data-slot="mid"]'); if (mid) mid.focus();
+      return;
+    }
     const inGame = current === 'game' && Level.state === 'play';
     if (inGame && (e.key === 'r' || e.key === 'R')) { Level.keyReload(); return; }
+    if (inGame && (e.key === 'e' || e.key === 'E')) { Level.activateSuper(); return; }
     if (inGame && ['1', '2', '3', '4'].includes(e.key)) { Level.keyEquipIndex(Number(e.key) - 1); return; }
     if (inGame && (e.key === 'g' || e.key === 'G')) { Level.toggleBelt(); return; }
     if (current === 'intro' && (e.key === 'Enter' || e.key === ' ')) { e.preventDefault(); endIntro(); return; }
@@ -1401,6 +1517,24 @@
   };
   if (window.SV_APP) document.body.classList.add('in-app');
 
+  // ---------------- Orbit, the AI helper ----------------
+  if (window.Story) Story.orbitDesign = () => Number(save.options.orbit || 0);
+  function renderOrbitPick() {
+    const grid = $('#orbit-grid');
+    const cur = Number(save.options.orbit || 0);
+    grid.innerHTML = '';
+    for (let d = 0; d < 9; d++) {
+      const b = document.createElement('button');
+      b.className = 'orbit-opt' + (d === cur ? ' on' : '');
+      b.style.backgroundPosition = `${(d % 3) * 50}% ${Math.floor(d / 3) * 50}%`;
+      b.setAttribute('aria-label', `Orbit ${d + 1}`);
+      b.addEventListener('click', () => { save.options.orbit = d; persist(); Sfx.select(); renderOrbitPick(); });
+      grid.appendChild(b);
+    }
+  }
+  actions['choose-orbit'] = () => { renderOrbitPick(); $('#ov-orbit').classList.add('show'); setTimeout(focusFirst, 30); };
+  actions['orbit-close'] = () => { $('#ov-orbit').classList.remove('show'); setTimeout(focusFirst, 30); };
+
   // ---------------- Planet choice ----------------
   // Each planet spins slowly: its 12 frames blend into each other while the picture turns a little.
   // Novara holds all current worlds; Cindera is the next planet (coming soon).
@@ -1411,9 +1545,27 @@
       worlds: [{ name: 'Glimmer Coast', bg: 'assets/cindera1.jpg' }, { name: 'Emberfall Rift', bg: 'assets/cindera2.jpg' },
         { name: 'Thunder Spires', bg: 'assets/cindera3.jpg' }] },
     { id: 3, name: 'Prismara', img: 'assets/planet3.png', cell: 370, frames: 12, open: false },
+    { id: 4, name: 'Tetra', img: 'assets/planet4.png', cell: 360, frames: 16, open: false },
   ];
   PLANETS.forEach((p) => { p.image = new Image(); p.image.src = p.img; });
-  let planetLoop = 0, planetZoom = false;
+  let planetLoop = 0, planetZoom = false, planetIdx = 0;
+  // place the planets on the carousel: the chosen one in the middle, its neighbours left and right
+  function layoutCarousel() {
+    const n = PLANETS.length;
+    $$('#planet-row .planet').forEach((b, i) => {
+      let off = ((i - planetIdx) % n + n) % n;
+      if (off > n / 2) off -= n;                  // -1 = left, 0 = middle, 1 = right, others out of view
+      b.dataset.slot = off === 0 ? 'mid' : off === -1 ? 'left' : off === 1 ? 'right' : off < 0 ? 'offl' : 'offr';
+      b.tabIndex = Math.abs(off) <= 1 ? 0 : -1;
+    });
+  }
+  function rotatePlanets(dir) {
+    planetIdx = (planetIdx + dir + PLANETS.length) % PLANETS.length;
+    Sfx.select();
+    layoutCarousel();
+  }
+  actions['planet-prev'] = () => rotatePlanets(-1);
+  actions['planet-next'] = () => rotatePlanets(1);
 
   // the next level to play: the first one not yet cleared, in order
   function nextToPlay() {
@@ -1446,11 +1598,27 @@
       b.innerHTML = `<canvas class="planet-canvas" width="560" height="560"></canvas><span class="planet-name">${t(p.name)}</span>${info}`;
       b.setAttribute('aria-label', p.open ? p.name : `${p.name}, ${t('Coming soon')}`);
       b.addEventListener('click', () => {
+        // a planet at the side first turns to the middle; the middle one is entered
+        if (b.dataset.slot !== 'mid') { rotatePlanets(b.dataset.slot === 'left' || b.dataset.slot === 'offl' ? -1 : 1); return; }
         if (p.open) choosePlanet(b, p);
         else { Sfx.clink(); showToast(t('Coming soon')); }
       });
       row.appendChild(b);
       p.canvas = b.querySelector('canvas');
+    }
+    layoutCarousel();
+    // swipe left/right on the planets to turn the carousel
+    if (!row.dataset.swipe) {
+      row.dataset.swipe = '1';
+      let sx = null;
+      row.addEventListener('pointerdown', (e) => { sx = e.clientX; });
+      row.addEventListener('pointerup', (e) => {
+        if (sx == null) return;
+        const dx = e.clientX - sx; sx = null;
+        const k = $('#stage').getBoundingClientRect().width / window.SV.viewW();
+        if (Math.abs(dx) > 70 * k) { e.stopPropagation(); rotatePlanets(dx < 0 ? 1 : -1); row.dataset.swiped = Date.now(); }
+      }, true);
+      row.addEventListener('click', (e) => { if (Date.now() - (row.dataset.swiped || 0) < 300) { e.stopPropagation(); e.preventDefault(); } }, true);
     }
     // Continue: straight to the next level
     const n = nextToPlay();

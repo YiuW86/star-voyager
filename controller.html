@@ -113,7 +113,13 @@
     .stick-base, .stick-knob { position: absolute; border-radius: 50%; pointer-events: none; display: none; }
     .stick-base { width: 150px; height: 150px; margin: -75px 0 0 -75px; border: 3px solid rgba(98, 240, 255, 0.6); background: rgba(98, 240, 255, 0.08); }
     .stick-knob { width: 70px; height: 70px; margin: -35px 0 0 -35px; background: radial-gradient(circle at 40% 35%, #d4fbff, var(--cyan) 60%, var(--cyan-deep)); box-shadow: 0 0 18px var(--cyan); }
-    .pad-buttons { flex: 1; display: grid; grid-template-columns: 1fr 1fr 1fr; grid-template-rows: auto 1fr auto; gap: 10px; }
+    .pad-buttons { flex: 1; display: grid; grid-template-columns: 1fr 1fr 1fr; grid-template-rows: auto 1fr auto auto; gap: 10px; }
+    /* Superpower: the button fills up with the meter and glows when it's ready */
+    .pbtn.super { grid-column: 1 / span 3; color: #fff4c9;
+      background: linear-gradient(90deg, rgba(255, 210, 122, 0.55) var(--p, 0%), rgba(12, 28, 94, 0.9) var(--p, 0%)); }
+    .pbtn.super.ready { background: linear-gradient(90deg, #ffd27a, #ff8ad8); color: #0a1440; box-shadow: 0 0 22px #ffd27a; animation: superPulse 1s ease-in-out infinite; }
+    .pbtn.super.none { opacity: 0.35; }
+    @keyframes superPulse { 50% { transform: scale(1.04); } }
     .pad-buttons .fire { grid-column: 1 / span 3; justify-self: center; align-self: center; width: min(46vw, 46vh, 190px); aspect-ratio: 1; }
     @media (orientation: portrait) {
       .pad-main { flex-direction: column; }
@@ -236,6 +242,7 @@
       <button class="pbtn grenade" data-slot="s5" data-press="grenade">Net<small>grenade</small></button>
       <button class="pbtn shield" data-slot="s6" data-press="shield">Shield</button>
       <button class="pbtn time" data-slot="s7" data-press="time">Time<small>grenade</small></button>
+      <button class="pbtn super" data-slot="s8" data-press="super">★ SUPER</button>
     </div>
   </div>
 </section>

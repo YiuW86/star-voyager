@@ -904,3 +904,155 @@ body.touch .planet::before { top: 240px; width: 510px; height: 510px; }
 .level-card.soon-card .lock-ico { width: 56px; height: 56px; opacity: 0.8; }
 #screen-levels.planet-soon .row .btn:not([data-go="planets"]) { display: none !important; }
 #screen-levels.planet-soon .connect-line, #screen-levels.planet-soon .phone-status { display: none !important; }
+
+/* ---------- Superpowers ---------- */
+.super-ico { display: inline-block; width: 64px; height: 64px; flex: none; background: url(../assets/supers.png) no-repeat;
+  background-size: 800% 100%; background-position: calc(var(--si, 0) * 100% / 7) 0; }
+/* the Super button in the HUD: its ring fills with the meter, and it glows when ready */
+.super-btn { position: absolute; left: 44px; top: 150px; width: 120px; height: 120px; border-radius: 50%; border: 0; padding: 0; cursor: pointer;
+  pointer-events: auto; display: flex; align-items: center; justify-content: center;
+  background: conic-gradient(#ffd27a calc(var(--p, 0) * 1%), rgba(12, 28, 94, 0.85) 0); }
+.super-btn .super-ico, .tp-super .super-ico { width: 92px; height: 92px; border-radius: 50%; background-color: #0a1440; filter: grayscale(0.6) brightness(0.7); }
+.super-btn.ready .super-ico, .tp-super.ready .super-ico { filter: none; }
+.super-btn.ready, .tp-super.ready { box-shadow: 0 0 30px #ffd27a, 0 0 60px rgba(255, 138, 216, 0.6); animation: super-pulse 1s ease-in-out infinite; }
+@keyframes super-pulse { 50% { transform: scale(1.08); } }
+.super-btn.hidden { display: none; }
+body.touch .super-btn { display: none; }        /* the touch gamepad has its own Super button */
+.tp-super { width: 150px; height: 150px; border-radius: 50%; border: 0; padding: 0; display: flex; align-items: center; justify-content: center;
+  background: conic-gradient(#ffd27a calc(var(--p, 0) * 1%), rgba(12, 28, 94, 0.8) 0); }
+.tp-super .super-ico { width: 118px; height: 118px; }
+.tp-super.ready { animation: none; }
+.tp-super.hidden { display: none; }
+/* choosing a superpower */
+.mods-grid.supers { grid-template-columns: repeat(4, 400px); }
+.super-card .mod-head .super-ico { width: 70px; height: 70px; }
+@media (prefers-reduced-motion: reduce) { .super-btn.ready, .tp-super.ready { animation: none; } }
+
+/* ---------- Planet carousel: three planets in view, turn left/right for the others ---------- */
+.planet-row { display: block; }
+.planet-row .planet { position: absolute; left: 50%; top: 50%; transition: transform 0.6s cubic-bezier(0.33, 1, 0.68, 1), opacity 0.6s, filter 0.6s; }
+.planet-row .planet[data-slot="mid"]   { transform: translate(-50%, -50%) scale(1.08); z-index: 3; }
+.planet-row .planet[data-slot="left"]  { transform: translate(calc(-50% - 560px), -46%) scale(0.72); z-index: 2; opacity: 0.8; }
+.planet-row .planet[data-slot="right"] { transform: translate(calc(-50% + 560px), -46%) scale(0.72); z-index: 2; opacity: 0.8; }
+.planet-row .planet[data-slot="offl"]  { transform: translate(calc(-50% - 1000px), -46%) scale(0.4); opacity: 0; pointer-events: none; }
+.planet-row .planet[data-slot="offr"]  { transform: translate(calc(-50% + 1000px), -46%) scale(0.4); opacity: 0; pointer-events: none; }
+.planet-row .planet:not([data-slot="mid"]) .planet-info { opacity: 0.7; }
+.planet-row .planet[data-slot="mid"]::before { border-color: rgba(255, 210, 122, 0.55); }
+.planet-row .planet.zoom[data-slot="mid"] { transform: translate(-50%, -50%) scale(4.2); opacity: 0; }
+.carousel-arrow { position: absolute; top: calc(50% - 90px); width: 110px; height: 110px; border-radius: 50%; z-index: 4; cursor: pointer;
+  border: 3px solid var(--cyan); background: rgba(12, 28, 94, 0.8); color: var(--cyan-soft); font-size: 80px; line-height: 90px; padding: 0 0 10px; }
+.carousel-arrow.left { left: calc(50% - 900px); }
+.carousel-arrow.right { right: calc(50% - 900px); }
+.carousel-arrow:hover, .carousel-arrow:focus-visible, .carousel-arrow.pointed { border-color: var(--gold); color: var(--gold); outline: none; }
+body.touch .carousel-arrow { width: 130px; height: 130px; font-size: 96px; line-height: 104px; }
+#screen-planets.enter .planet { animation: none; }
+#screen-planets.enter .planet-row { animation: sv-pop-in 0.9s 0.35s cubic-bezier(0.34, 1.4, 0.64, 1) both; }
+@media (prefers-reduced-motion: reduce) { .planet-row .planet { transition: none; } }
+
+/* ---------- Cutscenes and dialogue ---------- */
+#cutscene { position: absolute; inset: 0; z-index: 70; display: none; overflow: hidden; background: #02040f; opacity: 0; transition: opacity 0.7s ease; }
+#cutscene.show { display: block; }
+#cutscene.in { opacity: 1; }
+.cs-scene { position: absolute; left: 50%; top: 50%; width: max(100%, calc(1080px * var(--ratio))); aspect-ratio: var(--ratio);
+  transform: translate(-50%, -50%); animation: cs-kenburns 60s ease-out forwards; }
+@keyframes cs-kenburns { to { transform: translate(-50%, -50%) scale(1.08); } }
+.cs-bg { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
+.cs-scene > div { position: absolute; transform: translate(-50%, -50%); pointer-events: none; }
+.cs-vignette { position: absolute; inset: 0; pointer-events: none; background: linear-gradient(180deg, rgba(2, 4, 15, 0.35) 0%, rgba(2, 4, 15, 0) 25%, rgba(2, 4, 15, 0) 55%, rgba(2, 4, 15, 0.75) 100%); }
+/* King Nebula's glow: angry flicker, then calm and soft */
+.cs-glow { width: 30%; aspect-ratio: 1; border-radius: 50%; mix-blend-mode: screen; opacity: 0;
+  background: radial-gradient(circle, rgba(255, 90, 160, 0.75), rgba(160, 80, 255, 0.35) 40%, rgba(160, 80, 255, 0) 70%); }
+#cutscene.fx-calm .cs-glow { animation: cs-flicker 2.2s steps(1) both, cs-calm 5s 2.2s ease-in-out infinite; }
+@keyframes cs-flicker { 0% { opacity: 0.9; } 12% { opacity: 0.2; } 22% { opacity: 1; } 34% { opacity: 0.35; } 46% { opacity: 0.8; } 60% { opacity: 0.25; } 75% { opacity: 0.6; } 100% { opacity: 0.45; } }
+@keyframes cs-calm { 0%, 100% { opacity: 0.35; filter: hue-rotate(40deg); transform: translate(-50%, -50%) scale(1); } 50% { opacity: 0.55; filter: hue-rotate(60deg); transform: translate(-50%, -50%) scale(1.06); } }
+/* the humming sound: rings from the crown */
+.cs-hum { width: 2%; aspect-ratio: 1; opacity: 0; }
+.cs-hum i { position: absolute; inset: 0; border-radius: 50%; border: 3px solid rgba(255, 90, 126, 0.8); }
+#cutscene.fx-hum .cs-hum { opacity: 1; }
+#cutscene.fx-hum .cs-hum i { animation: cs-ring 2.4s ease-out infinite; }
+#cutscene.fx-hum .cs-hum i:nth-child(2) { animation-delay: 0.8s; } #cutscene.fx-hum .cs-hum i:nth-child(3) { animation-delay: 1.6s; }
+@keyframes cs-ring { from { transform: scale(1); opacity: 0.9; } to { transform: scale(14); opacity: 0; } }
+/* Orbit's scanner beam from the helmet to the crown */
+.cs-scene > .cs-beam { height: 14px; transform-origin: 0 50%; translate: 0 -50%; opacity: 0; border-radius: 7px;
+  background: linear-gradient(90deg, rgba(125, 255, 176, 0.9), rgba(98, 240, 255, 0.6) 70%, rgba(98, 240, 255, 0)); filter: drop-shadow(0 0 10px #62f0ff); }
+#cutscene.fx-scan .cs-beam { animation: cs-scan 3.2s ease-in-out both; }
+@keyframes cs-scan { 0% { opacity: 0; clip-path: inset(0 100% 0 0); } 20% { opacity: 1; clip-path: inset(0 0 0 0); } 40% { rotate: 6deg; } 60% { rotate: -6deg; } 80% { opacity: 1; rotate: 0deg; } 100% { opacity: 0.15; } }
+/* the Mark of Static on the crown */
+.cs-mark { width: 3.8%; aspect-ratio: 1; color: #ffffff; opacity: 0; transition: opacity 0.8s 1s; filter: drop-shadow(0 0 4px #ff2a5e) drop-shadow(0 0 12px #ff2a5e) drop-shadow(0 0 26px #ff5a7e); }
+.cs-mark svg { width: 100%; height: 100%; }
+#cutscene.fx-scan .cs-mark, #cutscene.fx-mark .cs-mark { opacity: 1; animation: cs-markpulse 1.4s ease-in-out infinite; }
+@keyframes cs-markpulse { 50% { filter: drop-shadow(0 0 6px #ff2a5e) drop-shadow(0 0 18px #ff2a5e) drop-shadow(0 0 44px #ff5a7e); transform: translate(-50%, -50%) scale(1.12); } }
+/* the "new stars" in the sky: red, glitchy */
+.cs-scene > .cs-newstars { inset: 0; transform: none; }
+.cs-newstars i { position: absolute; width: 14px; height: 14px; border-radius: 50%; background: #ff8a9e; box-shadow: 0 0 18px 6px rgba(255, 90, 126, 0.7); opacity: 0; }
+#cutscene.fx-stars .cs-newstars i { animation: cs-glitch 1.6s steps(1) infinite; }
+#cutscene.fx-stars .cs-newstars i:nth-child(2) { animation-delay: 0.5s; } #cutscene.fx-stars .cs-newstars i:nth-child(3) { animation-delay: 1s; }
+@keyframes cs-glitch { 0% { opacity: 1; } 30% { opacity: 0.3; translate: 3px 0; } 45% { opacity: 1; translate: 0 0; } 70% { opacity: 0.6; } 100% { opacity: 1; } }
+/* the purple crystal: appears at King Nebula, then floats to the astronaut */
+.cs-crystal { width: 3.2%; opacity: 0; transition: left 2.2s ease-in-out, top 2.2s ease-in-out, opacity 0.8s; filter: drop-shadow(0 0 14px #c79bff) drop-shadow(0 0 30px #b56cff); }
+.cs-crystal svg { width: 100%; height: auto; display: block; animation: cs-bob 2s ease-in-out infinite; }
+@keyframes cs-bob { 50% { transform: translateY(-12%) rotate(6deg); } }
+#cutscene.fx-crystal .cs-crystal { opacity: 1; }
+#cutscene.fx-crystal-held .cs-crystal { left: var(--hx) !important; top: var(--hy) !important; }
+/* drifting sparkles */
+.cs-scene > .cs-sparkles { inset: 0; transform: none; }
+.cs-sparkles i { position: absolute; width: 6px; height: 6px; border-radius: 50%; background: #e8f7ff; box-shadow: 0 0 8px #bff9ff; opacity: 0; animation: cs-spark 5s ease-in-out infinite; }
+@keyframes cs-spark { 0% { opacity: 0; transform: translateY(0); } 30% { opacity: 0.9; } 100% { opacity: 0; transform: translateY(-120px); } }
+
+/* the dialogue box: glassy panel, round portrait of the speaker, name in the speaker's colour */
+.cs-box { --who: #62f0ff; position: absolute; left: 50%; bottom: 44px; transform: translateX(-50%); width: min(1500px, 88%); min-height: 200px;
+  display: flex; align-items: center; text-align: left; cursor: pointer; color: #fff; font: inherit;
+  padding: 28px 70px 28px 250px; border-radius: 30px; border: 2px solid color-mix(in srgb, var(--who) 60%, transparent);
+  background: linear-gradient(180deg, rgba(14, 26, 84, 0.9), rgba(6, 12, 44, 0.94));
+  box-shadow: 0 0 40px color-mix(in srgb, var(--who) 25%, transparent), inset 0 1px 0 rgba(255, 255, 255, 0.12);
+  backdrop-filter: blur(6px); transition: opacity 0.3s; }
+.cs-box:focus-visible { outline: none; }
+.cs-box.hidden { opacity: 0; pointer-events: none; }
+.cs-portrait { position: absolute; left: 34px; bottom: 50%; translate: 0 50%; width: 180px; height: 180px; border-radius: 50%; overflow: hidden;
+  border: 5px solid var(--who); background: #0a1440; box-shadow: 0 0 30px color-mix(in srgb, var(--who) 60%, transparent); }
+.cs-portrait i { position: absolute; inset: 0; background-repeat: no-repeat; }
+.cs-portrait.pop { animation: cs-pop 0.35s cubic-bezier(0.34, 1.5, 0.64, 1); }
+@keyframes cs-pop { from { transform: scale(0.6); opacity: 0; } }
+.cs-box.right { padding: 28px 250px 28px 70px; }
+.cs-box.right .cs-portrait { left: auto; right: 34px; }
+.cs-box.narr { padding: 34px 90px; justify-content: center; text-align: center; }
+.cs-box.narr .cs-portrait { display: none; }
+.cs-text { display: flex; flex-direction: column; gap: 8px; }
+.cs-name { font-size: 30px; letter-spacing: 3px; text-transform: uppercase; color: var(--who); text-shadow: 0 0 12px color-mix(in srgb, var(--who) 60%, transparent); }
+.cs-line { font-size: 38px; line-height: 1.35; min-height: 1.35em; }
+.cs-box.narr .cs-line { font-style: italic; color: #d8e4ff; font-size: 34px; }
+.cs-next { position: absolute; right: 26px; bottom: 16px; font-size: 40px; color: var(--who); animation: cs-blink 1s steps(2) infinite; }
+.cs-box.right .cs-next { right: auto; left: 26px; }
+@keyframes cs-blink { 50% { opacity: 0; } }
+.cs-skip { position: absolute; right: 40px; top: 36px; z-index: 2; }
+/* reward card */
+.cs-reward { position: absolute; inset: 0; display: none; align-items: center; justify-content: center; background: rgba(2, 4, 15, 0.55); }
+.cs-reward.show { display: flex; }
+.cs-reward-card { padding: 40px 60px; border-radius: 30px; border: 3px solid var(--gold); background: linear-gradient(180deg, rgba(40, 26, 90, 0.95), rgba(10, 16, 56, 0.96));
+  box-shadow: 0 0 60px rgba(255, 210, 122, 0.45); display: flex; flex-direction: column; gap: 22px; animation: sv-pop-in 0.6s cubic-bezier(0.34, 1.4, 0.64, 1) both; }
+.cs-reward-card h2 { margin: 0; text-align: center; font-size: 56px; color: var(--gold); letter-spacing: 4px; text-transform: uppercase; }
+.cs-reward-line { display: flex; align-items: center; gap: 24px; font-size: 38px; color: #fff; animation: sv-rise-in 0.6s ease-out both; }
+.cs-reward-line i { width: 110px; height: 110px; border-radius: 50%; flex: none; background-size: cover; background-position: center; border: 4px solid var(--gold); background-color: #0a1440; }
+.cs-reward-line i.rw-statue { filter: grayscale(1) sepia(1) saturate(3) hue-rotate(-12deg) brightness(1.1); }
+.cs-reward-line i.rw-habitat { background-size: 80%; background-repeat: no-repeat; border-color: #7dffb0; }
+.cs-tap { margin: 6px 0 0; text-align: center; font-size: 26px; color: var(--muted); animation: cs-blink 1.2s steps(2) infinite; }
+.cs-fade { position: absolute; inset: 0; background: #02040f; opacity: 0; pointer-events: none; transition: opacity 1s ease; }
+#cutscene.out .cs-fade { opacity: 1; }
+@media (prefers-reduced-motion: reduce) { .cs-scene { animation: none; } }
+
+/* Orbit design picker */
+#ov-orbit { background: rgba(6, 12, 44, 0.75); align-items: center; justify-content: center; }
+.orbit-pick { display: flex; flex-direction: column; align-items: center; gap: 18px; }
+.orbit-pick h2 { margin: 0; }
+.orbit-grid { display: grid; grid-template-columns: repeat(3, 200px); gap: 18px; }
+.orbit-opt { width: 200px; height: 200px; border-radius: 26px; border: 4px solid rgba(98, 240, 255, 0.3); cursor: pointer;
+  background: #0a1440 url(../assets/story/orbit.jpg) no-repeat; background-size: 300% 300%; }
+.orbit-opt.on { border-color: var(--gold); box-shadow: 0 0 26px rgba(255, 210, 122, 0.7); }
+.orbit-opt:hover, .orbit-opt:focus-visible, .orbit-opt.pointed { border-color: var(--cyan); outline: none; }
+/* Champion statue on the home base */
+.statue { position: absolute; transform: translate(-50%, -100%); display: flex; flex-direction: column; align-items: center; pointer-events: none; }
+.statue i { width: 170px; height: 170px; background: url(../assets/story/p_kingnebula.jpg) center / cover; border-radius: 50% 50% 18px 18px;
+  filter: grayscale(1) sepia(1) saturate(2.6) hue-rotate(-12deg) brightness(1.15); border: 4px solid #ffd27a; box-shadow: 0 0 30px rgba(255, 210, 122, 0.7); }
+.statue i::after { content: ""; }
+.statue span { margin-top: 6px; padding: 4px 14px; font-size: 20px; font-weight: 700; color: var(--gold); background: rgba(10, 20, 72, 0.88); border: 2px solid var(--gold); }
+.upgrades { grid-template-columns: repeat(4, 420px); }

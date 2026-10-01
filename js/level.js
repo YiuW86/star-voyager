@@ -105,6 +105,18 @@
     nebula: { img: 'nebula_king', fx: 'nebula_king_fx', meta: { fw: 255, fh: 234 }, fxMeta: { fw: 249, fh: 236 }, crown: true },
   };
 
+  // Superpowers (order = icons in assets/supers.png). `ready` ones work in the game already.
+  const SUPERS = {
+    mindswirl: { i: 0, name: 'Mind Swirl', ready: true },
+    shockwave: { i: 1, name: 'Shockwave', ready: true },
+    barrier:   { i: 2, name: 'Star Barrier', ready: true },
+    blackhole: { i: 3, name: 'Black Hole', ready: true },
+    frost:     { i: 4, name: 'Frost Nova', ready: true },
+    overdrive: { i: 5, name: 'Overdrive', ready: true },
+    meteor:    { i: 6, name: 'Meteor Shower', ready: true },
+    aurora:    { i: 7, name: 'Healing Aurora', ready: true },
+  };
+
   // Every boss drops its own trophy (needed for the strongest Workshop upgrades)
   const TROPHIES = { nebula: 'nebulaCrown', ember: 'emberCore', splash: 'tidePearl', prism: 'prismHeart', echo: 'echoBell', vortex: 'vortexEye' };
   // Time grenade: bought in the shop. Slows all aliens, rocks and the boss down for a few seconds.
@@ -443,6 +455,8 @@
       // Workshop upgrades
       const upg = save.upg || {};
       const bl = clamp(upg.blaster || 1, 1, 5), nl = clamp(upg.net || 1, 1, 3), sl = clamp(upg.shield || 1, 1, 3);
+      // Armour suit (Workshop): Mk1 = normal health, each level +50%, Mk5 = 300% (three times as much)
+      this.healthMult = 1 + 0.5 * (clamp(upg.health || 1, 1, 5) - 1);
       DWELL_TIME = [0.45, 0.4, 0.35, 0.31, 0.27][bl - 1];
       SHOT_COOLDOWN = [0.28, 0.25, 0.22, 0.2, 0.18][bl - 1];
       this.blasterDmg = [1, 1, 2, 2, 3][bl - 1];
@@ -497,6 +511,7 @@
       if (this.plat) this.platInit();
       this.endless = !!LEVELS[level].endless; this.wave = 0; this.bgKey = null;
       if (!this.plat) this.warmSprites();
+      this.superInit();
       if (this.endless) this.nextWave(true);
       this.stateT = 0;
       this.running = true;
@@ -673,6 +688,7 @@
       }
       this.updateDrone(dt);
       if (this.whirls.length) this.updateWhirls(dt);
+      this.updateSuper(dt);
       if (this.regenEvery && this.health > 0 && this.health < 100) {
         this.regenT += dt;
         if (this.regenT >= this.regenEvery) { this.regenT = 0; this.health = Math.min(100, this.health + 1); this.hud('health'); }
@@ -734,6 +750,7 @@
           p.input.mouseFire = true;
         }
         if (e === 'reload') p.input.mouseReload = true;
+        if (e === 'super') this.activateSuper();
         if (e === 'gun' || e === 'grenade' || e === 'shield' || e === 'time') { this.equip(p, e); this.closeBelt(p); }
       }
     },
@@ -904,6 +921,7 @@
 
       if (m.confT > 0) m.px += Math.sin(this.time * 7 + m.phase) * 3;     // confused wobble
       if (m.bubbleRise) m.py -= m.bubbleRise;
+      if (this.holeT > 0 || m.pullK) this.holePull(m, dt);
       if (m.z >= 1 && !frozen && this.alienSlow(m) > 0) { m.state = 'attacking'; m.t = 0; }
     },
 
@@ -954,6 +972,11 @@
     // All damage goes through here, so a player's shield can block it
     playerHit(p) {
       if (this.state !== 'play') return;
+      if (this.barrierT > 0) {
+        Sfx.block(); this.floater(W / 2, H - 320, window.t ? t('Blocked!') : 'Blocked!', '#bff9ff');
+        return;
+      }
+      this.superCleanT = 0;
       p = p && this.players.includes(p) ? p : this.players[0];
       if (p.equipped === 'shield' && p.shieldHP > 0) {
         p.shieldHP--;
@@ -980,7 +1003,7 @@
       this.damageTaken = true;
       if (this.combo > 1) this.hud('combo', null);
       this.combo = 0; this.mult = 1;
-      this.health = Math.max(0, this.health - DAMAGE);
+      this.health = Math.max(0, this.health - DAMAGE / (this.healthMult || 1));
       this.shake = 0.3;
       Sfx.hurt();
       if (this.hasMedkit && !this.medkitUsed && this.health > 0 && this.health <= 30) {
@@ -1256,6 +1279,7 @@
 
     updateBoss(gdt, dt) {
       const b = this.boss, s = SPR[b.sprite];
+      if (this.frostT > 0) gdt *= 0.3;             // Frost Nova slows a boss down (it doesn't freeze it)
       b.t += gdt;
       b.flash = Math.max(0, b.flash - dt);
       if (b.throwAnim > 0) b.throwAnim -= dt;
@@ -1485,12 +1509,13 @@
     },
     // statuses on aliens: confused (wobble, no throwing), stunned (frozen), bubbled (frozen, floating), burning
     alienSlow(m) {
-      if (m.stunT > 0 || m.bubbleT > 0) return 0;
+      if (m.stunT > 0 || m.bubbleT > 0 || m.frozenT > 0 || (m.pullK || 0) > 0.3) return 0;
       if (m.confT > 0) return 0.4;
       return 1;
     },
     updateStatus(m, dt) {
       if (m.confT > 0) m.confT -= dt;
+      if (m.frozenT > 0) m.frozenT -= dt;
       if (m.stunT > 0) m.stunT -= dt;
       if (m.bubbleT > 0) { m.bubbleT -= dt; m.bubbleRise = (m.bubbleRise || 0) + dt * 40; }
       else if (m.bubbleRise) m.bubbleRise = Math.max(0, m.bubbleRise - dt * 120);
@@ -1510,6 +1535,13 @@
     },
     drawStatus(m) {
       const c = this.ctx;
+      if (m.frozenT > 0) {
+        c.save(); c.globalAlpha = 0.55 * Math.min(1, m.frozenT);
+        c.fillStyle = 'rgba(191, 249, 255, 0.45)'; c.strokeStyle = '#e8f7ff'; c.lineWidth = 4;
+        c.beginPath();
+        for (let i = 0; i < 6; i++) { const a = i * Math.PI / 3 + 0.3; c.lineTo(m.px + Math.cos(a) * m.size * 0.5, m.py + Math.sin(a) * m.size * 0.5); }
+        c.closePath(); c.fill(); c.stroke(); c.restore();
+      }
       if (m.bubbleT > 0) {
         c.save(); c.globalAlpha = 0.5; c.strokeStyle = '#e8f7ff'; c.lineWidth = 4; c.fillStyle = 'rgba(159, 216, 255, 0.18)';
         c.beginPath(); c.arc(m.px, m.py, m.size * 0.5, 0, Math.PI * 2); c.fill(); c.stroke();
@@ -1622,6 +1654,236 @@
         const x = d.x + Math.cos(a) * 150, y = d.y + Math.sin(a) * 70;
         c.save(); c.globalAlpha = 0.35 * Math.min(1, d.holoT); c.globalCompositeOperation = 'lighter';
         c.drawImage(img, 0, 0, meta.fw, meta.fh, x - w / 2, y - h / 2, w, h);
+        c.restore();
+      }
+    },
+
+    // ---------------- Superpowers ----------------
+    // A meter fills by catching aliens (faster with combos) and by not getting hit. When it is full,
+    // the equipped superpower can be used once; then the meter starts again.
+    superInit() {
+      const pick = (this.save.superPick) || 'shockwave';
+      this.superId = SUPERS[pick] && SUPERS[pick].ready ? pick : 'shockwave';
+      this.superMeter = 0; this.superReady = false; this.superCleanT = 0;
+      this.barrierT = 0; this.swirlT = 0; this.swirlZapT = 0;
+      this.holeT = 0; this.frostT = 0; this.overdriveT = 0; this.meteorT = 0; this.auroraT = 0; this.meteors = [];
+      this.superSent = -1;
+      this.superHud();
+    },
+    superAdd(v) {
+      if (this.plat || this.superReady) return;
+      this.superMeter = Math.min(1, this.superMeter + v);
+      if (this.superMeter >= 1 && !this.superReady) {
+        this.superReady = true;
+        Sfx.win();
+        this.hud('toast', 'Superpower ready!');
+      }
+      this.superHud();
+    },
+    superHud() {
+      const p = Math.round(this.superMeter * 100);
+      if (p === this.superSent && !this.superDirty) return;
+      this.superSent = p; this.superDirty = false;
+      this.hud('super', { p: this.superMeter, ready: this.superReady, id: this.superId, none: !!this.plat });
+    },
+    updateSuper(dt) {
+      if (this.plat) return;
+      // not getting hit for a while also fills the meter a little
+      this.superCleanT += dt;
+      if (this.superCleanT >= 10) { this.superCleanT = 0; this.superAdd(0.05); }
+      this.updateSuper2(dt);
+      if (this.barrierT > 0) { this.barrierT -= dt; if (this.barrierT <= 0) this.hud('toast', 'Star Barrier is gone'); }
+      if (this.swirlT > 0) {
+        this.swirlT -= dt;
+        // dizzy aliens bump into each other: every little while one of them catches another
+        this.swirlZapT -= dt;
+        const alive = this.monsters.filter((m) => m.state === 'alive');
+        alive.forEach((m) => { m.confT = Math.max(m.confT || 0, 0.3); });
+        if (this.swirlZapT <= 0 && alive.length >= 2) {
+          this.swirlZapT = 0.8;
+          const a = alive[Math.floor(Math.random() * alive.length)];
+          const b = alive.filter((m) => m !== a).sort((m1, m2) => Math.hypot(m1.px - a.px, m1.py - a.py) - Math.hypot(m2.px - a.px, m2.py - a.py))[0];
+          this.lasers.push({ x1: a.px, y1: a.py, x2: b.px, y2: b.py, t: 0.25, color: '#ff8ad8' });
+          this.floater(b.px, b.py - b.r, window.t ? t('Bonk!') : 'Bonk!', '#ff8ad8');
+          this.damageMonster(b, 2);
+        }
+      }
+    },
+    activateSuper() {
+      if (this.state !== 'play' || this.plat || !this.superReady) return;
+      this.superReady = false; this.superMeter = 0; this.superDirty = true;
+      const id = this.superId, gx = W / 2, gy = H - 200;
+      this.flash = 0.5; this.shake = 0.3;
+      Sfx.win();
+      this.hud('toast', (SUPERS[id] || {}).name || 'Superpower');
+      if (id === 'shockwave') {
+        // a huge ring blasts every alien far back and smashes every rock in the air
+        this.monsters.forEach((m) => { if (m.state === 'alive') { m.z = Math.max(0, m.z - 0.45); m.stunT = Math.max(m.stunT || 0, 1); } });
+        if (this.monsters.some((m) => m.state === 'attacking')) this.monsters.forEach((m) => { if (m.state === 'attacking') { m.state = 'alive'; m.z = 0.4; } });
+        this.rocks.forEach((r) => { if (r.state === 'fly') this.smashRock(r); });
+        this.hazards.forEach((hz) => { if (hz.t < hz.warn) hz.dead = true; });
+        for (let i = 0; i < 3; i++) setTimeout(() => this.waves.push({ x: gx, y: gy, t: 0, color: i === 1 ? '#ffd27a' : '#bff9ff' }), i * 120);
+        Sfx.net();
+      }
+      if (id === 'barrier') {
+        // nothing gets through for 8 seconds: rocks, fire walls, beams, reflected shots
+        this.barrierT = 8;
+      }
+      if (id === 'mindswirl') {
+        this.swirlT = 8; this.swirlZapT = 0.4;
+      }
+      this.superStart2(id);
+      this.superHud();
+    },
+    drawSuperFx() {
+      const c = this.ctx;
+      if (this.barrierT > 0) {
+        // a glowing dome over the bottom of the screen
+        const k = Math.min(1, this.barrierT) * (0.75 + 0.25 * Math.sin(this.time * 6));
+        c.save(); c.globalAlpha = 0.35 * k;
+        const g = c.createRadialGradient(W / 2, H + 200, 200, W / 2, H + 200, H * 0.95);
+        g.addColorStop(0, 'rgba(191, 249, 255, 0)'); g.addColorStop(0.85, 'rgba(98, 240, 255, 0.35)'); g.addColorStop(1, 'rgba(191, 249, 255, 0.9)');
+        c.fillStyle = g; c.beginPath(); c.ellipse(W / 2, H + 200, W * 0.62, H * 0.95, 0, Math.PI, 0); c.fill();
+        c.globalAlpha = 0.8 * k; c.strokeStyle = '#bff9ff'; c.lineWidth = 6;
+        c.beginPath(); c.ellipse(W / 2, H + 200, W * 0.62, H * 0.95, 0, Math.PI, 0); c.stroke();
+        c.restore();
+      }
+      if (this.swirlT > 0) {
+        c.save(); c.globalAlpha = Math.min(1, this.swirlT) * 0.12; c.fillStyle = '#ff8ad8'; c.fillRect(0, 0, W, H); c.restore();
+      }
+    },
+
+    // ---- the other five superpowers ----
+    superStart2(id) {
+      if (id === 'blackhole') {
+        // a black hole in the middle pulls all aliens in; hitting the bunch (or the hole) catches them all
+        this.holeT = 6; this.hole = { x: W / 2, y: H * 0.42 };
+        Sfx.slow();
+      }
+      if (id === 'frost') {
+        this.frostT = 5;
+        this.monsters.forEach((m) => { if (m.state === 'alive' || m.state === 'attacking') { m.state = 'alive'; m.frozenT = 5; m.z = Math.min(m.z, 0.9); } });
+        this.rocks.forEach((r) => { if (r.state === 'fly') this.smashRock(r); });
+        Sfx.clink();
+      }
+      if (id === 'overdrive') { this.overdriveT = 6; this.players.forEach((p) => { p.reloading = false; p.odCd = 0; }); }
+      if (id === 'meteor') { this.meteorT = 5; this.meteorSpawn = 0; }
+      if (id === 'aurora') {
+        this.health = Math.min(100, this.health + 40); this.hud('health');
+        this.auroraT = 10; this.auroraTick = 0;
+        this.floater(W / 2, H * 0.5, '+40', '#7dffb0');
+      }
+    },
+    updateSuper2(dt) {
+      if (this.holeT > 0) {
+        this.holeT -= dt;
+        if (this.holeT <= 0) this.monsters.forEach((m) => { m.pullK = Math.min(m.pullK || 0, 0.99); });
+      }
+      if (this.frostT > 0) this.frostT -= dt;
+      if (this.overdriveT > 0) this.overdriveT -= dt;
+      if (this.meteorT > 0) {
+        this.meteorT -= dt; this.meteorSpawn -= dt;
+        if (this.meteorSpawn <= 0) {
+          this.meteorSpawn = 0.32;
+          const alive = this.monsters.filter((m) => m.state === 'alive');
+          const b = this.boss && this.boss.state === 'fight' ? this.boss : null;
+          const tg = alive.length && !(b && Math.random() < 0.4) ? alive[Math.floor(Math.random() * alive.length)] : b ? { px: b.x + rand(-40, 40), py: b.y + rand(-40, 40) } : null;
+          const x1 = tg ? tg.px : rand(W * 0.15, W * 0.85), y1 = tg ? tg.py : rand(H * 0.35, H * 0.65);
+          this.meteors.push({ x0: x1 + rand(-420, -180), y0: -80, x1, y1, t: 0, dur: 0.55 });
+        }
+      }
+      for (const mt of this.meteors) {
+        mt.t += dt;
+        if (mt.t >= mt.dur && !mt.hit) {
+          mt.hit = true;
+          this.burst(mt.x1, mt.y1, '#ffd27a', 18, true); this.burst(mt.x1, mt.y1, '#ff8ad8', 10);
+          this.shake = Math.max(this.shake, 0.12);
+          Sfx.pop();
+          this.monsters.forEach((m) => { if (m.state === 'alive' && Math.hypot(m.px - mt.x1, m.py - mt.y1) < 140) this.damageMonster(m, 3); });
+          // against a boss: meteors land on it too, for a little damage
+          const b = this.boss;
+          if (b && b.state === 'fight' && !b.shield && b.submerged <= 0 && Math.hypot(b.x - mt.x1, b.y - mt.y1) < b.r + 80) this.bossHit(1, mt.x1, mt.y1);
+        }
+      }
+      this.meteors = this.meteors.filter((mt) => mt.t < mt.dur + 0.3);
+      if (this.auroraT > 0) {
+        this.auroraT -= dt; this.auroraTick -= dt;
+        if (this.auroraTick <= 0 && this.health < 100) { this.auroraTick = 0.4; this.health = Math.min(100, this.health + 1); this.hud('health'); }
+      }
+    },
+    // Black hole: the pull on each alien (called from the alien update)
+    holePull(m, dt) {
+      if (this.holeT > 0 && m.state === 'alive') m.pullK = Math.min(1, (m.pullK || 0) + dt * 1.1);
+      else if (m.pullK) m.pullK = Math.max(0, m.pullK - dt * 2.5);
+      if (!m.pullK) return;
+      const k = m.pullK * m.pullK * (3 - 2 * m.pullK);           // smooth
+      const a = this.time * 3 + m.phase, rad = 70 * (1 - k) + 26;
+      m.px = lerp(m.px, this.hole.x + Math.cos(a) * rad, k);
+      m.py = lerp(m.py, this.hole.y + Math.sin(a) * rad * 0.6, k);
+      m.size *= 1 - 0.35 * k; m.r = m.size * 0.38;
+    },
+    // one hit on the bunch (or on the hole itself) catches every alien pulled in
+    holeCollapse() {
+      const caught = this.monsters.filter((m) => m.state === 'alive' && (m.pullK || 0) > 0.6);
+      if (!caught.length) return false;
+      this.holeT = 0;
+      this.burst(this.hole.x, this.hole.y, '#c79bff', 30, true);
+      this.shake = 0.3; Sfx.win();
+      caught.forEach((m) => this.damageMonster(m, 99));
+      this.hud('toast', `Black Hole caught ${caught.length}!`);
+      return true;
+    },
+    drawHole() {
+      const c = this.ctx;
+      {
+        const { x, y } = this.hole, k = Math.min(1, this.holeT, (6 - this.holeT) * 2);
+        c.save(); c.translate(x, y); c.rotate(-this.time * 2.2);
+        c.globalAlpha = k;
+        const g = c.createRadialGradient(0, 0, 10, 0, 0, 170);
+        g.addColorStop(0, '#000'); g.addColorStop(0.35, '#05010f'); g.addColorStop(0.55, 'rgba(120, 60, 220, 0.8)'); g.addColorStop(1, 'rgba(199, 155, 255, 0)');
+        c.fillStyle = g; c.beginPath(); c.arc(0, 0, 170, 0, Math.PI * 2); c.fill();
+        c.strokeStyle = 'rgba(255, 138, 216, 0.7)'; c.lineWidth = 4;
+        for (let i = 0; i < 3; i++) { c.beginPath(); c.arc(0, 0, 70 + i * 28, i * 2, i * 2 + 3.4); c.stroke(); }
+        c.restore();
+      }
+    },
+    drawSuperFx2() {
+      const c = this.ctx;
+      if (this.frostT > 0) {
+        const k = Math.min(1, this.frostT);
+        c.save(); c.globalAlpha = 0.7 * k;
+        const g = c.createRadialGradient(W / 2, H / 2, H * 0.3, W / 2, H / 2, W * 0.6);
+        g.addColorStop(0, 'rgba(191, 249, 255, 0)'); g.addColorStop(1, 'rgba(191, 249, 255, 0.85)');
+        c.fillStyle = g; c.fillRect(0, 0, W, H); c.restore();
+      }
+      if (this.overdriveT > 0) {
+        c.save(); c.globalAlpha = 0.45 + 0.2 * Math.sin(this.time * 20); c.strokeStyle = '#ff8ad8'; c.lineWidth = 22;
+        c.shadowColor = '#ff8ad8'; c.shadowBlur = this.glow(30);
+        c.strokeRect(11, 11, W - 22, H - 22); c.restore();
+      }
+      for (const mt of this.meteors) {
+        if (mt.hit) continue;
+        const k = mt.t / mt.dur, x = lerp(mt.x0, mt.x1, k), y = lerp(mt.y0, mt.y1, k);
+        c.save(); c.globalCompositeOperation = 'lighter';
+        const tx = x - (mt.x1 - mt.x0) * 0.25, ty = y - (mt.y1 - mt.y0) * 0.25;
+        const g = c.createLinearGradient(tx, ty, x, y);
+        g.addColorStop(0, 'rgba(255, 138, 216, 0)'); g.addColorStop(1, 'rgba(255, 220, 150, 0.95)');
+        c.strokeStyle = g; c.lineWidth = 16; c.lineCap = 'round';
+        c.beginPath(); c.moveTo(tx, ty); c.lineTo(x, y); c.stroke();
+        c.fillStyle = '#fff4c9'; c.beginPath(); c.arc(x, y, 16, 0, Math.PI * 2); c.fill();
+        c.restore();
+      }
+      if (this.auroraT > 0) {
+        const k = Math.min(1, this.auroraT);
+        c.save(); c.globalCompositeOperation = 'lighter';
+        for (let i = 0; i < 3; i++) {
+          c.globalAlpha = 0.38 * k;
+          const g = c.createLinearGradient(0, 0, 0, H * 0.5);
+          g.addColorStop(0, i === 1 ? '#7dffb0' : '#62f0ff'); g.addColorStop(1, 'rgba(0, 0, 0, 0)');
+          c.fillStyle = g; c.beginPath(); c.moveTo(0, 0);
+          for (let x = 0; x <= W; x += 60) c.lineTo(x, H * (0.18 + 0.08 * i) + Math.sin(x / 260 + this.time * (1 + i * 0.4) + i) * 40);
+          c.lineTo(W, 0); c.closePath(); c.fill();
+        }
         c.restore();
       }
     },
@@ -1930,19 +2192,28 @@
 
       if (target && !p.reloading) p.dwell += dt; else p.dwell = Math.max(0, p.dwell - dt * 2);
 
+      if (this.overdriveT > 0 && !blocked && target) {
+        // Overdrive: the gun fires by itself at whatever is under the circle
+        p.odCd = (p.odCd || 0) - dt;
+        if (p.odCd <= 0) { p.odCd = 0.12; this.fire(p, target); }
+      }
       if (inp.mouseFire) { inp.mouseFire = false; if (!blocked) this.fire(p, target); }
       else if (inp.usesDwell() && target && p.dwell >= DWELL_TIME && p.cooldown <= 0) { this.fire(p, target); p.dwell = 0; }
       else if (!inp.usesDwell() && inp.fireHeld && target && p.cooldown <= 0 && p.dwell > 0.12) { this.fire(p, target); p.cooldown = 0.32; }
     },
 
     fire(p, target) {
-      if (p.reloading) return;
-      if (p.ammo <= 0) {
-        Sfx.empty();
-        this.setPrompt(this.reloadHint(p), 1.2, p);
-        return;
+      const od = this.overdriveT > 0;
+      if (!od) {
+        if (p.reloading) return;
+        if (p.ammo <= 0) {
+          Sfx.empty();
+          this.setPrompt(this.reloadHint(p), 1.2, p);
+          return;
+        }
+        p.ammo--;
       }
-      p.ammo--; this.shots++;
+      this.shots++;
       p.cooldown = SHOT_COOLDOWN;
       p.recoil = 1;
       const muzzle = this.muzzle(p);
@@ -1950,12 +2221,13 @@
       this.lasers.push({ x1: muzzle.x, y1: muzzle.y, x2: end.x, y2: end.y, t: 0.16, color: this.laserColor(p) });
       Sfx.laser();
       if (target && target.rock) { this.hits++; this.smashRock(target); }
-      else if (target && target.bossPart) { this.hits++; this.bossPartHit(target, this.blasterDmg, end, p); }
+      else if (target && target.bossPart) { this.hits++; this.bossPartHit(target, this.blasterDmg * (od ? 2 : 1), end, p); }
+      else if (this.holeT > 0 && (!target || (target.pullK || 0) > 0.6) && Math.hypot(end.x - this.hole.x, end.y - this.hole.y) < 200 && this.holeCollapse()) { this.hits++; }
       else if (target) {
         this.hits++;
         const wl = this.wAb ? this.wAb.lv : 0;
         const bonus = this.wAb && this.wAb.id === 'bubble' && wl >= 3 && target.bubbleT > 0 ? 1 : 0;
-        const caught = this.damageMonster(target, this.blasterDmg + bonus);
+        const caught = this.damageMonster(target, this.blasterDmg * (od ? 2 : 1) + bonus);
         if (!caught && this.wAb && this.wAb.id === 'bubble') target.bubbleT = [2, 3, 4][wl - 1];
         if (!caught && this.wAb && this.wAb.id === 'ember' && !(target.burnT > 0)) target.burnT = [2, 1.5, 1][wl - 1];
       }
@@ -1999,6 +2271,7 @@
 
     // A hit: armoured aliens lose a hit point (and flash); at 0 they are caught
     damageMonster(m, dmg, netted) {
+      if (m.frozenT > 0) dmg = Math.max(dmg, m.hp || 1);
       if (m.state !== 'alive') return false;
       m.hp = (m.hp || 1) - dmg;
       if (m.hp <= 0) { this.catchMonster(m, netted); return true; }
@@ -2015,6 +2288,7 @@
       this.rollDrop(m);
       if (m.shiny) this.hud('toast', 'Shiny ' + SPR[m.type].name + '!');
       if (this.endless) this.waveCaught++;
+      this.superAdd(0.05 + 0.01 * Math.min(4, (this.mult || 1) - 1));
       this.hud('stat', { ev: 'catch', type: m.type, elite: !!m.elite, shiny: !!m.shiny, netted: !!netted });
       if (this.caught[m.type] < goalOf(m.type)) this.caught[m.type]++;
       this.hud('caught', m.type);
@@ -2214,6 +2488,7 @@
       if (this.boss) this.drawBoss();
 
       // Monsters, far ones first
+      if (this.holeT > 0) this.drawHole();
       const sorted = [...this.monsters].sort((a, b) => a.z - b.z);
       for (const m of sorted) {
         const s = SPR[m.type];
@@ -2251,6 +2526,8 @@
       this.drawRocks();
       if (this.hazards.length) this.drawHazards();
       if (this.whirls.length) this.drawWhirls();
+      if (this.barrierT > 0 || this.swirlT > 0) this.drawSuperFx();
+      this.drawSuperFx2();
       if (this.fxAnims && this.fxAnims.length) this.drawFxAnims();
       this.drawDrone();
       this.drawNets();
@@ -2917,5 +3194,5 @@
     },
   };
 
-  window.SV = { viewW: () => W, REGION_MAT, Assets, Input, inputs, Level, SPR, LEVELS, STAGES, stageConfig, starRating, ALL_TYPES, GEAR, TIME_GEAR, SHIELD_MAX, TROPHIES, shieldMax: () => SHIELD_MAX, get TYPES() { return TYPES; }, get GOAL() { return GOAL; }, goalOf };
+  window.SV = { SUPERS, viewW: () => W, REGION_MAT, Assets, Input, inputs, Level, SPR, LEVELS, STAGES, stageConfig, starRating, ALL_TYPES, GEAR, TIME_GEAR, SHIELD_MAX, TROPHIES, shieldMax: () => SHIELD_MAX, get TYPES() { return TYPES; }, get GOAL() { return GOAL; }, goalOf };
 })();

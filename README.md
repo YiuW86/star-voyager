@@ -169,9 +169,42 @@ Options has four settings for slower devices:
 - **Graphics:** Sharp 1920×1080 (with glow effects), Fast 1280×720, Low 960×540, Very low 640×360. Auto starts at Fast and steps down below 45 FPS.
 - **Frame rate:** 60, or **30 (steady)**: the game then draws exactly every other screen refresh. On a 60 Hz TV, a steady 30 often feels smoother than an uneven 45.
 - **Effects:** Full or **Reduced** (few sparkles, no screen shake, no bubbles, no moving glows and shadows over the game).
+- **Unlock all** (Options) gives everything for testing: all worlds and levels, all Workshop upgrades, shop and star items, drones, trophies, abilities at level 3, superpowers, base buildings and lots of crystals and materials. Switching it off brings back your real progress.
 - **Show speed (FPS):** shows frames per second and a speed test: *logic* and *draw* are the milliseconds the game itself spends per frame, *slow* is the share of frames that came too late, *worst* the longest wait between two frames. If logic + draw are small (a few ms) but the FPS is still low, the TV's graphics chip or browser is the limit, not the game code.
 
 The game also makes shrunk copies (60% and 35%) of the spritesheets once, and draws from the smallest copy that is still big enough; that saves weak devices a lot of work every frame without looking different.
+
+## Armour suit (health)
+
+A fourth Workshop upgrade: the **Armour suit** (Mk1–Mk5) raises your health from 100 up to 300 (+200%, three times as much). The health number in the HUD shows the real value; the bar still shows how full it is.
+
+## Story cutscenes
+
+`js/story.js` plays the story scenes: a picture with effects (`assets/story/`), and a modern dialogue box with a round portrait of whoever speaks (name in their colour; narration in italics without a portrait). Tap/click, Enter, Space or Fire shows the rest of a line at once, or goes to the next; **Skip** (or Escape) ends the scene.
+
+- **After King Nebula** (the first time he is beaten): he calms down, Orbit's scanner beam finds the glowing **Mark of Static** on his crown, the strange "new stars" glitch in the sky, and he hands over a purple crystal. Reward card: King Nebula becomes your **Champion**, a golden **statue** appears on your home base (Spacedome), and Nebula aliens move into your habitat. Then the usual end screen follows.
+- **Orbit**, the AI helper in the astronaut's helmet, has 9 designs (`assets/story/orbit.jpg`); players choose one in **Options → Orbit**.
+
+New scenes are added to `SCENES` in `js/story.js`: a picture, a few positions on it (helmet, crown, boss), and the lines with their effects.
+
+## Superpowers
+
+A **super meter** fills while you play: every catch adds to it (more with a combo), and so does 10 seconds without getting hit. When it's full, the **Super button** glows: the round button under the health bar (click it or press **E**), the ★ SUPER button on the phone controller, or the star button above the d-pad in touch mode. Using it empties the meter.
+
+Choose your superpower in **Workshop → Abilities → Superpowers** (one at a time):
+
+| Superpower | Effect | Unlocked by |
+|---|---|---|
+| Shockwave | All aliens are blasted far back; every flying rock is smashed | from the start |
+| Star Barrier | 8 seconds: nothing gets through (rocks, fire walls, beams, reflected shots) | beating King Nebula |
+| Mind Swirl | 8 seconds: aliens get dizzy, stop attacking and catch each other | beating the Ember Lord |
+| Black Hole | A black hole pulls all aliens into one spot; one shot at the bunch catches them all | beating the Tidequeen |
+| Frost Nova | 5 seconds: every alien freezes and is caught with one hit (even armoured ones); a boss is only slowed down | beating the Prism Empress |
+| Overdrive | 6 seconds: the blaster fires by itself at whatever is under the circle, no reloading, double damage | beating the Echo Monarch |
+| Meteor Shower | 5 seconds of crystal meteors that catch aliens where they land (and hit a boss a little) | beating the Vortex King |
+| Healing Aurora | 40% health back at once, then a slow heal for 10 seconds | collecting 60 stars |
+
+Icons are in `assets/supers.png` (8 icons side by side); settings in `SUPERS` in `js/level.js` and `SUPER_INFO` in `js/app.js`.
 
 ## Region abilities
 
@@ -222,7 +255,7 @@ Amazon Fire TV does not support Google Cast; for Fire TV the route is an app in 
 
 ## Planet choice
 
-After Start and the intro, the **Choose your planet** screen appears on the space background (`assets/space.jpg`). Planets spin slowly (their 12 frames blend into each other, with a gentle sway): **Novara** (`assets/planet1.png`) holds all current worlds and shows "6 worlds · 13 aliens · 6 bosses" and its stars; **Cindera** (`assets/planet2.png`) can be visited: its world screen shows its first three worlds, Glimmer Coast (`assets/cindera1.jpg`) Emberfall Rift (`assets/cindera2.jpg`) and Thunder Spires (`assets/cindera3.jpg`), as *Soon available* (no aliens yet). **Prismara** (`assets/planet3.png`) is shown as *Coming soon*. After the intro the screen fades through dark into the planets (the intro's sound fades out too), and choosing a planet zooms into it and fades via its glow into the worlds, which come into focus with the cards rising one after another. Tapping anywhere during the intro skips it. Planets are listed in `PLANETS` in `js/app.js`.
+After Start and the intro, the **Choose your planet** screen appears on the space background (`assets/space.jpg`). Planets spin slowly (their 12 frames blend into each other, with a gentle sway): **Novara** (`assets/planet1.png`) holds all current worlds and shows "6 worlds · 13 aliens · 6 bosses" and its stars; **Cindera** (`assets/planet2.png`) can be visited: its world screen shows its first three worlds, Glimmer Coast (`assets/cindera1.jpg`) Emberfall Rift (`assets/cindera2.jpg`) and Thunder Spires (`assets/cindera3.jpg`), as *Soon available* (no aliens yet). **Prismara** (`assets/planet3.png`) and **Tetra** (`assets/planet4.png`, 16 frames) are shown as *Coming soon*. The planets sit on a **carousel**: three in view (the chosen one large in the middle), turned with the ‹ › arrows, by swiping, with the left/right keys, or by tapping a planet at the side. After the intro the screen fades through dark into the planets (the intro's sound fades out too), and choosing a planet zooms into it and fades via its glow into the worlds, which come into focus with the cards rising one after another. Tapping anywhere during the intro skips it. Planets are listed in `PLANETS` in `js/app.js`.
 
 The buttons on this screen: **Back** (title screen), **Home** (base), **Continue** (straight to the next level to play, with its world and number shown on the button), **Goals**, **Shop** and **Options**. Choosing Novara zooms into it and opens the world screen (which keeps Workshop, Alien guide and Connect phone).
 

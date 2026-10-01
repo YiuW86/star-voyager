@@ -15,6 +15,7 @@
     shield: { x: 1470, y: 790 },
     reload: { x: 1495, y: 915 },
     gun: { x: 1790, y: 640 },
+    super: { x: 250, y: 540 },
   };
   const ICONS = {
     gun: '<svg viewBox="0 0 24 24"><path d="M3 9h13l2-2h3v5h-3l-1 1H9l-1 5H5l1-5H3z" fill="currentColor"/></svg>',
@@ -29,7 +30,7 @@
     active: false,
     aim: { x: 0.5, y: 0.5 },
     stick: { id: null, x: 0, y: 0, edgeT: 0 },
-    counters: { fire: 0, reload: 0, gun: 0, grenade: 0, shield: 0, time: 0, menu: 0, jump: 0 },
+    counters: { fire: 0, reload: 0, gun: 0, grenade: 0, shield: 0, time: 0, menu: 0, jump: 0, super: 0 },
     fireHeld: false, jumpHeld: false, runHeld: false,
     session: 'touch' + Math.random().toString(36).slice(2, 7),
     layoutMode: '',
@@ -41,7 +42,8 @@
       this.el.innerHTML = `
         <div class="tp-item tp-stick" data-id="stick"><div class="tp-base"><i class="tp-knob"></i></div></div>
         <button class="tp-item tp-fire" data-id="fire"><span>FIRE</span></button>
-        ${['gun', 'grenade', 'time', 'shield', 'reload'].map((id) => `<button class="tp-item tp-small" data-id="${id}">${ICONS[id]}</button>`).join('')}`;
+        ${['gun', 'grenade', 'time', 'shield', 'reload'].map((id) => `<button class="tp-item tp-small" data-id="${id}">${ICONS[id]}</button>`).join('')}
+        <button class="tp-item tp-super" data-id="super"></button>`;
       this.items = {};
       this.el.querySelectorAll('.tp-item').forEach((n) => { this.items[n.dataset.id] = n; });
       this.knob = this.el.querySelector('.tp-knob');
@@ -147,7 +149,7 @@
       this.items.fire.querySelector('span').textContent = plat ? 'JUMP' : 'FIRE';
       this.items.gun.innerHTML = plat ? '<span class="tp-lbl">Blast</span>' : ICONS.gun;
       this.items.reload.innerHTML = plat ? ICONS.run : ICONS.reload;
-      ['grenade', 'time', 'shield'].forEach((id) => this.items[id].classList.toggle('hidden', plat));
+      ['grenade', 'time', 'shield', 'super'].forEach((id) => this.items[id].classList.toggle('hidden', plat));
     },
 
     stickFrom(e) {

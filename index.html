@@ -54,6 +54,8 @@
     <img class="fill" src="assets/space.jpg" alt="">
     <div class="planets-head"><h1 class="title">Choose your planet</h1></div>
     <div class="planet-row" id="planet-row"></div>
+    <button class="carousel-arrow left" data-action="planet-prev" aria-label="Previous planet">‹</button>
+    <button class="carousel-arrow right" data-action="planet-next" aria-label="Next planet">›</button>
     <div class="planets-bar">
       <button class="btn" data-go="start"><span>Back</span></button>
       <button class="btn" data-go="home"><span>Home</span></button>
@@ -130,6 +132,7 @@
       <div class="row">
         <button class="btn small" data-action="mods-weapon" id="tab-mw"><span>Weapon mods</span></button>
         <button class="btn small" data-action="mods-drone" id="tab-md"><span>Drone abilities</span></button>
+        <button class="btn small" data-action="mods-super" id="tab-ms"><span>Superpowers</span></button>
       </div>
       <div class="loadout" id="loadout"></div>
       <div class="inventory" id="mods-inv"></div>
@@ -206,6 +209,16 @@
     </div>
   </section>
 
+  <!-- Choosing the look of Orbit, the AI helper in the astronaut's helmet -->
+  <div class="overlay" id="ov-orbit">
+    <div class="panel"><div class="inner orbit-pick">
+      <h2>Choose Orbit's look</h2>
+      <p class="muted">Orbit is the AI helper in your helmet. Pick the design you like best.</p>
+      <div class="orbit-grid" id="orbit-grid"></div>
+      <button class="btn small" data-action="orbit-close"><span>Done</span></button>
+    </div></div>
+  </div>
+
   <!-- Touch mode: drag the on-screen gamepad buttons to where you want them -->
   <section id="screen-touchedit" class="screen dim-bg">
     <img class="fill" src="assets/level1.jpg" alt="">
@@ -241,14 +254,15 @@
           <div class="seg" data-opt="frameRate"><button data-v="60">60</button><button data-v="30">30 (steady)</button></div>
           <label>Effects</label>
           <div class="seg" data-opt="effects"><button data-v="full">Full</button><button data-v="reduced">Reduced</button></div>
-          <label>Unlock all levels</label>
-          <div class="seg" data-opt="unlockAll"><button data-v="off">Off</button><button data-v="on">On</button></div>
+          <label>Unlock all</label>
+                    <div class="seg" data-opt="unlockAll"><button data-v="off">Off</button><button data-v="on">On</button></div>
           <label>Show speed (FPS)</label>
           <div class="seg" data-opt="fps"><button data-v="off">Off</button><button data-v="on">On</button></div>
         </div>
       </div></div>
       <div class="row">
         <button class="btn pink" data-action="options-back"><span>Back</span></button>
+        <button class="btn" data-action="choose-orbit"><span>Orbit</span></button>
         <button class="btn touch-only" data-action="arrange-touch"><span>Touch buttons</span></button>
         <button class="btn" data-action="open-account"><span>Account</span></button>
         <button class="btn" data-action="reset"><span>Reset progress</span></button>
@@ -293,6 +307,7 @@
       <div class="phone-chip" id="phone-chip"><i class="dot" data-phone-dot></i><span data-phone-text></span></div>
       <div class="catches" id="catches"></div>
       <button class="menu-btn" id="btn-menu" data-action="menu" aria-label="Pause and open the menu">Menu</button>
+      <button class="super-btn" id="super-btn" data-action="super" aria-label="Superpower"></button>
       <div class="ammo">
         <div class="gear-label" id="gear-label">Blaster</div>
         <div class="pips" id="pips"></div>
@@ -348,6 +363,8 @@
   <div id="warp" aria-hidden="true"></div>
   <!-- soft fade between screens -->
   <div id="fade" aria-hidden="true"></div>
+  <!-- story cutscenes (picture, effects and dialogue) -->
+  <div id="cutscene"></div>
 
   <!-- Hand cursor for menus while paused or at the end of a level -->
   <div id="menu-cursor" aria-hidden="true"></div>
@@ -374,6 +391,7 @@
 <script src="js/dex.js"></script>
 <script src="js/cloud.js"></script>
 <script src="js/touch.js"></script>
+<script src="js/story.js"></script>
 <script src="js/app.js"></script>
 <script src="js/cast-receiver.js"></script>
 </body>
