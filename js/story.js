@@ -9,13 +9,15 @@
     astro: { name: 'Astronaut', img: 'assets/story/p_astronaut.jpg', side: 'left', color: '#62f0ff' },
     orbit: { name: 'Orbit', orbit: true, side: 'left', color: '#7dffb0' },
     kn: { name: 'King Nebula', img: 'assets/story/p_kingnebula.jpg', side: 'right', color: '#ff8ad8' },
+    el: { name: 'Ember Lord', img: 'assets/story/p_emberlord.jpg', side: 'right', color: '#ffb347' },
   };
 
   // Positions on the cutscene picture, in % of the picture (it is shown whole-height, cropped at the sides if needed)
   const SCENES = {
     kn: {
       img: 'assets/story/kn_scene.jpg', ratio: 1671 / 941,
-      helmet: [36.5, 59.5], crown: [55.1, 37.2], mark: [55.2, 38.6], boss: [58, 54],
+      helmet: [36.5, 59.5], crown: [55.1, 37.2], mark: [55.2, 38.6], boss: [58, 54], item: 'crystal',
+      rewardIcons: [{ img: 'assets/story/p_kingnebula.jpg', cls: 'rw-champ' }, { img: 'assets/story/p_kingnebula.jpg', cls: 'rw-statue' }, { img: 'assets/dex/nebula.png', cls: 'rw-habitat' }],
       steps: [
         { who: 'narr', text: 'King Nebula sinks to the ground. His purple glow flickers, then turns calm and soft.', fx: 'calm' },
         { who: 'kn', text: "Rrrgh... the noise... it's fading..." },
@@ -39,6 +41,39 @@
     },
   };
 
+  // The Ember Lord, in the crystal fire world (Sunfire Dunes)
+  SCENES.el = {
+    img: 'assets/story/el_scene.jpg', ratio: 1671 / 941,
+    helmet: [35.7, 59.5], crown: [56.6, 42.5], mark: [56.4, 58.5], boss: [59.2, 55.3], beamTo: 'mark', item: 'fragment',
+    glow: ['rgba(255, 50, 20, 1)', 'rgba(255, 150, 40, 0.6)'],
+    rewardIcons: [{ img: 'assets/story/p_emberlord.jpg', cls: 'rw-champ' }, { img: 'assets/story/p_emberlord.jpg', cls: 'rw-statue' },
+      { img: 'assets/dex/ember.png', cls: 'rw-habitat' }, { svg: 'fragment', cls: 'rw-item' }],
+    steps: [
+      { who: 'narr', text: 'Ember Lord crashes down in a burst of sparks. His flames shrink from roaring red to a small orange flicker. He quickly jumps back up.', fx: 'crash' },
+      { who: 'el', text: "HA! I slipped! That doesn't count!" },
+      { who: 'astro', text: 'You slipped... five times?' },
+      { who: 'el', text: "The floor is very slippery! It's LAVA!" },
+      { who: 'orbit', text: 'Commander, his temperature is dropping. The Mark of Static is fading from his chest.', fx: 'scan' },
+      { who: 'narr', text: 'Ember Lord looks down at the fading mark. He goes quiet for a moment.', fx: 'markfade' },
+      { who: 'el', text: "...The buzzing. It's gone. My head is quiet for the first time in many moons." },
+      { who: 'el', text: 'Fine. FINE. You beat me. Fair and square. Mostly.' },
+      { who: 'astro', text: "I'm not here to beat anyone. I'm trying to find out what's causing this." },
+      { who: 'el', text: "Hmph. Then you're braver than you look. And you look very small." },
+      { who: 'el', text: 'Listen, tiny one. I saw something. Before the buzzing started, a star fell from the sky. Right into my volcano.', fx: 'fallstar' },
+      { who: 'astro', text: 'A falling star?' },
+      { who: 'el', text: 'Stars should melt in my volcano. Everything melts in my volcano! But this one did NOT melt. It just sat there... humming.', fx: 'hum' },
+      { who: 'narr', text: 'Ember Lord pulls a small, scorched piece of metal from his armour and tosses it over.', fx: 'crystal' },
+      { who: 'el', text: 'Here. A piece broke off. Take it before it gives ME a headache again.', fx: 'crystal-held' },
+      { who: 'orbit', text: "Scanning... Commander, this isn't a rock. It's metal. Someone built this." },
+      { who: 'astro', text: 'Built it? Then who sent it here?' },
+      { who: 'el', text: 'Find out, tiny one. And when you find whoever did this...' },
+      { who: 'narr', text: 'His flames flare up bright red again.', fx: 'flare' },
+      { who: 'el', text: '...call ME. I want to be there!', fx: 'flare' },
+      { reward: ['Ember Lord is now your Champion!', 'New statue in your Spacedome.', 'Ember aliens have moved into your habitat.', 'New item: Scorched Fragment (view in the Spacedome)'] },
+      { who: 'orbit', text: "Commander... the markings on this fragment. They look almost like... no. That can't be right." },
+    ],
+  };
+
   const Story = {
     orbitDesign: () => 0,          // set by the menus: which of the 9 Orbit designs the player chose
     active: false,
@@ -52,12 +87,14 @@
       root.innerHTML = `
         <div class="cs-scene" style="--ratio:${sc.ratio}">
           <img class="cs-bg" src="${sc.img}" alt="">
-          <div class="cs-glow" style="${pos(sc.boss)}"></div>
+          <div class="cs-glow" style="${pos(sc.boss)};${sc.glow ? `--g1:${sc.glow[0]};--g2:${sc.glow[1]}` : ''}"></div>
+          <div class="cs-burst" style="${pos(sc.boss)}">${Array.from({ length: 18 }, (_, k) => `<i style="--a:${k * 20}deg;--d:${0.7 + (k % 4) * 0.25}"></i>`).join('')}</div>
+          <div class="cs-fallstar"></div>
           <div class="cs-hum" style="${pos(sc.crown)}"><i></i><i></i><i></i></div>
           <div class="cs-beam" style="${pos(sc.helmet)}"></div>
           <div class="cs-mark" style="${pos(sc.mark || sc.crown)}">${MARK_SVG}</div>
           <div class="cs-newstars"><i style="left:22%;top:12%"></i><i style="left:47%;top:7%"></i><i style="left:78%;top:15%"></i></div>
-          <div class="cs-crystal" style="${pos(sc.boss)}">${CRYSTAL_SVG}</div>
+          <div class="cs-crystal" style="${pos(sc.boss)}">${sc.item === 'fragment' ? FRAGMENT_SVG : CRYSTAL_SVG}</div>
           <div class="cs-sparkles">${Array.from({ length: 24 }, (_, k) => `<i style="left:${(k * 37) % 100}%;top:${(k * 53) % 100}%;animation-delay:${(k % 7) * 0.6}s"></i>`).join('')}</div>
         </div>
         <div class="cs-vignette"></div>
@@ -88,7 +125,8 @@
       const scene = root.querySelector('.cs-scene'), beam = root.querySelector('.cs-beam');
       if (!scene || !beam) return;
       const w = scene.offsetWidth, h = scene.offsetHeight, sc = this.sc;
-      const dx = (sc.crown[0] - sc.helmet[0]) / 100 * w, dy = (sc.crown[1] - sc.helmet[1]) / 100 * h;
+      const to = sc.beamTo === 'mark' ? sc.mark : sc.crown;
+      const dx = (to[0] - sc.helmet[0]) / 100 * w, dy = (to[1] - sc.helmet[1]) / 100 * h;
       beam.style.width = Math.hypot(dx, dy) + 'px';
       beam.style.transform = `rotate(${Math.atan2(dy, dx)}rad)`;
     },
@@ -141,9 +179,9 @@
     showReward(lines) {
       document.getElementById('cs-box').classList.add('hidden');
       const box = document.getElementById('cs-reward');
-      const icons = ['assets/story/p_kingnebula.jpg', 'assets/story/p_kingnebula.jpg', 'assets/dex/nebula.png'];
-      const cls = ['rw-champ', 'rw-statue', 'rw-habitat'];
-      box.innerHTML = `<div class="cs-reward-card"><h2>${T('Reward')}</h2>${lines.map((l, k) => `<div class="cs-reward-line" style="animation-delay:${0.3 + k * 0.35}s"><i class="${cls[k]}" style="background-image:url(${icons[k]})"></i><span>${T(l)}</span></div>`).join('')}<p class="cs-tap">${T('Tap to continue')}</p></div>`;
+      const icons = this.sc.rewardIcons || [];
+      const icon = (k) => { const ic = icons[k] || {}; return ic.svg ? `<i class="${ic.cls}">${FRAGMENT_SVG}</i>` : `<i class="${ic.cls || ''}" style="background-image:url(${ic.img || ''})"></i>`; };
+      box.innerHTML = `<div class="cs-reward-card"><h2>${T('Reward')}</h2>${lines.map((l, k) => `<div class="cs-reward-line" style="animation-delay:${0.3 + k * 0.35}s">${icon(k)}<span>${T(l)}</span></div>`).join('')}<p class="cs-tap">${T('Tap to continue')}</p></div>`;
       box.classList.add('show');
       this.waitReward = true;
       if (window.Sfx) Sfx.win();
@@ -168,5 +206,11 @@
   const CRYSTAL_SVG = `<svg viewBox="0 0 60 90"><defs><linearGradient id="csg" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#f4dcff"/><stop offset="0.5" stop-color="#b56cff"/><stop offset="1" stop-color="#5a1aa8"/></linearGradient></defs>
     <path d="M30 2 L56 34 L30 88 L4 34 Z" fill="url(#csg)" stroke="#fff" stroke-width="2"/><path d="M30 2 L30 88 M4 34 L56 34" stroke="rgba(255,255,255,0.6)" stroke-width="1.5"/></svg>`;
 
+  // the scorched metal piece from the Ember Lord's volcano
+  const FRAGMENT_SVG = `<svg viewBox="0 0 80 70"><defs><linearGradient id="fgg" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#c9ccd6"/><stop offset="0.5" stop-color="#6b6f7d"/><stop offset="1" stop-color="#2b2d36"/></linearGradient></defs>
+    <path d="M8 22 L30 6 L58 10 L74 30 L64 58 L34 66 L12 52 Z" fill="url(#fgg)" stroke="#ffb347" stroke-width="2.5"/>
+    <path d="M22 26 L40 20 L56 30 M28 44 L46 40 L52 50" stroke="#62f0ff" stroke-width="2.5" fill="none" stroke-linecap="round"/>
+    <circle cx="40" cy="32" r="3.5" fill="#ff5a7e"/><path d="M14 50 L22 40 M60 16 L66 26" stroke="#ff7a3a" stroke-width="3" opacity="0.8"/></svg>`;
+  Story.FRAGMENT_SVG = FRAGMENT_SVG;
   window.Story = Story;
 })();

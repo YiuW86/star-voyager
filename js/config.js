@@ -17,11 +17,10 @@ window.SV_CONFIG = {
     appId: '',
   },
   // Licences. enabled: false = the whole game is open for everyone (as now).
-  // enabled: true = without a licence only the worlds in freeWorlds can be played (1 = Crystal Shores,
-  // 7 = the extra level Skyline Run); buyUrl = your payment page (it gets ?account=...&email=... added).
+  // enabled: true = without a licence only the worlds in freeWorlds can be played (1 = Crystal Shores); buyUrl = your payment page (it gets ?account=...&email=... added).
   licensing: {
     enabled: false,
-    freeWorlds: [1, 7],
+    freeWorlds: [1],
     buyUrl: '',
   },
 };

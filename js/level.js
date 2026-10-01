@@ -13,18 +13,16 @@
     1: { name: 'Crystal Shores', bg: 'assets/level1.jpg', types: ['nebula', 'prism', 'solara'],
          boss: { name: 'King Nebula', sprite: 'nebula', hp: 20 } },
     2: { name: 'Glowwood Forest', bg: 'assets/level2.jpg', types: ['pulsar', 'ember', 'glide'],
-         boss: { name: 'Ember Lord', sprite: 'ember', hp: 24 } },
+         boss: { name: 'Prism Empress', sprite: 'prism', hp: 24 } },
     // Underwater: aliens swim and bubbles rise
     3: { name: 'Sunken Lagoon', bg: 'assets/level3.jpg', types: ['nimbus', 'splash', 'echo'], underwater: true,
          boss: { name: 'Tidequeen', sprite: 'splash', hp: 28 } },
     4: { name: 'Sunfire Dunes', bg: 'assets/level4.jpg', types: ['vexa', 'solara', 'prism'],
-         boss: { name: 'Prism Empress', sprite: 'prism', hp: 32 } },
+         boss: { name: 'Ember Lord', sprite: 'ember', hp: 32 } },
     5: { name: 'Moonlit Cavern', bg: 'assets/level5.jpg', types: ['glide', 'nebula', 'echo'],
          boss: { name: 'Echo Monarch', sprite: 'echo', hp: 36 } },
     6: { name: 'Starfall Wetlands', bg: 'assets/level6.jpg', types: ['orbita', 'razor', 'vortex'],
          boss: { name: 'Vortex King', sprite: 'vortex', hp: 40 } },
-    // Extra: the experimental side-scrolling platformer level (see js/platformer.js)
-    7: { name: 'Skyline Run', bg: 'assets/plat_bgA.jpg', types: [], plat: true, experimental: true },
     // Endless: wave after wave through all worlds; every 5th wave is a boss
     8: { name: 'Endless', bg: 'assets/level1.jpg', types: [], endless: true },
   };
@@ -103,6 +101,10 @@
   // Effects sheet: 0-2 rocks, 3-4 rock breaking, 5-7 weak spot, 8-9 weak spot popping, 13-14 bubble popping.
   const BOSS_ART = {
     nebula: { img: 'nebula_king', fx: 'nebula_king_fx', meta: { fw: 255, fh: 234 }, fxMeta: { fw: 249, fh: 236 }, crown: true },
+    // Ember Lord: 5x3 sheet. 0/5 front, 2/3/8/9/11/12 moving sideways (eye to the right; mirrored when going left),
+    // 13 winding up, 14 spinning attack, 10 hurt / dizzy
+    ember: { img: 'ember_lord', meta: { fw: 256, fh: 303 }, crown: true,
+      frames: { idle: [0, 5], side: [2, 3, 8, 9, 11, 12], windup: 13, attack: 14, hurt: 10, caught: 10 } },
   };
 
   // Superpowers (order = icons in assets/supers.png). `ready` ones work in the game already.
@@ -171,9 +173,8 @@
     images: {},
     load(onProgress) {
       const list = [...Object.entries(LEVELS).map(([id, l]) => ['bg' + id, l.bg]), ...['gun', ...ALL_TYPES].map((k) => [k, SPR[k].src]),
-        ['nebula_king', 'assets/nebula_king.png'], ['nebula_king_fx', 'assets/nebula_king_fx.png'],
-        ['robot', 'assets/robot.png'], ['blast', 'assets/blast.png'], ['drone1', 'assets/drone1.png'], ['drone2', 'assets/drone2.png'],
-        ['platA', 'assets/plat_bgA.jpg'], ['platB', 'assets/plat_bgB.jpg'], ['platC', 'assets/plat_bgC.jpg']];
+        ['nebula_king', 'assets/nebula_king.png'], ['nebula_king_fx', 'assets/nebula_king_fx.png'], ['ember_lord', 'assets/ember_lord.png'],
+        ['drone1', 'assets/drone1.png'], ['drone2', 'assets/drone2.png']];
       let done = 0;
       return Promise.all(list.map(([key, src]) => new Promise((resolve, reject) => {
         const img = new Image();
@@ -1304,6 +1305,7 @@
           b.mt = (b.mt || 0) + gdt * b.speed;
           const nx = (b.homeX || W / 2) + Math.sin(b.mt * (b.phase === 3 ? 0.45 : 0.3)) * W * (b.homeX ? 0.1 : 0.26);
           b.rot = clamp((nx - b.x) / Math.max(gdt, 0.001) * 0.0008, -0.25, 0.25);
+          b.vx = (nx - b.x) / Math.max(gdt, 0.001);
           b.x = nx;
           b.y = H * 0.43 + Math.sin(b.t * 0.7) * 30 - stroke * 24;
         }
@@ -2866,6 +2868,20 @@
     },
     // which frame of the boss artwork fits what the boss is doing
     bossArtFrame(b, copyAlpha) {
+      const art = BOSS_ART[b.sprite];
+      b.artFlip = false;
+      if (art && art.frames) {
+        // artwork with a frame list: front when still, side frames when moving (mirrored to the left)
+        const F = art.frames;
+        if (b.state === 'caught') return F.caught;
+        if (b.transT > 0) return F.attack;
+        if (b.flash > 0.05) return F.hurt;
+        if (b.throwAnim > 0) return F.attack;
+        if (b.tele > 0) return F.windup;
+        const vx = b.vx || 0;
+        if (Math.abs(vx) > 60) { b.artFlip = vx < 0; return F.side[Math.floor(b.t * 8) % F.side.length]; }
+        return F.idle[Math.floor(b.t * 2) % F.idle.length];
+      }
       const idle = Math.floor(b.t * 6) % 5;
       if (b.state === 'caught') return 19;
       if (b.transT > 1.2) return 15;
@@ -2884,8 +2900,8 @@
       if (art && Assets.images[art.img]) {
         // the boss's own artwork (crown included)
         const frame = this.bossArtFrame(b, copyAlpha);
-        this.drawFrame(Assets.images[art.img], art.meta, frame, x, y, b.size * 1.12, false, alpha, b.rot, b.sx, b.sy);
-        if (real && b.phase === 2 && b.state === 'fight') {
+        this.drawFrame(Assets.images[art.img], art.meta, frame, x, y, b.size * (art.frames ? 1.25 : 1.12), b.artFlip, alpha, art.frames ? 0 : b.rot, b.sx, b.sy);
+        if (real && b.sprite === 'nebula' && b.phase === 2 && b.state === 'fight') {
           // the tell: a twinkling star on the real crown
           const c = this.ctx, k = 0.6 + 0.4 * Math.sin(this.time * 8), cy = y - b.size * 0.5;
           c.save(); c.fillStyle = '#ffffff'; c.globalAlpha = alpha * k; c.shadowColor = '#fff'; c.shadowBlur = this.glow(16);

@@ -179,7 +179,9 @@
       const dt = Math.min(0.05, (now - (this.last || now)) / 1000);
       this.last = now;
       const L = this.Level;
-      const playing = this.active && L.running && document.getElementById('screen-game').classList.contains('active');
+      // the gamepad only shows while really playing: not behind the pause menu or the level-clear screen
+      const playing = this.active && L.running && document.getElementById('screen-game').classList.contains('active')
+        && !document.querySelector('#screen-game .overlay.show') && L.state !== 'done';
       this.el.classList.toggle('show', !!(playing || this.editing));
       if (this.laidOutFor !== this.screenW()) this.applyLayout();
       if (playing) {

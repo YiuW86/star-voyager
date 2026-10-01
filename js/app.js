@@ -264,7 +264,10 @@
   const CROWN_SVG = '<svg class="boss-crown" viewBox="0 0 64 40"><path d="M4 36V10l14 12L32 4l14 18 14-12v26z" fill="#ffd27a" stroke="#fff4c9" stroke-width="2.5" stroke-linejoin="round"/></svg>';
 
   let currentPlanet = 1;
+  setTimeout(() => $('#worlds').addEventListener('scroll', () => updateWorldArrows(), { passive: true }), 0);
   function renderLevels() {
+    setTimeout(updateWorldArrows, 50);
+    $('#worlds').scrollLeft = 0;
     const box = $('#worlds');
     box.innerHTML = '';
     const planet = PLANETS.find((p) => p.id === currentPlanet);
@@ -451,7 +454,7 @@
   function renderWorkshop() {
     if (!save.upg) save.upg = { blaster: 1, net: 1, shield: 1 };
     const inv = [['crystal', save.crystals, 'Crystals'], ...['shard', 'goo', 'dust'].map((k) => [k, save.mats[k] || 0, MAT_NAMES[k]]),
-      ...Object.values(window.SV.REGION_MAT).filter((k) => save.mats[k] > 0).map((k) => [k, save.mats[k], MAT_NAMES[k]])];
+      ...[...new Set(Object.values(window.SV.REGION_MAT))].filter((k) => save.mats[k] > 0).map((k) => [k, save.mats[k], MAT_NAMES[k]])];
     const trophies = Object.entries(save.trophies || {}).filter(([, n]) => n > 0);
     $('#inventory').innerHTML = inv.map(([k, n, name]) => `<span class="inv">${MAT_SVG[k]}<b>${n}</b><small>${t(name)}</small></span>`).join('')
       + (trophies.length ? trophies.map(([id]) => `<span class="inv trophy">${MAT_SVG.trophy}<small>${t(TROPHY_NAMES[id] || id)}</small></span>`).join('')
@@ -695,11 +698,13 @@
     $('#home-inv').innerHTML = inv.map(([k, n]) => `<span class="inv">${MAT_SVG[k]}<b>${n}</b></span>`).join('');
     const box = $('#buildings');
     box.innerHTML = '';
-    if ((save.champions || {}).nebula) {
+    // statues of your Champions
+    for (const [id, ch] of Object.entries(CHAMPIONS)) {
+      if (!(save.champions || {})[id]) continue;
       const st = document.createElement('div');
       st.className = 'statue';
-      st.style.left = '1040px'; st.style.top = '960px';
-      st.innerHTML = `<i></i><span>${t('Champion')}: ${t('King Nebula')}</span>`;
+      st.style.left = ch.pos[0] + 'px'; st.style.top = ch.pos[1] + 'px';
+      st.innerHTML = `<i style="background-image:url(${ch.img})"></i><span>${t('Champion')}: ${t(ch.name)}</span>`;
       box.appendChild(st);
     }
     for (const m of MODULES) {
@@ -727,6 +732,10 @@
         const ql = save.base[q.id] || 0;
         return `<span>${t(q.name)}</span><b>${ql ? `${t('Level')} ${ql}/${q.max}` : t('Not built yet')}</b>`;
       }).join('') + `</div><p>${t('Base level')} <b>${baseLevel()}</b></p>`;
+      const items = Object.keys(save.items || {}).filter((k) => ITEMS[k]);
+      html += `<h3 class="coll-title">${t('Collection')}</h3>` + (items.length
+        ? `<div class="collection">${items.map((k) => `<div class="coll-item"><i>${window.Story ? Story.FRAGMENT_SVG : ''}</i><div><b>${t(ITEMS[k].name)}</b><p class="muted small">${t(ITEMS[k].desc)}</p></div></div>`).join('')}</div>`
+        : `<p class="muted small">${t('Nothing yet. Rulers you free may give you something to keep here.')}</p>`);
     } else if (m.max) {
       const maxed = l >= m.max, cost = maxed ? null : m.cost[l];
       const pips = Array.from({ length: m.max }, (_, i) => `<i class="${i < l ? 'on' : ''}"></i>`).join('');
@@ -982,7 +991,7 @@
       grid.appendChild(card);
     }
   }
-  const TROPHY_WORLD = { 1: 'nebulaCrown', 2: 'emberCore', 3: 'tidePearl', 4: 'prismHeart', 5: 'echoBell', 6: 'vortexEye' };
+  const TROPHY_WORLD = { 1: 'nebulaCrown', 2: 'prismHeart', 3: 'tidePearl', 4: 'emberCore', 5: 'echoBell', 6: 'vortexEye' };   // boss of each world
   actions['mods-super'] = () => { modsTab = 'super'; renderMods(); };
 
   // the Super button in the game (and on the phone controller): fills up, glows when ready
@@ -1031,7 +1040,7 @@
     { id: 'vnet', kind: 'weapon', world: 6, name: 'Vortex net', desc: 'The net grenade pulls in aliens from much further away.',
       eff: (l) => t('Net {a}% bigger').replace('{a}', [25, 40, 60][l - 1]) },
   ];
-  const WORLD_TROPHY = { 1: 'nebulaCrown', 2: 'emberCore', 3: 'tidePearl', 4: 'prismHeart', 5: 'echoBell', 6: 'vortexEye' };
+  const WORLD_TROPHY = { 1: 'nebulaCrown', 2: 'prismHeart', 3: 'tidePearl', 4: 'emberCore', 5: 'echoBell', 6: 'vortexEye' };   // Glowwood: Prism Empress, Sunfire Dunes: Ember Lord
   function modCost(m, lvl) {       // cost of getting level `lvl` (1..3)
     const c = { crystal: [80, 150, 250][lvl - 1], [REGION_BY_WORLD[m.world]]: [6, 12, 20][lvl - 1] };
     if (lvl >= 2) c.goo = [0, 4, 8][lvl - 1];
@@ -1055,7 +1064,7 @@
     $('#loadout').innerHTML = `<span>${t('Loadout')}:</span> <b>${name(save.loadout.weapon)}</b> + <b>${name(save.loadout.drone)}</b>`;
     const hasDrone = save.owned.helperDrone || save.owned.droneTwo;
     $('#mods-note').textContent = modsTab === 'drone' && !hasDrone ? t('Needs a helper drone from the Star shop') : '';
-    const inv = Object.values(REGION_BY_WORLD).map((k) => `<span class="inv">${MAT_SVG[k]}<b>${save.mats[k] || 0}</b></span>`).join('');
+    const inv = [...new Set(Object.values(REGION_BY_WORLD))].map((k) => `<span class="inv">${MAT_SVG[k]}<b>${save.mats[k] || 0}</b><small>${t(MAT_NAMES[k])}</small></span>`).join('');
     $('#mods-inv').innerHTML = inv;
     const grid = $('#mods-grid');
     grid.innerHTML = '';
@@ -1258,9 +1267,7 @@
 
   // ---------------- HUD ----------------
   function buildHud() {
-    const segs = $('#health-segs');
-    segs.innerHTML = '';
-    for (let i = 0; i < 20; i++) { const c = document.createElement('i'); c.className = 'seg-cell'; segs.appendChild(c); }
+    // (the health meter needs no building any more: it is one bar)
   }
   // Catch counters for the monsters of the level being played
   function buildCatches() {
@@ -1279,10 +1286,11 @@
   let toastTimer = null;
   function onHud(kind, value, L) {
     if (kind === 'all' || kind === 'health') {
-      const on = Math.round(L.health / 5);
-      $$('#health-segs .seg-cell').forEach((c, i) => c.classList.toggle('off', i >= on));
-      $('#health-num').textContent = Math.round(L.health * (L.healthMult || 1));      // 100 … 300 with the Armour suit
+      const mult = L.healthMult || 1;
+      $('#health-num').textContent = Math.round(L.health * mult);                     // 100 … 300 with the Armour suit
+      $('#health-max').textContent = '/' + Math.round(100 * mult);
       const h = $('#health');
+      h.style.setProperty('--hp', Math.max(0, Math.min(100, L.health)) + '%');
       h.classList.toggle('low', L.health <= 30);
       if (kind === 'health') {
         h.classList.remove('hit'); void h.offsetWidth; h.classList.add('hit');
@@ -1440,14 +1448,28 @@
     else onHud('countdown', 3, Level);
   }
 
+  // story scenes after beating a ruler (by boss), what it unlocks, and where their statue stands in the Spacedome
+  const STORY_AFTER = {
+    nebula: { scene: 'kn', champ: 'nebula' },
+    ember: { scene: 'el', champ: 'ember', item: 'scorchedFragment' },
+  };
+  const CHAMPIONS = {
+    nebula: { name: 'King Nebula', img: 'assets/story/p_kingnebula.jpg', pos: [1040, 960] },
+    ember: { name: 'Ember Lord', img: 'assets/story/p_emberlord.jpg', pos: [830, 985] },
+  };
+  const ITEMS = {
+    scorchedFragment: { name: 'Scorched Fragment', desc: 'A piece of the "falling star" from the Ember Lord\'s volcano. It is metal: someone built this.' },
+  };
   function endLevel(r) {
-    // every time King Nebula is beaten: his story cutscene (with a Skip button), then the usual end screen
-    if (r.won && r.world === 1 && r.stage === STAGES && !r.storyShown && window.Story) {
+    // every time a ruler with a story is beaten: the cutscene (with a Skip button), then the usual end screen
+    const story = r.won && r.stage === STAGES && !r.storyShown && window.Story ? STORY_AFTER[LEVELS[r.world].boss && LEVELS[r.world].boss.sprite] : null;
+    if (story) {
       r.storyShown = true;
-      save.story = { ...(save.story || {}), kn: true };
-      save.champions = { ...(save.champions || {}), nebula: true };
+      save.story = { ...(save.story || {}), [story.scene]: true };
+      save.champions = { ...(save.champions || {}), [story.champ]: true };
+      if (story.item) save.items = { ...(save.items || {}), [story.item]: true };
       persist();
-      Story.play('kn', () => endLevel(r));
+      Story.play(story.scene, () => endLevel(r));
       return;
     }
     // Crew quarters: +10% crystals per level of the building
@@ -1487,12 +1509,17 @@
       <span>${t('No damage bonus')}</span><b>${r.bonus.noDamage.toLocaleString()}</b>
       <span>${t('Accuracy bonus')}</span><b>${r.bonus.accuracy.toLocaleString()}</b>
       <span>${t('Speed bonus')}</span><b>${r.bonus.time.toLocaleString()}</b>` : '';
-    const dropText = Object.entries(r.drops || {}).map(([k, n]) => `${n}× ${t(k.startsWith('trophy:') ? (TROPHY_NAMES[k.slice(7)] || k) : MAT_NAMES[k] || k)}`).join(', ');
+    // drops: a row of icons with the amount under each one (the name shows when you point at it)
+    const dropIcons = Object.entries(r.drops || {}).map(([k, n]) => {
+      const trophy = k.startsWith('trophy:');
+      const name = t(trophy ? (TROPHY_NAMES[k.slice(7)] || k) : MAT_NAMES[k] || k);
+      return `<div class="drop-ico" title="${name}">${trophy ? MAT_SVG.trophy : MAT_SVG[k] || ''}<b>${n}</b></div>`;
+    }).join('');
     $('#end-score').innerHTML = `<span class="end-score-num">${(r.score || 0).toLocaleString()}</span>`
       + (r.newBest ? `<span class="new-best">${t('New high score!')}</span>` : '')
       + (r.bestCombo > 1 ? `<small>${t('Best combo')}: ${r.bestCombo}</small>` : '');
     $('#end-stats').innerHTML = `${bonusRows}
-      ${dropText ? `<span>${t('Drops')}</span><b>${dropText}</b>` : ''}
+      ${dropIcons ? `<div class="end-drops"><span>${t('Drops')}</span><div class="drop-icons">${dropIcons}</div></div>` : ''}
       <span>Time</span><b>${fmtTime(r.time)}${r.endless ? '' : ` <small>(target ${fmtTime(r.par)})</small>`}</b>
       ${caught}
       <span>Accuracy</span><b>${r.accuracy}%</b>
@@ -1611,6 +1638,23 @@
     planetIdx = (planetIdx + dir + PLANETS.length) % PLANETS.length;
     Sfx.select();
     layoutCarousel();
+  }
+  // world cards: scroll by one card
+  function scrollWorlds(dir) {
+    const box = $('#worlds'), card = box.querySelector('.level-card');
+    if (!card) return;
+    box.scrollBy({ left: dir * (card.offsetWidth + 22), behavior: 'smooth' });
+    Sfx.select();
+  }
+  actions['worlds-prev'] = () => scrollWorlds(-1);
+  actions['worlds-next'] = () => scrollWorlds(1);
+  // arrows only when there are more worlds than fit
+  function updateWorldArrows() {
+    const box = $('#worlds');
+    const more = box.scrollWidth > box.clientWidth + 4;
+    $('.worlds-wrap').classList.toggle('scrolls', more);
+    $('.carousel-arrow.wl').classList.toggle('dim', box.scrollLeft <= 4);
+    $('.carousel-arrow.wr').classList.toggle('dim', box.scrollLeft + box.clientWidth >= box.scrollWidth - 4);
   }
   actions['planet-prev'] = () => rotatePlanets(-1);
   actions['planet-next'] = () => rotatePlanets(1);
