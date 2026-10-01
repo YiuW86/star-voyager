@@ -71,7 +71,12 @@
     <img class="fill" src="assets/level1.jpg" alt="">
     <div class="center-col">
       <h1 class="title">Choose a world</h1>
-      <div class="levels" id="worlds"></div>
+      <!-- worlds carousel: 4-5 big cards in view, scroll/swipe or use the arrows for the rest -->
+      <div class="worlds-wrap">
+        <button class="carousel-arrow wl" data-action="worlds-prev" aria-label="Previous worlds">‹</button>
+        <div class="levels" id="worlds"></div>
+        <button class="carousel-arrow wr" data-action="worlds-next" aria-label="Next worlds">›</button>
+      </div>
       <div class="row">
         <button class="btn" data-go="planets"><span>Back</span></button>
         <button class="btn" data-go="workshop" data-from="levels"><span>Workshop</span></button>
@@ -300,9 +305,13 @@
     <canvas id="game-canvas" width="1280" height="720"></canvas>
     <div class="damage" id="damage"></div>
     <div class="hud">
+      <!-- health: slim glowing capsule, the number above it -->
       <div class="health" id="health">
-        <div class="core"><div id="health-num">100</div></div>
-        <div class="bar"><div class="segs" id="health-segs"></div></div>
+        <svg class="hp-icon" viewBox="0 0 24 24"><path d="M12 21s-7.5-4.6-9.6-9.3C1 8.4 3 5 6.4 5c2 0 3.6 1.1 4.6 2.6.3.4.7.4 1 0C13 6.1 14.6 5 16.6 5 20 5 22 8.4 20.6 11.7 18.5 16.4 12 21 12 21z" fill="currentColor"/></svg>
+        <div class="hp-body">
+          <div class="hp-text"><b id="health-num">100</b><small id="health-max">/100</small></div>
+          <div class="hp-track"><i class="hp-lag"></i><i class="hp-fill"></i></div>
+        </div>
       </div>
       <div class="phone-chip" id="phone-chip"><i class="dot" data-phone-dot></i><span data-phone-text></span></div>
       <div class="catches" id="catches"></div>
@@ -387,7 +396,6 @@
 <script src="js/audio.js"></script>
 <script src="js/net.js"></script>
 <script src="js/level.js"></script>
-<script src="js/platformer.js"></script>
 <script src="js/dex.js"></script>
 <script src="js/cloud.js"></script>
 <script src="js/touch.js"></script>

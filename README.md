@@ -1,5 +1,7 @@
 # Star Voyager (MVP)
 
+**Version 3.1** (1 October 2026) — same version as the Android app (star-voyager-v3.1.apk).
+
 A first-person, motion-controlled shooter for the browser. The game runs on a TV or laptop; an Android phone acts as the camera. The phone tracks your body and sends only the keypoints (no video) straight to the game over WebRTC.
 
 ## Files
@@ -14,7 +16,6 @@ js/net.js           WebRTC host (receives data from the phone)
 js/controller.js    Phone side: MediaPipe pose tracking + WebRTC sending
 js/audio.js         Synthesized sound effects
 js/dex.js           Alien guide: facts about every alien and the guide screen
-js/platformer.js    Experimental level 6: the side-scrolling platformer
 js/i18n.js          Languages: all translations of the game's texts
 js/config.js        Your settings (Google Cast App ID, Firebase accounts, licences)
 js/cloud.js         Accounts, cloud save and licence check (Firebase)
@@ -76,7 +77,7 @@ The game has 6 worlds (environments), each with **10 levels**. Levels 1–9 are 
 | Moonlit Cavern | Glide, Nebula, Echo | Echo Monarch |
 | Starfall Wetlands | Orbita, Razor, Vortex | Vortex King |
 
-The **Skyline Run** card is the extra (experimental) platformer level.
+The world cards are a **carousel**: 4–5 big cards are in view; swipe, scroll or use the ‹ › arrows for the rest.
 
 A level can only be played when the level before it is cleared, and a world only opens when every level of the previous world is cleared. **Options → Unlock all levels** opens everything.
 
@@ -85,12 +86,6 @@ Every cleared level earns **1 to 3 stars**, based on health left (counts most), 
 World settings (background, aliens, boss) are in `LEVELS` at the top of `js/level.js`; how the 10 levels of a world get harder is in `GOALS` and `stageConfig`, and the star rules in `starRating`.
 
 Every boss is a giant, crowned version of one of the level's monsters. Blaster hits fill 1 point of the boss bar, net grenades 4. Boss strength per level is the `hp` value in `LEVELS` in `js/level.js`.
-
-## Extra level: Skyline Run (experimental platformer)
-
-The last card on the world screen, **Skyline Run**, is a side-scrolling platformer. The robot runs from left to right through three backgrounds (the dome base, the floating rocks and the crystal pillar); a glowing portal at the end of each one leads to the next. On the floating rocks you have to jump from rock to rock, and at the end jump from the last rock into the portal. The level ends at the great crystal. Aliens walk or float toward you and throw glowing orbs; blast them (or their orbs) to catch them.
-
-Controls: phone **Gamepad** (the phone switches to Jump, Blast, Run and Menu buttons automatically; push the d-pad far to run), or keyboard: arrows or A/D to move, Shift to run, Space to jump, J or a click to blast. Platforms, aliens and portals are set in `SECTIONS` at the top of `js/platformer.js`.
 
 ## Star shop
 
@@ -158,7 +153,7 @@ The free Spark plan is enough to start (50,000 monthly active users, 50,000 read
 
 ### Licences
 
-In `js/config.js`, `licensing.enabled: false` keeps the whole game open (as now). With `enabled: true`, players without a licence can only play the worlds in `freeWorlds` (Crystal Shores and Skyline Run by default); the other world cards show **Full game** and lead to the Account screen.
+In `js/config.js`, `licensing.enabled: false` keeps the whole game open (as now). With `enabled: true`, players without a licence can only play the worlds in `freeWorlds` (Crystal Shores by default); the other world cards show **Full game** and lead to the Account screen.
 
 A licence is a document in Firestore → collection `licenses` → document named after the player's **Account ID** (shown on the Account screen) with a field `full` = true (for ever) or `until` = a date (for example a school year). You can add one by hand in the Firebase console (for testers, schools, giveaways). Later a payment service (Paddle, Lemon Squeezy or Stripe) will do this automatically after a payment: set `licensing.buyUrl` to the payment page (it receives `?account=…&email=…`), and a small Firebase Cloud Function (needs the pay-as-you-go Blaze plan) receives the payment message and writes the licence.
 
@@ -191,6 +186,7 @@ A fourth Workshop upgrade: the **Armour suit** (Mk1–Mk5) raises your health fr
 `js/story.js` plays the story scenes: a picture with effects (`assets/story/`), and a modern dialogue box with a round portrait of whoever speaks (name in their colour; narration in italics without a portrait). Tap/click, Enter, Space or Fire shows the rest of a line at once, or goes to the next; **Skip** (or Escape) ends the scene.
 
 - **After King Nebula** (every time he is beaten; Skip ends it straight away): he calms down, Orbit's scanner beam finds the glowing **Mark of Static** on his crown, the strange "new stars" glitch in the sky, and he hands over a purple crystal. Reward card: King Nebula becomes your **Champion**, a golden **statue** appears on your home base (Spacedome), and Nebula aliens move into your habitat. Then the usual end screen follows.
+- **After the Ember Lord** (ruler of the crystal fire world **Sunfire Dunes**; the Prism Empress now rules Glowwood Forest): he crashes down in sparks, the Mark of Static fades from his chest under Orbit's scanner, a falling star streaks across the sky, and he tosses over a **Scorched Fragment** of metal. Reward: he becomes your Champion with a statue in the Spacedome, Ember aliens move into your habitat, and the fragment appears in the **Collection** in the Command center. His fights use his own artwork (`assets/ember_lord.png`, 5×3 frames: front, moving sideways, wind-up, spin attack, hurt).
 - **Orbit**, the AI helper in the astronaut's helmet, has 9 designs (`assets/story/orbit.jpg`); players choose one in **Options → Orbit**.
 
 New scenes are added to `SCENES` in `js/story.js`: a picture, a few positions on it (helmet, crown, boss), and the lines with their effects.
@@ -213,6 +209,10 @@ Choose your superpower in **Workshop → Abilities → Superpowers** (one at a t
 | Healing Aurora | 40% health back at once, then a slow heal for 10 seconds | collecting 60 stars |
 
 Icons are in `assets/supers.png` (8 icons side by side); settings in `SUPERS` in `js/level.js` and `SUPER_INFO` in `js/app.js`.
+
+## HUD
+
+The health meter is a slim glowing bar with the number above it (for example 220/300); a white trail shows what you just lost, and it turns red and the heart beats below 30%. On the level-clear screen, drops are shown as icons with the amount underneath.
 
 ## Region abilities
 
@@ -273,7 +273,7 @@ The game is always 1080 units high, and as wide as the screen's shape: 1920 on a
 
 ## Touch mode (on-screen gamepad)
 
-In the Android app (and in a browser with `?touch=1` after the address) the game has its own gamepad on the screen, so no phone controller, no QR code and one player: a d-pad on the left moves the aiming circle, the big **FIRE** button on the right shoots, and the small buttons around it switch to the blaster, net grenade, time grenade (once bought) and shield, and reload. In the extra platformer level the big button jumps, and the small ones blast and run. Menus work by tapping. **Options → Touch buttons** lets you drag every button to another place (Reset puts them back).
+In the Android app (and in a browser with `?touch=1` after the address) the game has its own gamepad on the screen, so no phone controller, no QR code and one player: a d-pad on the left moves the aiming circle, the big **FIRE** button on the right shoots, and the small buttons around it switch to the blaster, net grenade, time grenade (once bought) and shield, and reload. Menus work by tapping. **Options → Touch buttons** lets you drag every button to another place (Reset puts them back).
 
 ## Android app (APK)
 
