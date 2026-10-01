@@ -1148,3 +1148,29 @@ body.touch #worlds .level-card { width: 320px !important; height: 370px !importa
 .coll-item i { width: 84px; height: 74px; flex: none; filter: drop-shadow(0 0 10px rgba(255, 122, 58, 0.6)); }
 .coll-item i svg { width: 100%; height: 100%; }
 .coll-item b { font-size: 26px; color: #fff; }
+
+/* ---------- Superpowers: big pictures, one per hand ---------- */
+.mods-grid.supers { grid-template-columns: repeat(2, 760px); gap: 22px; }
+.super-card { flex-direction: row !important; align-items: center; gap: 22px !important; padding: 18px 22px !important; }
+.super-card .super-ico.big { width: 190px; height: 190px; border-radius: 26px; background-color: #0a1440;
+  box-shadow: 0 0 24px rgba(98, 240, 255, 0.35); border: 3px solid rgba(98, 240, 255, 0.4); }
+.super-card.equipped .super-ico.big { border-color: #7dffb0; box-shadow: 0 0 30px rgba(125, 255, 176, 0.6); }
+.super-card.locked .super-ico.big { filter: grayscale(0.7) brightness(0.6); }
+.super-txt { display: flex; flex-direction: column; gap: 8px; min-width: 0; }
+.super-txt b { font-size: 32px; color: #fff; }
+.super-txt p { font-size: 20px !important; }
+.super-card .row.hands { justify-content: flex-start; gap: 10px; margin-top: 4px; }
+.super-nav { grid-column: 1 / -1; display: flex; align-items: center; justify-content: center; gap: 24px; font-size: 28px; color: var(--cyan-soft); }
+.super-nav .carousel-arrow { position: static; width: 84px; height: 84px; font-size: 60px; line-height: 64px; }
+.super-nav .carousel-arrow:disabled { opacity: 0.3; }
+.super-nav .hands-now { margin-left: 30px; font-size: 24px; color: var(--muted); }
+.super-nav .hands-now b { color: #7dffb0; }
+body.touch .super-card .super-ico.big { width: 210px; height: 210px; }
+body.touch .super-txt b { font-size: 36px; }
+/* Equip (pink, still to choose) and Equipped / chosen hand (green, with a tick) look clearly different */
+.btn.equip-on { background: linear-gradient(180deg, #b6ffd6, #2fbf7a); }
+.btn.equip-on span { background: linear-gradient(180deg, #7dffb0, #3fd68a); color: #06301c; font-weight: 700; }
+.btn.equip-off { background: linear-gradient(180deg, #ffb3e8, #d64fb0); }
+.btn.equip-off span { background: linear-gradient(180deg, #2a1660, #170b3e); color: #ffd6f2; }
+/* second Super button (right hand) next to the first */
+.super-btn.right { left: 176px; }

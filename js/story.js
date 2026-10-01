@@ -44,7 +44,7 @@
   // The Ember Lord, in the crystal fire world (Sunfire Dunes)
   SCENES.el = {
     img: 'assets/story/el_scene.jpg', ratio: 1671 / 941,
-    helmet: [35.7, 59.5], crown: [56.6, 42.5], mark: [56.4, 58.5], boss: [59.2, 55.3], beamTo: 'mark', item: 'fragment',
+    helmet: [36.6, 61.4], crown: [57.0, 47.3], mark: [56.0, 62.2], boss: [56.9, 59.5], beamTo: 'mark', item: 'fragment',
     glow: ['rgba(255, 50, 20, 1)', 'rgba(255, 150, 40, 0.6)'],
     rewardIcons: [{ img: 'assets/story/p_emberlord.jpg', cls: 'rw-champ' }, { img: 'assets/story/p_emberlord.jpg', cls: 'rw-statue' },
       { img: 'assets/dex/ember.png', cls: 'rw-habitat' }, { svg: 'fragment', cls: 'rw-item' }],

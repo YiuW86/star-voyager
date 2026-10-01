@@ -115,7 +115,7 @@
     .stick-knob { width: 70px; height: 70px; margin: -35px 0 0 -35px; background: radial-gradient(circle at 40% 35%, #d4fbff, var(--cyan) 60%, var(--cyan-deep)); box-shadow: 0 0 18px var(--cyan); }
     .pad-buttons { flex: 1; display: grid; grid-template-columns: 1fr 1fr 1fr; grid-template-rows: auto 1fr auto auto; gap: 10px; }
     /* Superpower: the button fills up with the meter and glows when it's ready */
-    .pbtn.super { grid-column: 1 / span 3; color: #fff4c9;
+    .pbtn.super { grid-column: span 3; color: #fff4c9;
       background: linear-gradient(90deg, rgba(255, 210, 122, 0.55) var(--p, 0%), rgba(12, 28, 94, 0.9) var(--p, 0%)); }
     .pbtn.super.ready { background: linear-gradient(90deg, #ffd27a, #ff8ad8); color: #0a1440; box-shadow: 0 0 22px #ffd27a; animation: superPulse 1s ease-in-out infinite; }
     .pbtn.super.none { opacity: 0.35; }
@@ -242,7 +242,8 @@
       <button class="pbtn grenade" data-slot="s5" data-press="grenade">Net<small>grenade</small></button>
       <button class="pbtn shield" data-slot="s6" data-press="shield">Shield</button>
       <button class="pbtn time" data-slot="s7" data-press="time">Time<small>grenade</small></button>
-      <button class="pbtn super" data-slot="s8" data-press="super">★ SUPER</button>
+      <button class="pbtn super" data-slot="s8" data-press="super">★ Left</button>
+      <button class="pbtn super" data-slot="s9" data-press="super2">★ Right</button>
     </div>
   </div>
 </section>

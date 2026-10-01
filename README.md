@@ -1,6 +1,6 @@
 # Star Voyager (MVP)
 
-**Version 3.1** (1 October 2026) — same version as the Android app (star-voyager-v3.1.apk).
+**Version 3.2** (1 October 2026) — same version as the Android app (star-voyager-v3.2.apk).
 
 A first-person, motion-controlled shooter for the browser. The game runs on a TV or laptop; an Android phone acts as the camera. The phone tracks your body and sends only the keypoints (no video) straight to the game over WebRTC.
 
@@ -195,7 +195,7 @@ New scenes are added to `SCENES` in `js/story.js`: a picture, a few positions on
 
 A **super meter** fills while you play: every catch adds to it (more with a combo), and so does 10 seconds without getting hit. When it's full, the **Super button** glows: the round button under the health bar (click it or press **E**), the ★ SUPER button on the phone controller, or the star button above the d-pad in touch mode. Using it empties the meter.
 
-Choose your superpower in **Workshop → Abilities → Superpowers** (one at a time):
+Choose your superpowers in **Workshop → Abilities → Superpowers**: one in your **left hand** and one in your **right hand** (4 big cards per page). Both hands share the same meter: when it is full, use either one — left with **Q** / ★ Left, right with **E** / ★ Right (two round buttons under the health meter; two star buttons on the touch gamepad and the phone controller).
 
 | Superpower | Effect | Unlocked by |
 |---|---|---|

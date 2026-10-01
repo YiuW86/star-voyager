@@ -755,7 +755,8 @@
           p.input.mouseFire = true;
         }
         if (e === 'reload') p.input.mouseReload = true;
-        if (e === 'super') this.activateSuper();
+        if (e === 'super') this.activateSuper(0);
+        if (e === 'super2') this.activateSuper(1);
         if (e === 'gun' || e === 'grenade' || e === 'shield' || e === 'time') { this.equip(p, e); this.closeBelt(p); }
       }
     },
@@ -1668,8 +1669,11 @@
     // A meter fills by catching aliens (faster with combos) and by not getting hit. When it is full,
     // the equipped superpower can be used once; then the meter starts again.
     superInit() {
-      const pick = (this.save.superPick) || 'shockwave';
-      this.superId = SUPERS[pick] && SUPERS[pick].ready ? pick : 'shockwave';
+      // two superpowers: one in each hand (left = slot 0, right = slot 1); they share the meter
+      const picks = this.save.superPicks || [this.save.superPick || 'shockwave', null];
+      this.superIds = [0, 1].map((k) => (picks[k] && SUPERS[picks[k]] && SUPERS[picks[k]].ready ? picks[k] : null));
+      if (!this.superIds[0] && !this.superIds[1]) this.superIds[0] = 'shockwave';
+      this.superId = this.superIds[0] || this.superIds[1];
       this.superMeter = 0; this.superReady = false; this.superCleanT = 0;
       this.barrierT = 0; this.swirlT = 0; this.swirlZapT = 0;
       this.holeT = 0; this.frostT = 0; this.overdriveT = 0; this.meteorT = 0; this.auroraT = 0; this.meteors = [];
@@ -1690,7 +1694,7 @@
       const p = Math.round(this.superMeter * 100);
       if (p === this.superSent && !this.superDirty) return;
       this.superSent = p; this.superDirty = false;
-      this.hud('super', { p: this.superMeter, ready: this.superReady, id: this.superId, none: !!this.plat });
+      this.hud('super', { p: this.superMeter, ready: this.superReady, ids: this.superIds, none: !!this.plat });
     },
     updateSuper(dt) {
       if (this.plat) return;
@@ -1715,10 +1719,14 @@
         }
       }
     },
-    activateSuper() {
+    activateSuper(slot = 0) {
       if (this.state !== 'play' || this.plat || !this.superReady) return;
+      // the chosen hand; if that hand is empty, the other one
+      const id = this.superIds[slot] || this.superIds[1 - slot];
+      if (!id) return;
+      this.superId = id;
       this.superReady = false; this.superMeter = 0; this.superDirty = true;
-      const id = this.superId, gx = W / 2, gy = H - 200;
+      const gx = W / 2, gy = H - 200;
       this.flash = 0.5; this.shake = 0.3;
       Sfx.win();
       this.hud('toast', (SUPERS[id] || {}).name || 'Superpower');

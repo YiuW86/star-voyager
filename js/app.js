@@ -969,47 +969,78 @@
   const starsTotal = () => Object.values(save.stages || {}).reduce((a, x) => a + (x.stars || 0), 0);
   const superUnlocked = (s) => !s.soon && (unlockAll() || ((!s.trophy || (save.trophies || {})[s.trophy] > 0) && (!s.stars || starsTotal() >= s.stars)));
 
+  // Superpowers: 4 big cards per page; one superpower in each hand (left and right)
+  let superPage = 0;
+  const SUPERS_PER_PAGE = 4;
+  const superPicks = () => {
+    const p = save.superPicks || [save.superPick || 'shockwave', null];
+    return [p[0] || null, p[1] || null];
+  };
+  function equipSuper(id, hand) {
+    const p = superPicks();
+    if (p[hand] === id) p[hand] = null;            // tap again to take it off
+    else { if (p[1 - hand] === id) p[1 - hand] = p[hand]; p[hand] = id; }   // already in the other hand: swap
+    if (!p[0] && !p[1]) p[hand] = id;              // always keep at least one
+    save.superPicks = p; delete save.superPick;
+    persist(); Sfx.select(); renderMods(); focusFirst();
+  }
   function renderSupers(grid) {
-    const pick = save.superPick || 'shockwave';
-    for (const s of SUPER_INFO) {
-      const def = window.SV.SUPERS[s.id], open = superUnlocked(s), on = pick === s.id;
+    const picks = superPicks();
+    const pages = Math.ceil(SUPER_INFO.length / SUPERS_PER_PAGE);
+    superPage = Math.min(superPage, pages - 1);
+    for (const s of SUPER_INFO.slice(superPage * SUPERS_PER_PAGE, (superPage + 1) * SUPERS_PER_PAGE)) {
+      const def = window.SV.SUPERS[s.id], open = superUnlocked(s);
+      const hand = picks.indexOf(s.id);
       const card = document.createElement('div');
-      card.className = 'mod super-card' + (open ? '' : ' locked') + (on ? ' equipped' : '');
+      card.className = 'mod super-card' + (open ? '' : ' locked') + (hand >= 0 ? ' equipped' : '');
       const why = s.soon ? t('Coming soon') : !open && s.stars ? t('Collect {a} stars to unlock').replace('{a}', s.stars) + ` (${starsTotal()}/${s.stars})` : !open ? t('Beat the {a} to unlock').replace('{a}', LEVELS[Object.keys(TROPHY_WORLD).find((w) => TROPHY_WORLD[w] === s.trophy)].boss.name) : '';
-      card.innerHTML = `<div class="mod-head">${superIcon(s.id)}<div><b>${t(def.name)}</b><small>${t('Superpower')}</small></div></div>
-        <p>${t(s.desc)}</p>${why ? `<p class="lock">${why}</p>` : ''}`;
+      card.innerHTML = `${superIcon(s.id, 'big')}<div class="super-txt"><b>${t(def.name)}</b>
+        <p>${t(s.desc)}</p>${why ? `<p class="lock">${why}</p>` : ''}</div>`;
       if (open) {
         const row = document.createElement('div');
-        row.className = 'row';
-        const b = document.createElement('button');
-        b.className = 'btn small' + (on ? '' : ' pink');
-        b.innerHTML = `<span>${on ? t('Equipped') : t('Equip')}</span>`;
-        b.addEventListener('click', () => { save.superPick = s.id; persist(); Sfx.select(); renderMods(); focusFirst(); });
-        row.appendChild(b);
-        card.appendChild(row);
+        row.className = 'row hands';
+        [[0, 'Left hand'], [1, 'Right hand']].forEach(([h, label]) => {
+          const on = picks[h] === s.id;
+          const b = document.createElement('button');
+          b.className = 'btn small ' + (on ? 'equip-on' : 'equip-off');
+          b.innerHTML = `<span>${on ? '✓ ' : ''}${t(label)}</span>`;
+          b.addEventListener('click', () => equipSuper(s.id, h));
+          row.appendChild(b);
+        });
+        card.querySelector('.super-txt').appendChild(row);
       }
       grid.appendChild(card);
     }
+    // page buttons
+    const nav = document.createElement('div');
+    nav.className = 'super-nav';
+    nav.innerHTML = `<button class="carousel-arrow" data-sp="-1" ${superPage === 0 ? 'disabled' : ''}>‹</button>
+      <span>${superPage + 1} / ${pages}</span>
+      <button class="carousel-arrow" data-sp="1" ${superPage >= pages - 1 ? 'disabled' : ''}>›</button>
+      <span class="hands-now">${t('Left hand')}: <b>${picks[0] ? t(window.SV.SUPERS[picks[0]].name) : '–'}</b> · ${t('Right hand')}: <b>${picks[1] ? t(window.SV.SUPERS[picks[1]].name) : '–'}</b></span>`;
+    nav.querySelectorAll('[data-sp]').forEach((b) => b.addEventListener('click', () => { superPage += Number(b.dataset.sp); Sfx.select(); renderMods(); focusFirst(); }));
+    grid.appendChild(nav);
   }
   const TROPHY_WORLD = { 1: 'nebulaCrown', 2: 'prismHeart', 3: 'tidePearl', 4: 'emberCore', 5: 'echoBell', 6: 'vortexEye' };   // boss of each world
   actions['mods-super'] = () => { modsTab = 'super'; renderMods(); };
 
   // the Super button in the game (and on the phone controller): fills up, glows when ready
   function updateSuperHud(v) {
-    const b = $('#super-btn');
-    if (!b) return;
-    b.classList.toggle('hidden', !!v.none);
-    b.classList.toggle('ready', !!v.ready);
-    b.style.setProperty('--p', Math.round((v.p || 0) * 100));
-    b.innerHTML = superIcon(v.id || 'shockwave') + `<span class="super-ring"></span>`;
-    if (window.Touch && Touch.items && Touch.items.super) {
-      const tb = Touch.items.super;
-      tb.classList.toggle('ready', !!v.ready); tb.style.setProperty('--p', Math.round((v.p || 0) * 100));
-      tb.innerHTML = superIcon(v.id || 'shockwave') + `<span class="super-ring"></span>`;
-    }
-    [1, 2].forEach((pl) => { try { Net.sendTo(pl, { m: 'super', p: v.p || 0, r: !!v.ready, none: !!v.none }); } catch (e) { /* no phone */ } });
+    const ids = v.ids || [v.id || 'shockwave', null];
+    const paint = (el, id) => {
+      if (!el) return;
+      el.classList.toggle('hidden', !!v.none || !id);
+      el.classList.toggle('ready', !!v.ready);
+      el.style.setProperty('--p', Math.round((v.p || 0) * 100));
+      if (id && el.dataset.sid !== id) { el.innerHTML = superIcon(id) + `<span class="super-ring"></span>`; el.dataset.sid = id; }
+    };
+    // HUD buttons (left hand, right hand) and the touch gamepad
+    paint($('#super-btn'), ids[0]); paint($('#super-btn2'), ids[1]);
+    if (window.Touch && Touch.items) { paint(Touch.items.super, ids[0]); paint(Touch.items.super2, ids[1]); }
+    [1, 2].forEach((pl) => { try { Net.sendTo(pl, { m: 'super', p: v.p || 0, r: !!v.ready, none: !!v.none, h: [!!ids[0], !!ids[1]] }); } catch (e) { /* no phone */ } });
   }
-  actions['super'] = () => Level.activateSuper();
+  actions['super'] = () => Level.activateSuper(0);
+  actions['super2'] = () => Level.activateSuper(1);
 
   // ---------------- Region abilities: weapon mods and drone abilities ----------------
   // Each world: one drone ability and one weapon mod, made with that world's material and its boss trophy.
@@ -1104,8 +1135,8 @@
       }
       if (lvl) {
         const e = document.createElement('button');
-        e.className = 'btn small';
-        e.innerHTML = `<span>${equipped ? t('Equipped') : t('Equip')}</span>`;
+        e.className = 'btn small ' + (equipped ? 'equip-on' : 'equip-off');
+        e.innerHTML = `<span>${equipped ? '✓ ' + t('Equipped') : t('Equip')}</span>`;
         e.addEventListener('click', () => {
           save.loadout[m.kind] = equipped ? null : m.id;
           persist(); Sfx.select(); renderMods(); focusFirst();
@@ -1552,7 +1583,9 @@
     }
     const inGame = current === 'game' && Level.state === 'play';
     if (inGame && (e.key === 'r' || e.key === 'R')) { Level.keyReload(); return; }
-    if (inGame && (e.key === 'e' || e.key === 'E')) { Level.activateSuper(); return; }
+    // superpowers: Q = left hand, E = right hand
+    if (inGame && (e.key === 'q' || e.key === 'Q')) { Level.activateSuper(0); return; }
+    if (inGame && (e.key === 'e' || e.key === 'E')) { Level.activateSuper(1); return; }
     if (inGame && ['1', '2', '3', '4'].includes(e.key)) { Level.keyEquipIndex(Number(e.key) - 1); return; }
     if (inGame && (e.key === 'g' || e.key === 'G')) { Level.toggleBelt(); return; }
     if (current === 'intro' && (e.key === 'Enter' || e.key === ' ')) { e.preventDefault(); endIntro(); return; }

@@ -64,8 +64,14 @@ function openConn(code) {
     }
     // the superpower meter from the game: the Super button fills up and glows when ready
     if (d.m === 'super') {
-      const b = document.querySelector('#s-pad [data-slot="s8"]');
-      if (b) { b.style.setProperty('--p', Math.round((d.p || 0) * 100) + '%'); b.classList.toggle('ready', !!d.r); b.classList.toggle('none', !!d.none); }
+      // two Super buttons (left hand, right hand); a hand without a superpower is dimmed
+      ['s8', 's9'].forEach((slot, k) => {
+        const b = document.querySelector(`#s-pad [data-slot="${slot}"]`);
+        if (!b) return;
+        const has = !d.h || d.h[k];
+        b.style.setProperty('--p', Math.round((d.p || 0) * 100) + '%');
+        b.classList.toggle('ready', !!d.r && has); b.classList.toggle('none', !!d.none || !has);
+      });
       if (d.r && !superBuzz && navigator.vibrate) navigator.vibrate([20, 40, 20]);
       superBuzz = !!d.r;
     }
@@ -134,7 +140,7 @@ function stopMode() {
 // Each press increases a counter. The game compares counters, so a lost message never loses a press.
 const session = Math.random().toString(36).slice(2, 8);
 let superBuzz = false;     // buzz once when the superpower becomes ready
-const counters = { fire: 0, reload: 0, gun: 0, grenade: 0, shield: 0, time: 0, menu: 0, jump: 0, super: 0 };
+const counters = { fire: 0, reload: 0, gun: 0, grenade: 0, shield: 0, time: 0, menu: 0, jump: 0, super: 0, super2: 0 };
 let fireHeld = false, jumpHeld = false, runHeld = false;
 
 function press(name) {
@@ -170,10 +176,10 @@ $$('[data-press]').forEach((b) => {
 // Each gamepad button is a "slot". The game decides which layout is shown:
 // 'normal' for the shooter levels, 'plat' for the platformer level (Jump, Blast, Run).
 // Remap lets you drag every button (and the d-pad) to wherever you like; its function stays the same.
-const ACTIONS = { fire: 'FIRE', reload: 'Reload', menu: 'Menu', gun: 'Blaster', grenade: 'Net grenade', shield: 'Shield', time: 'Time grenade', jump: 'JUMP', run: 'Run', blast: 'Blast', super: '★ SUPER' };
+const ACTIONS = { fire: 'FIRE', reload: 'Reload', menu: 'Menu', gun: 'Blaster', grenade: 'Net grenade', shield: 'Shield', time: 'Time grenade', jump: 'JUMP', run: 'Run', blast: 'Blast', super: '★ Left', super2: '★ Right' };
 const LAYOUTS = {
-  normal: { s1: 'reload', s2: 'menu', s3: 'gun', s4: 'fire', s5: 'grenade', s6: 'shield', s7: 'time', s8: 'super' },
-  plat:   { s1: 'fire', s2: 'menu', s3: 'run', s4: 'jump', s5: null, s6: null, s7: null, s8: null },
+  normal: { s1: 'reload', s2: 'menu', s3: 'gun', s4: 'fire', s5: 'grenade', s6: 'shield', s7: 'time', s8: 'super', s9: 'super2' },
+  plat:   { s1: 'fire', s2: 'menu', s3: 'run', s4: 'jump', s5: null, s6: null, s7: null, s8: null, s9: null },
 };
 let layout = 'normal', remapping = false;
 let padPos = {};      // slot or 'dpad' -> { x, y } centre as a fraction of the gamepad area, plus w, h in px
@@ -193,7 +199,7 @@ function applyPadMap() {
     b.classList.toggle('grenade', action === 'grenade');
     b.classList.toggle('shield', action === 'shield');
     b.classList.toggle('time', action === 'time');
-    b.classList.toggle('super', action === 'super');
+    b.classList.toggle('super', action === 'super' || action === 'super2');
   });
   applyPadPos();
 }
@@ -207,7 +213,7 @@ const PAD_DEFAULT_POS = {
   dpad: { x: 0.22, y: 0.52, w: 230, h: 230 }, s4: { x: 0.76, y: 0.52, w: 170, h: 170 },
   s1: { x: 0.6, y: 0.1, w: 120, h: 56 }, s2: { x: 0.76, y: 0.1, w: 120, h: 56 }, s3: { x: 0.92, y: 0.1, w: 120, h: 56 },
   s5: { x: 0.6, y: 0.92, w: 120, h: 56 }, s6: { x: 0.76, y: 0.92, w: 120, h: 56 }, s7: { x: 0.92, y: 0.92, w: 120, h: 56 },
-  s8: { x: 0.92, y: 0.52, w: 110, h: 110 },
+  s8: { x: 0.92, y: 0.36, w: 110, h: 90 }, s9: { x: 0.92, y: 0.68, w: 110, h: 90 },
 };
 function applyPadPos() {
   const custom = Object.keys(padPos).length > 0;
