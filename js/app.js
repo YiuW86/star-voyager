@@ -50,9 +50,13 @@
   }
 
   const SHOP = [
-    { id: 'magazine',    name: 'Bigger magazine',  text: '12 shots before reloading instead of 8.', price: 25 },
-    { id: 'quickReload', name: 'Quick reload',     text: 'Reloading takes half the time.', price: 30 },
-    { id: 'steadyAim',   name: 'Steady aim',       text: 'Stronger aim assist when it is switched on.', price: 35 },
+    // items with `levels` can be upgraded again and again (save.shopLv); `effect(l)` describes level l
+    { id: 'magazine',    name: 'Bigger magazine',  text: 'More shots before you have to reload.',
+      levels: [25, 40, 60, 80, 110, 140, 180, 220], effect: (l) => `${[8, 12, 18, 24, 30, 36, 42, 48, 50][l]} ${t('shots')}` },
+    { id: 'quickReload', name: 'Quick reload',     text: 'Reloading goes faster.',
+      levels: [30, 60, 100], effect: (l) => `${t('Reload time')} ${[0.95, 0.48, 0.38, 0.3][l].toFixed(2)} s` },
+    { id: 'steadyAim',   name: 'Steady aim',       text: 'Your aim is steadier and more precise: aliens are easier to hit.',
+      levels: [35, 70, 120], effect: (l) => `${t('Aim help')} +${[0, 12, 22, 32][l]}% · ${t('hit area')} +${[0, 0, 10, 20][l]}%` },
     { id: 'medkit',      name: 'Emergency medkit', text: 'Heals 30% once per level when health drops to 30%.', price: 40 },
     { id: 'grenadePouch', name: 'Grenade pouch',   text: 'Start each level with 5 net grenades instead of 3.', price: 30 },
     { id: 'timeGrenade', name: 'Time grenades',    text: '2 time grenades per level. Everything slows down for 3 seconds.', price: 45 },
@@ -209,13 +213,14 @@
   const unlockAll = () => save.options.unlockAll === 'on';
   // "Unlock all" (Options): every upgrade, shop item, drone, trophy, ability, superpower and building,
   // plenty of crystals and materials. The real progress is kept aside and comes back when it is switched off.
-  const UNLOCK_KEYS = ['upg', 'owned', 'trophies', 'mods', 'base', 'mats', 'crystals', 'loadout'];
+  const UNLOCK_KEYS = ['upg', 'owned', 'trophies', 'mods', 'base', 'mats', 'crystals', 'loadout', 'shopLv'];
   function applyUnlockAll(on) {
-    if (on && !save.unlockBackup) {
-      save.unlockBackup = JSON.parse(JSON.stringify(UNLOCK_KEYS.reduce((o, k) => { o[k] = save[k]; return o; }, {})));
+    if (on && !save.unlockBackup) save.unlockBackup = JSON.parse(JSON.stringify(UNLOCK_KEYS.reduce((o, k) => { o[k] = save[k]; return o; }, {})));
+    if (on) {
       save.upg = { blaster: 5, net: 3, shield: 3, health: 5 };
       save.owned = Object.assign({}, save.owned);
       [...SHOP, ...STAR_SHOP].forEach((it) => { save.owned[it.id] = true; });
+      save.shopLv = {}; SHOP.forEach((it) => { if (it.levels) save.shopLv[it.id] = it.levels.length; });
       save.trophies = { nebulaCrown: 1, emberCore: 1, tidePearl: 1, prismHeart: 1, echoBell: 1, vortexEye: 1 };
       save.mods = {}; MODS.forEach((m) => { save.mods[m.id] = 3; });
       save.loadout = { weapon: save.loadout && save.loadout.weapon || 'bubble', drone: save.loadout && save.loadout.drone || 'mirror' };
@@ -227,6 +232,15 @@
     } else if (!on && save.unlockBackup) {
       UNLOCK_KEYS.forEach((k) => { if (save.unlockBackup[k] !== undefined) save[k] = save.unlockBackup[k]; else delete save[k]; });
       delete save.unlockBackup;
+      // anything that was not there before goes back to its starting value
+      if (!save.upg) save.upg = { blaster: 1, net: 1, shield: 1 };
+      if (!save.owned) save.owned = {};
+      if (!save.trophies) save.trophies = {};
+      if (!save.mods) save.mods = {};
+      if (!save.base) save.base = {};
+      if (!save.loadout) save.loadout = {};
+      if (!save.mats) save.mats = { shard: 0, goo: 0, dust: 0 };
+      if (save.crystals == null) save.crystals = 0;
     }
     persist();
   }
@@ -668,7 +682,10 @@
       cost: [{ crystal: 100, shard: 10, goo: 2 }, { crystal: 170, shard: 14, goo: 5 }, { crystal: 250, shard: 18, goo: 8, dust: 2 }, { crystal: 350, shard: 24, goo: 11, dust: 4 }, { crystal: 480, shard: 30, goo: 15, dust: 6, trophy: 'vortexEye' }] },
     { id: 'workshop', name: 'Workshop', pos: [588, 900], open: 'workshop', desc: 'Upgrade your blaster, net grenade and shield.' },
     { id: 'command', name: 'Command center', pos: [875, 550], command: true, desc: 'The heart of your base.' },
-    { id: 'quarters', name: 'Crew quarters', pos: [219, 638], soon: true, desc: 'Coming soon.' },
+    { id: 'quarters', name: 'Crew quarters', pos: [219, 638], max: 3,
+      desc: 'Your crew helps collecting: you get extra crystals after every level.',
+      effect: (l) => `+${l * 10}% ${t('crystals per level')}`,
+      cost: [{ crystal: 90, shard: 8 }, { crystal: 180, shard: 14, goo: 5 }, { crystal: 320, shard: 22, goo: 10, dust: 3 }] },
   ];
   const baseLevel = () => MODULES.filter((m) => m.max).reduce((a, m) => a + (save.base[m.id] || 0), 0);
 
@@ -1117,6 +1134,7 @@
     grid.innerHTML = '';
     for (const item of star ? STAR_SHOP : SHOP) {
       if (item.needs && !save.owned[item.needs]) continue;     // shown once the first item is bought
+      if (item.levels) { grid.appendChild(levelItem(item)); continue; }
       const owned = !!save.owned[item.id];
       const money = star ? starsLeft() : save.crystals;
       const div = document.createElement('div');
@@ -1140,6 +1158,30 @@
       div.appendChild(btn);
       grid.appendChild(div);
     }
+  }
+
+  // a shop item with several levels: shows its level, what the next level gives, and its price
+  const shopLevel = (id) => { const l = (save.shopLv || {})[id]; return l != null ? l : ((save.owned || {})[id] ? 1 : 0); };
+  function levelItem(item) {
+    const l = shopLevel(item.id), max = item.levels.length, maxed = l >= max, price = maxed ? 0 : item.levels[l];
+    const div = document.createElement('div');
+    div.className = 'item lv' + (l ? ' owned' : '');
+    const pips = Array.from({ length: max }, (_, i) => `<i class="${i < l ? 'on' : ''}"></i>`).join('');
+    div.innerHTML = `<b>${t(item.name)}</b><p>${t(item.text)}</p><div class="pips shop-pips">${pips}</div>
+      <p class="lvl">${l ? `${t('Now')}: ${item.effect(l)}` : `${t('Now')}: ${item.effect(0)}`}${maxed ? '' : ` → <b>${item.effect(l + 1)}</b>`}</p>`;
+    const btn = document.createElement('button');
+    btn.className = 'btn small' + (maxed ? '' : ' pink');
+    btn.innerHTML = `<span>${maxed ? t('Max') : `${l ? t('Upgrade') : t('Buy')} · <i class="crystal"></i> ${price}`}</span>`;
+    btn.disabled = maxed || save.crystals < price;
+    btn.addEventListener('click', () => {
+      if (maxed || save.crystals < price) return;
+      save.crystals -= price;
+      save.shopLv = { ...(save.shopLv || {}), [item.id]: l + 1 };
+      save.owned[item.id] = true;
+      persist(); Sfx.reload(); renderShop(); focusFirst();
+    });
+    div.appendChild(btn);
+    return div;
   }
 
   // ---------------- Options ----------------
@@ -1257,6 +1299,8 @@
       if (pips.children.length !== L.magSize) {
         pips.innerHTML = '';
         for (let i = 0; i < L.magSize; i++) { const p = document.createElement('i'); p.className = 'pip'; pips.appendChild(p); }
+        pips.classList.toggle('many', L.magSize > 12);           // bigger magazines: thinner bullets, in two rows from 30
+        pips.classList.toggle('lots', L.magSize > 24);
       }
       [...pips.children].forEach((p, i) => p.classList.toggle('off', i >= P1.ammo));
     }
@@ -1405,7 +1449,9 @@
       Story.play('kn', () => endLevel(r));
       return;
     }
-    const bonus = r.won ? 15 : 0;
+    // Crew quarters: +10% crystals per level of the building
+    const crew = Math.round((r.earned || 0) * 0.1 * ((save.base || {}).quarters || 0));
+    const bonus = (r.won ? 15 : 0) + crew;
     save.crystals += r.earned + bonus;
     const rating = starRating(r);
     if (r.endless) {
@@ -1518,6 +1564,7 @@
   if (window.SV_APP) document.body.classList.add('in-app');
 
   // ---------------- Orbit, the AI helper ----------------
+  if (save.options.unlockAll === 'on') applyUnlockAll(true);
   if (window.Story) Story.orbitDesign = () => Number(save.options.orbit || 0);
   function renderOrbitPick() {
     const grid = $('#orbit-grid');

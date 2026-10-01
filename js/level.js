@@ -483,9 +483,13 @@
       // score, combo and drops
       this.score = 0; this.combo = 0; this.lastCatchT = -99; this.bestCombo = 0; this.mult = 1;
       this.floaters = []; this.drops = []; this.damageTaken = false; this.levelDrops = {};
-      this.magSize = up.magazine ? 12 : 8;
-      this.reloadTime = up.quickReload ? 0.5 : 0.95;
-      this.assist = [0, 0.35, 0.6, 0.85][options.assist] + (up.steadyAim && options.assist > 0 ? 0.12 : 0);
+      // shop levels (Bigger magazine 8 → 50 shots, Quick reload, Steady aim)
+      const shopLv = (id) => { const v = (save.shopLv || {})[id]; return v != null ? v : (up[id] ? 1 : 0); };
+      this.magSize = [8, 12, 18, 24, 30, 36, 42, 48, 50][Math.min(8, shopLv('magazine'))];
+      this.steadyLv = Math.min(3, shopLv('steadyAim'));
+      this.reloadTime = [0.95, 0.48, 0.38, 0.3][Math.min(3, shopLv('quickReload'))];
+      this.assist = [0, 0.35, 0.6, 0.85][options.assist] + (options.assist > 0 ? [0, 0.12, 0.22, 0.32][this.steadyLv] : 0);
+      this.steadyHit = [0, 0, 0.1, 0.2][this.steadyLv];       // Steady aim 2 and 3: bigger hit area, even with aim help off
       this.hasMedkit = !!up.medkit;
 
       this.health = 100;
@@ -599,7 +603,7 @@
         inp.setSmoothing(o.smoothing || 'normal');
       }
       const up = this.save.owned || {};
-      this.assist = [0, 0.35, 0.6, 0.85][o.assist] + (up.steadyAim && o.assist > 0 ? 0.12 : 0);
+      this.assist = [0, 0.35, 0.6, 0.85][o.assist] + (o.assist > 0 ? [0, 0.12, 0.22, 0.32][this.steadyLv || 0] : 0);
       this.players.forEach((p) => this.closeBelt(p));
       if (o.quality !== 'auto' || this.quality === undefined) this.setQuality(o.quality);
     },
@@ -2182,7 +2186,7 @@
       if (!blocked) {
         for (const m of targets) {
           const d = Math.hypot(m.px - pos.x, m.py - pos.y);
-          if (d < m.r * (1 + (pullAim ? 0.3 : 0.7) * this.assist) * (1 + (this.homing || 0)) && d < td) { target = m.ref || m; td = d; }
+          if (d < m.r * (1 + (pullAim ? 0.3 : 0.7) * this.assist) * (1 + (this.homing || 0) + (this.steadyHit || 0)) && d < td) { target = m.ref || m; td = d; }
         }
       }
       if (target !== p.dwellTarget) {

@@ -120,7 +120,7 @@ The **Home** button opens your base. Tap a building to build or upgrade it (crys
 | Hangar (5) | Helper drones fire more often and hit harder |
 | Workshop | Opens the Workshop (blaster, net grenade, shield upgrades) |
 | Command center | Overview of all buildings and your base level |
-| Crew quarters | Coming soon |
+| Crew quarters (3 levels) | +10% / +20% / +30% extra crystals after every level |
 
 Built buildings glow gold, brighter with each level; unbuilt ones show a +. Costs are in `MODULES` in `js/app.js`.
 
@@ -169,10 +169,18 @@ Options has four settings for slower devices:
 - **Graphics:** Sharp 1920×1080 (with glow effects), Fast 1280×720, Low 960×540, Very low 640×360. Auto starts at Fast and steps down below 45 FPS.
 - **Frame rate:** 60, or **30 (steady)**: the game then draws exactly every other screen refresh. On a 60 Hz TV, a steady 30 often feels smoother than an uneven 45.
 - **Effects:** Full or **Reduced** (few sparkles, no screen shake, no bubbles, no moving glows and shadows over the game).
-- **Unlock all** (Options) gives everything for testing: all worlds and levels, all Workshop upgrades, shop and star items, drones, trophies, abilities at level 3, superpowers, base buildings and lots of crystals and materials. Switching it off brings back your real progress.
+- **Unlock all** (Options) gives everything for testing: all worlds and levels, all Workshop upgrades (incl. Armour suit Mk5), every crystal-shop item at its highest level and every star-shop item (both drones), all trophies, all abilities at level 3, all superpowers, every base building at its highest level (Med bay, Crew quarters, Hangar, Lab, Alien sanctuary, Observatory) and lots of crystals and materials. Switching it off brings back your real progress.
 - **Show speed (FPS):** shows frames per second and a speed test: *logic* and *draw* are the milliseconds the game itself spends per frame, *slow* is the share of frames that came too late, *worst* the longest wait between two frames. If logic + draw are small (a few ms) but the FPS is still low, the TV's graphics chip or browser is the limit, not the game code.
 
 The game also makes shrunk copies (60% and 35%) of the spritesheets once, and draws from the smallest copy that is still big enough; that saves weak devices a lot of work every frame without looking different.
+
+## Shop levels
+
+Three crystal-shop items can now be upgraded several times:
+
+- **Bigger magazine** (8 levels): 8 → 12 → 18 → 24 → 30 → 36 → 42 → 48 → 50 shots.
+- **Quick reload** (3 levels): half the reload time, then 20% less, then another 20% less (0.95 s → 0.48 → 0.38 → 0.30 s).
+- **Steady aim** (3 levels): stronger aim help (+12% / +22% / +32%), and from level 2 a bigger hit area (+10% / +20%), which also works with aim help switched off.
 
 ## Armour suit (health)
 
