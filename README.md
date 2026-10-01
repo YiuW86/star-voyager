@@ -190,7 +190,7 @@ A fourth Workshop upgrade: the **Armour suit** (Mk1–Mk5) raises your health fr
 
 `js/story.js` plays the story scenes: a picture with effects (`assets/story/`), and a modern dialogue box with a round portrait of whoever speaks (name in their colour; narration in italics without a portrait). Tap/click, Enter, Space or Fire shows the rest of a line at once, or goes to the next; **Skip** (or Escape) ends the scene.
 
-- **After King Nebula** (the first time he is beaten): he calms down, Orbit's scanner beam finds the glowing **Mark of Static** on his crown, the strange "new stars" glitch in the sky, and he hands over a purple crystal. Reward card: King Nebula becomes your **Champion**, a golden **statue** appears on your home base (Spacedome), and Nebula aliens move into your habitat. Then the usual end screen follows.
+- **After King Nebula** (every time he is beaten; Skip ends it straight away): he calms down, Orbit's scanner beam finds the glowing **Mark of Static** on his crown, the strange "new stars" glitch in the sky, and he hands over a purple crystal. Reward card: King Nebula becomes your **Champion**, a golden **statue** appears on your home base (Spacedome), and Nebula aliens move into your habitat. Then the usual end screen follows.
 - **Orbit**, the AI helper in the astronaut's helmet, has 9 designs (`assets/story/orbit.jpg`); players choose one in **Options → Orbit**.
 
 New scenes are added to `SCENES` in `js/story.js`: a picture, a few positions on it (helmet, crown, boss), and the lines with their effects.

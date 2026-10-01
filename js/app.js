@@ -1441,8 +1441,9 @@
   }
 
   function endLevel(r) {
-    // first time King Nebula is beaten: his story cutscene, then the usual end screen
-    if (r.won && r.world === 1 && r.stage === STAGES && !(save.story || {}).kn && window.Story) {
+    // every time King Nebula is beaten: his story cutscene (with a Skip button), then the usual end screen
+    if (r.won && r.world === 1 && r.stage === STAGES && !r.storyShown && window.Story) {
+      r.storyShown = true;
       save.story = { ...(save.story || {}), kn: true };
       save.champions = { ...(save.champions || {}), nebula: true };
       persist();
