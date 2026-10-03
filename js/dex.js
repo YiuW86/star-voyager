@@ -103,6 +103,108 @@
       about: 'Ember flickers and dances like a campfire, and it is quick. It throws glowing fire rocks at anyone who comes close.',
       tip: 'Keep your shield ready for its fire rocks, and catch it early.',
       fact: 'Its flames look hot, but they are actually cold.' },
+
+    // ---- Planet Cindera (the card images are cut from the Cindera roster) ----
+    { id: 'ashbloom', planet: 2, name: 'Ashbloom', title: 'The Smoke Flower', level: null, danger: 2,
+      home: 'Ash fields around the volcanoes', size: 'As big as a cabbage', diet: 'Warm ash',
+      about: 'A rocky flower that puffs out little clouds of warm ash when it is startled.',
+      tip: 'Wait until the ash cloud clears, then shoot.',
+      fact: 'Its petals are thin slices of cooled lava.' },
+    { id: 'flarewisp', planet: 2, name: 'Flarewisp', title: 'The Spark Fox', level: null, danger: 2,
+      home: 'Cracks in the cooling lava', size: 'As big as a cat', diet: 'Sparks',
+      about: 'A playful little fox made of glowing stone. Its tail flickers like a candle.',
+      tip: 'It jumps sideways a lot: aim where it lands.',
+      fact: 'Its tail glows brighter when it is happy.' },
+    { id: 'stonepuff', planet: 2, name: 'Stonepuff', title: 'The Pebble Cloud', level: null, danger: 1,
+      home: 'Floating over hot springs', size: 'As big as a beach ball', diet: 'Steam',
+      about: 'A round cloud of pebbles that floats on the warm air above hot springs.',
+      tip: 'Slow and gentle: an easy catch.',
+      fact: 'It can split into pebbles and come back together.' },
+    { id: 'lavaclaw', planet: 2, name: 'Lavaclaw', title: 'The Magma Crab', level: 10, danger: 3,
+      home: 'Beaches of Glimmer Coast', size: 'As big as a car tyre', diet: 'Hot rocks',
+      about: 'A heavy crab of black rock with glowing lava claws. It cannot fly, so it stomps over the ground toward you.',
+      tip: 'It walks straight at you: easy to aim at, but watch out for the rocks it throws and its tail.',
+      fact: 'Its claws stay hot for days after a lava swim.' },
+    { id: 'infernomoth', planet: 2, name: 'Infernomoth', title: 'The Flame Moth', level: null, danger: 2,
+      home: 'Around volcano lights at night', size: 'As wide as an umbrella', diet: 'Heat from lava lamps',
+      about: 'A moth with stone wings that glow like embers.',
+      tip: 'Its wings flap slowly: shoot between beats.',
+      fact: 'It is drawn to any light, even your aiming circle.' },
+    { id: 'cinderjelly', planet: 2, name: 'Cinderjelly', title: 'The Ember Jelly', level: null, danger: 2,
+      home: 'Floating above lava lakes', size: 'As big as a lampshade', diet: 'Heat bubbles',
+      about: 'A jellyfish that swims through hot air instead of water.',
+      tip: 'Its glowing tentacles show where it will go next.',
+      fact: 'It is cousin to the Nebula of Novara.' },
+    { id: 'magmaseed', planet: 2, name: 'Magmaseed', title: 'The Fire Sprout', level: null, danger: 1,
+      home: 'Young volcano slopes', size: 'As big as a pineapple', diet: 'Warm minerals',
+      about: 'A seed that cracked open in the lava and grew stone leaves.',
+      tip: 'It hardly moves: a perfect target.',
+      fact: 'One day it will grow into a lava tree.' },
+    { id: 'voltspine', planet: 2, name: 'Voltspine', title: 'The Spiky Ball', level: null, danger: 3,
+      home: 'Crackling crystal caves', size: 'As big as a football', diet: 'Static sparks',
+      about: 'A ball of stone spikes that crackles with little lightning bolts.',
+      tip: 'Do not let it roll close: catch it from far away.',
+      fact: 'Its spikes all point toward thunderclouds.' },
+    { id: 'obsidianray', planet: 2, name: 'Obsidianray', title: 'The Glass Glider', level: null, danger: 3,
+      home: 'High up near the volcano tops', size: 'As long as a canoe', diet: 'Volcanic gas',
+      about: 'A ray of shiny black glass that glides on hot winds.',
+      tip: 'It turns fast: aim ahead of its head.',
+      fact: 'It can glide for hours without flapping.' },
+    { id: 'pyrosprout', planet: 2, name: 'Pyrosprout', title: 'The Ember Bud', level: null, danger: 1,
+      home: 'Gardens of warm stones', size: 'As big as a melon', diet: 'Sunlight and heat',
+      about: 'A round bud surrounded by floating seeds of stone.',
+      tip: 'Pop the seeds first, then the bud.',
+      fact: 'Each floating seed can grow a new Pyrosprout.' },
+    { id: 'ravencling', planet: 2, name: 'Ravencling', title: 'The Rock Raven', level: null, danger: 3,
+      home: 'Cliffs over the lava rivers', size: 'As big as an eagle', diet: 'Shiny pebbles',
+      about: 'A raven of sharp rock plates that loves collecting shiny things.',
+      tip: 'It dives at you: shield up, then shoot.',
+      fact: 'It hides its treasures in old craters.' },
+    { id: 'heatwisp', planet: 2, name: 'Heatwisp', title: 'The Little Sun', level: null, danger: 2,
+      home: 'Deep inside warm caves', size: 'As big as a basketball', diet: 'Cave heat',
+      about: 'A glowing orb with tiny rocks orbiting it like planets.',
+      tip: 'Hit the bright core, not the orbiting rocks.',
+      fact: 'It warms up whole caves for the other creatures.' },
+    { id: 'cragglet', planet: 2, name: 'Cragglet', title: 'The Rock Hedgehog', level: null, danger: 2,
+      home: 'Rocky lava plains', size: 'As big as a dog', diet: 'Crunchy minerals',
+      about: 'A spiky rock creature that curls into a ball when scared.',
+      tip: 'Catch it before it curls up.',
+      fact: 'Its spikes are as sharp as glass.' },
+    { id: 'ashdrifter', planet: 2, name: 'Ashdrifter', title: 'The Dust Jelly', level: null, danger: 2,
+      home: 'Clouds of volcanic ash', size: 'As big as a lampshade', diet: 'Ash dust',
+      about: 'A grey jellyfish that drifts with the ash clouds.',
+      tip: 'It hides in ash: look for its glowing tips.',
+      fact: 'It glows only when it is close to a friend.' },
+    { id: 'firesprout', planet: 2, name: 'Firesprout', title: 'The Ember Pup', level: null, danger: 2,
+      home: 'Warm valleys', size: 'As big as a fox', diet: 'Glowing berries',
+      about: 'A small four-legged creature with flaming spikes on its back.',
+      tip: 'It runs in circles: wait for it to stop.',
+      fact: 'It wags its tail like a puppy.' },
+    { id: 'skyclad', planet: 2, name: 'Skyclad', title: 'The Crystal Kite', level: null, danger: 3,
+      home: 'Windy crystal peaks', size: 'As big as a kite', diet: 'Starlight',
+      about: 'A floating crystal with little crystal wings that spin around it.',
+      tip: 'Shoot the centre crystal when the wings are open.',
+      fact: 'It sings when the wind blows through it.' },
+    { id: 'blazetorch', planet: 2, name: 'Blazetorch', title: 'The Torch Beast', level: null, danger: 4,
+      home: 'Near erupting volcanoes', size: 'As big as a pony', diet: 'Hot coals',
+      about: 'A strong rock creature with flames bursting from its back.',
+      tip: 'Very tough: use net grenades.',
+      fact: 'It can light up a whole valley at night.' },
+    { id: 'scorchwing', planet: 2, name: 'Scorchwing', title: 'The Lava Shark', level: null, danger: 4,
+      home: 'Above the lava sea', size: 'As long as a boat', diet: 'Fire fish',
+      about: 'A shark-shaped flyer that swoops low over the lava.',
+      tip: 'It comes in fast and low: watch the horizon.',
+      fact: 'It never lands; it even sleeps while flying.' },
+    { id: 'pyrovek', planet: 2, name: 'Pyrovek', title: 'The Ember Spider', level: null, danger: 3,
+      home: 'Dark lava tunnels', size: 'As big as a chair', diet: 'Warm crystals',
+      about: 'A round creature with glowing claws that scuttles along the tunnel walls.',
+      tip: 'Aim at the glowing core in its body.',
+      fact: 'It weaves nets of melted glass.' },
+    { id: 'emberhive', planet: 2, name: 'Emberhive', title: 'The Crystal Queen', level: null, danger: 5,
+      home: 'The heart of the volcano', size: 'As big as a house', diet: 'Pure magma',
+      about: 'A huge crystal creature full of glowing chambers. Smaller creatures live inside it.',
+      tip: 'Nobody has caught one yet.',
+      fact: 'Every Cindera creature is said to have come from an Emberhive.' },
   ];
 
   const $ = (s, root = document) => root.querySelector(s);
@@ -128,11 +230,22 @@
       return first;
     },
 
+    planet: 1,
     render() {
       const grid = $('#dex-grid');
       grid.innerHTML = '';
+      // a page per planet
+      let tabs = $('#dex-tabs');
+      if (!tabs) {
+        tabs = document.createElement('div'); tabs.id = 'dex-tabs'; tabs.className = 'dex-tabs';
+        grid.parentElement.insertBefore(tabs, grid);
+      }
+      const T = (x) => (window.t ? window.t(x) : x);
+      tabs.innerHTML = [[1, 'Novara'], [2, 'Cindera']].map(([p, n]) => `<button class="btn small ${this.planet === p ? 'pink' : ''}" data-dexp="${p}"><span>${T(n)}</span></button>`).join('');
+      tabs.querySelectorAll('[data-dexp]').forEach((b) => b.addEventListener('click', () => { this.planet = Number(b.dataset.dexp); this.render(); }));
       let found = 0;
-      for (const a of ALIENS) {
+      const list = ALIENS.filter((a) => (a.planet || 1) === this.planet);
+      for (const a of list) {
         const n = this.caught(a.id);
         if (n) found++;
         const b = document.createElement('button');
@@ -145,7 +258,7 @@
         b.addEventListener('click', () => this.show(a.id));
         grid.appendChild(b);
       }
-      $('#dex-count').textContent = `Discovered ${found}/${ALIENS.length}`;
+      $('#dex-count').textContent = `Discovered ${found}/${list.length}`;
     },
 
     show(id) {

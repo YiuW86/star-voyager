@@ -25,6 +25,9 @@
          boss: { name: 'Vortex King', sprite: 'vortex', hp: 40 } },
     // Endless: wave after wave through all worlds; every 5th wave is a boss
     8: { name: 'Endless', bg: 'assets/level1.jpg', types: [], endless: true },
+    // Planet Cindera, first world: the Lavaclaw walks on the ground (it cannot fly)
+    10: { name: 'Glimmer Coast', planet: 2, bg: 'assets/cindera1.jpg', types: ['lavaclaw'],
+          boss: { name: 'Lavaclaw Titan', sprite: 'lavaclaw', hp: 36 } },
   };
   // Each world has 10 levels. Levels 1-9 are regular, level 10 ends with the world's boss.
   // Every level asks for 15 to 20 aliens in total, spread over its kinds of aliens.
@@ -58,7 +61,7 @@
     return { stars: score >= 0.85 ? 3 : score >= 0.6 ? 2 : 1, score, parts: { health: hp, accuracy: acc, time: tm } };
   }
 
-  const ALL_TYPES = ['nebula', 'prism', 'solara', 'glide', 'vexa', 'pulsar', 'ember', 'nimbus', 'echo', 'splash', 'razor', 'orbita', 'vortex'];
+  const ALL_TYPES = ['nebula', 'prism', 'solara', 'glide', 'vexa', 'pulsar', 'ember', 'nimbus', 'echo', 'splash', 'razor', 'orbita', 'vortex', 'lavaclaw'];
   let TYPES = LEVELS[1].types;                       // types of the level being played
   let DWELL_TIME = 0.45;         // seconds the circle must rest on a target to fire the blaster
   let SHOT_COOLDOWN = 0.28;     // these three change with Workshop upgrades
@@ -88,6 +91,7 @@
     prism:  { 2: 'Phase 2: break the crystals in order 1, 2, 3!', 3: 'Phase 3: crystals and red glows!' },
     echo:   { 2: 'Phase 2: the lights go out!', 3: 'Phase 3: more sound rings!' },
     vortex: { 2: 'Phase 2: shoot between the spinning blades!', 3: 'Phase 3: the vortex pulls your aim!' },
+    lavaclaw: { 2: 'Phase 2: ground slams send lava waves! Use your shield!', 3: 'Phase 3: the {name} is furious!' },
   };
 
   // Every world has its own material, dropped only there (and in Endless waves in that world)
@@ -103,6 +107,8 @@
     nebula: { img: 'nebula_king', fx: 'nebula_king_fx', meta: { fw: 255, fh: 234 }, fxMeta: { fw: 249, fh: 236 }, crown: true },
     // Ember Lord: 5x3 sheet. 0/5 front, 2/3/8/9/11/12 moving sideways (eye to the right; mirrored when going left),
     // 13 winding up, 14 spinning attack, 10 hurt / dizzy
+    lavaclaw: { img: 'lavaclaw', meta: { fw: 246, fh: 234 }, crown: false, ground: true,
+      frames: { idle: [0, 1, 2, 3, 4], side: [0, 1, 2, 3, 4], windup: 5, attack: 6, hurt: 13, caught: 11, roar: 9 } },
     ember: { img: 'ember_lord', meta: { fw: 256, fh: 303 }, crown: true,
       frames: { idle: [0, 5], side: [2, 3, 8, 9, 11, 12], windup: 13, attack: 14, hurt: 10, caught: 10 } },
   };
@@ -157,6 +163,9 @@
     razor:  { src: 'assets/razor.png',  fw: 248, fh: 238, front: [0, 12, 6, 12], side: [5, 11, 3], color: '#c79bff', name: 'Razor', speed: [6, 7.5], thrower: true },
     orbita: { src: 'assets/orbita.png', fw: 235, fh: 263, front: [0, 4, 8, 4],   side: [6, 5, 11], color: '#9fd8ff', name: 'Orbita', speed: [8, 10], swim: 'glide' },
     vortex: { src: 'assets/vortex.png', fw: 275, fh: 244, front: [0, 12, 8, 12], side: [5, 14, 9], color: '#ff8ad8', name: 'Vortex', speed: [7, 9], pulse: true, thrower: true },
+    // Lavaclaw walks: 0-4 walking, 5 tail up, 6 tail swipe, 7 ground slam, 9 roar, 10 rocks up (throw), 11 crouched, 13 hit
+    lavaclaw: { src: 'assets/lavaclaw.png', fw: 246, fh: 234, front: [0, 1, 2, 3, 4], side: [0, 1, 2, 3, 4], swim: 'walk',
+      throwFrame: 10, attackFrame: 6, hurtFrame: 13, color: '#ff6a3a', name: 'Lavaclaw', speed: [7.5, 9.5], thrower: true },
     ember:  { src: 'assets/ember.png',  fw: 244, fh: 260, front: [0, 5, 0, 7],    side: [3, 6, 11, 12], color: '#ff9a6a', name: 'Ember', speed: [6.5, 8], thrower: true },
   };
   // Gun frames ordered from pointing far left to pointing far right
@@ -235,7 +244,19 @@
     // Counters (instead of single "pressed" messages) mean a lost network packet never loses a button press.
     onPointer(d) {
       if (d.m === 'hello') { this.device = d.mode; return; }
-      if (this.mode !== 'phone') return;
+      if (this.mode !== 'phone') {
+        // web version: while playing with the mouse, using the phone gamepad switches over to it
+        const moved = this.padLast ? Math.hypot(d.x - this.padLast.x, d.y - this.padLast.y) : 0;
+        const pressed = this.counters && d.c && Object.keys(d.c).some((k) => d.c[k] > (this.counters[k] || 0));
+        const active = this.allowSwitch && this.mode === 'mouse' && d.m === 'pad' && this.padLast && (d.hold || moved > 0.012 || pressed);
+        this.padLast = { x: d.x, y: d.y };
+        if (!active) {
+          if (d.c && !pressed) { this.counters = { ...d.c }; this.session = d.s; }    // keep up, so a switching press is not lost
+          return;
+        }
+        this.mode = 'phone';
+        this.lastPtr = null;
+      }
       this.device = d.m;
       // Estimate how fast the pointer moves and aim a little ahead (about 50 ms),
       // which hides part of the network and TV delay
@@ -373,11 +394,17 @@
         const r = canvas.getBoundingClientRect();
         return { x: (e.clientX - r.left) / r.width, y: (e.clientY - r.top) / r.height };
       };
+      // web version: moving or clicking the mouse while playing with the phone gamepad switches back to the mouse
+      const toMouse = (e) => {
+        if (Input.mode === 'phone' && Input.allowSwitch && Input.device === 'pad' && e.pointerType === 'mouse') { Input.mode = 'mouse'; Input.padLast = null; }
+      };
       canvas.addEventListener('pointermove', (e) => {
+        if (Math.abs(e.movementX) + Math.abs(e.movementY) > 3) toMouse(e);
         if (Input.mode !== 'mouse') return;
         const p = toStage(e); Input.aim.x = p.x; Input.aim.y = p.y; Input.hasAim = true;
       });
       canvas.addEventListener('pointerdown', (e) => {
+        toMouse(e);
         if (Input.mode !== 'mouse') return;
         if (e.button === 2) Input.mouseReload = true; else Input.mouseFire = true;
       });
@@ -438,6 +465,8 @@
       this.types = TYPES; this.goal = GOAL;
       this.menuSuspended = false;
       Input.mode = mode;
+      Input.allowSwitch = !window.SV_TOUCH;       // web: switch between mouse and phone gamepad at any time
+      Input.padLast = null;
       inputs[1].mode = 'phone';
       // With a mouse, the crosshair is the real mouse cursor: it moves without any delay
       this.plat = !!LEVELS[level].plat;
@@ -890,7 +919,7 @@
       if (!frozen) m.z += (dt / m.dur) * zRate * this.alienSlow(m);
       const e = Math.pow(Math.min(m.z, 1), 1.35);
       const wobFreq = s0.swim === 'jelly' ? m.freq * 0.6 : m.freq;
-      const wob = Math.sin(m.phase + m.age * wobFreq) * m.amp * (0.35 + 0.65 * m.z);
+      const wob = Math.sin(m.phase + m.age * wobFreq) * m.amp * (0.35 + 0.65 * m.z) * (s0.swim === 'walk' ? 0.35 : 1);
       const px = lerp(m.x0, 0.5, m.z * 0.35) * W + wob;
       m.vx = dt > 0 ? (px - m.px) / dt : 0;
       m.px = px;
@@ -902,6 +931,12 @@
         m.sx = 1 + 0.07 * stroke; m.sy = 1 - 0.1 * stroke;
         m.py -= stroke * 22 * (0.5 + m.z);
         m.rot = clamp(m.vx * 0.0012, -0.35, 0.35);
+      } else if (s0.swim === 'walk') {
+        // walks on the ground: lower on the screen the closer it gets, with a heavy stomping step
+        const stomp = Math.abs(Math.sin(m.age * 5 + m.phase));
+        m.py = lerp(0.5, 0.74, e) * H - stomp * 8 * (0.5 + m.z);
+        m.sx = 1 + 0.03 * (1 - stomp); m.sy = 1 - 0.04 * (1 - stomp);
+        m.rot = 0;
       } else if (s0.swim === 'glide') {
         // glide with slow wing beats, banking into turns, rising and sinking in long waves
         m.sx = 1 + 0.07 * Math.sin(m.age * 4.5 + m.phase); m.sy = 1;
@@ -916,13 +951,18 @@
         // frames follow the stroke: tentacles pulled in while pushing, spread while gliding
         if (Math.abs(m.vx) > 150) { m.frame = s.side[Math.floor(m.age * 3 + m.phase) % s.side.length]; m.flip = m.vx < 0; m.rot = 0; }
         else { m.frame = stroke > 0.45 ? s.push[step % s.push.length] : s.front[Math.floor(m.age * 1.5 + m.phase) % s.front.length]; m.flip = false; }
+      } else if (s.swim === 'walk') {
+        // walking frames; rocks raised just before a throw, the crack of a hit on armour
+        m.frame = m.throwAnim > 0 ? s.throwFrame : m.hitFlash > 0.05 && s.hurtFrame != null ? s.hurtFrame : s.front[step % s.front.length];
+        m.flip = m.vx < -40;
+        if (m.throwAnim > 0) m.throwAnim -= dt;
       } else if (Math.abs(m.vx) > 120) { m.frame = s.side[step % s.side.length]; m.flip = m.vx < 0; if (s.swim) m.rot *= 0.4; }
       else { m.frame = s.front[step % s.front.length]; m.flip = false; }
 
       // Some monsters throw rocks from mid-distance
       if (!frozen && s.thrower && m.z > 0.25 && m.z < 0.9 && this.alienSlow(m) === 1) {
         m.throwT -= dt;
-        if (m.throwT <= 0) { this.throwRock(m); m.throwT = rand(3.5, 6.5); }
+        if (m.throwT <= 0) { this.throwRock(m); m.throwT = rand(3.5, 6.5); m.throwAnim = 0.45; }
       }
 
       if (m.confT > 0) m.px += Math.sin(this.time * 7 + m.phase) * 3;     // confused wobble
@@ -1308,7 +1348,8 @@
           b.rot = clamp((nx - b.x) / Math.max(gdt, 0.001) * 0.0008, -0.25, 0.25);
           b.vx = (nx - b.x) / Math.max(gdt, 0.001);
           b.x = nx;
-          b.y = H * 0.43 + Math.sin(b.t * 0.7) * 30 - stroke * 24;
+          b.y = (BOSS_ART[b.sprite] && BOSS_ART[b.sprite].ground) ? H * 0.5 - Math.abs(Math.sin(b.t * 2.4)) * 10   // walks on the ground
+            : H * 0.43 + Math.sin(b.t * 0.7) * 30 - stroke * 24;
         }
         // Rock attacks, with a warning glow before each throw
         if (b.transT <= 0) {
@@ -1341,6 +1382,7 @@
 
     // Phases: every boss changes at 2/3 and 1/3 of its health, with its own attacks
     updateBossPhases(b, gdt, dt) {
+      this.lastDt = gdt;          // used by the orbiting crystals / weak spots
       const want = b.hp > b.max * 2 / 3 ? 1 : b.hp > b.max / 3 ? 2 : 3;
       if (want !== b.phase) {
         b.phase = want; b.transT = 1.6; b.flash = 0.6; this.shake = 0.5;
@@ -1350,7 +1392,7 @@
         this.enterPhase(b, want);
       }
       b.transT = Math.max(0, b.transT - dt);
-      const fn = { nebula: 'phNebula', ember: 'phEmber', splash: 'phTide', prism: 'phPrism', echo: 'phEcho', vortex: 'phVortex' }[b.sprite];
+      const fn = { nebula: 'phNebula', ember: 'phEmber', lavaclaw: 'phEmber', splash: 'phTide', prism: 'phPrism', echo: 'phEcho', vortex: 'phVortex' }[b.sprite];
       if (fn && b.transT <= 0) this[fn](b, gdt, dt);
       // shields that open for 5 seconds (weak spots / crystals)
       if (!b.shield && b.openT > 0) {
@@ -1369,7 +1411,7 @@
         if (ph === 2) { b.copies = null; b.shuffleT = 0; }
         if (ph === 3) { b.copies = null; b.shield = true; b.spots = this.makeSpots(); }
       }
-      if (b.sprite === 'ember' && ph === 3) b.speed = 1.7;
+      if ((b.sprite === 'ember' || b.sprite === 'lavaclaw') && ph === 3) b.speed = 1.7;
       if (b.sprite === 'prism' && ph >= 2) { b.shield = true; b.crystals = this.makeCrystals(); b.nextN = 1; }
       if (b.sprite === 'echo' && ph >= 2) b.dark = true;
       if (b.sprite === 'vortex') { b.bladeSpeed = ph === 2 ? 1.6 : ph === 3 ? 2.4 : 0; b.pull = ph === 3; }
@@ -1454,9 +1496,14 @@
       }
     },
 
+    // true when someone plays with a gamepad (phone gamepad, touch gamepad) or tilt
+    padPlay() { return this.touchMode || this.players.some((p) => p.input.mode === 'phone' && p.input.device !== 'cam'); },
     orbitParts(b, parts, speed, rad) {
+      // with a gamepad the crystals / weak spots turn half as fast, so they are easier to hit
+      if (this.padPlay()) speed *= 0.5;
+      b.orbitA = (b.orbitA || 0) + speed * (this.lastDt || 0.016);
       parts.forEach((q, i) => {
-        const a = b.t * speed + i * (Math.PI * 2 / parts.length);
+        const a = b.orbitA + i * (Math.PI * 2 / parts.length);
         q.x = b.x + Math.cos(a) * b.size * rad;
         q.y = b.y + Math.sin(a) * b.size * rad * 0.78;
       });
@@ -2176,18 +2223,24 @@
       // Mouse, gamepad and tilt are precise: the circle stays exactly where you point (pulling it made it
       // feel laggy and jumpy) and assist instead makes the targets easier to hit.
       const pullAim = inp.isCam();
+      // Gamepad (phone or touch): a strong magnet. Near a target the circle locks onto it and stays
+      // on it while it moves, until you steer clearly away.
+      const magnet = inp.mode === 'phone' && inp.device === 'pad';
       let pos = { x: raw.x, y: raw.y };
-      if (pullAim && this.assist > 0 && !blocked) {
+      if ((pullAim && this.assist > 0 || magnet) && !blocked) {
+        const assist = magnet ? Math.max(this.assist, 0.6) : this.assist;
         let best = null, bestD = Infinity, bestR = 0;
         for (const m of targets) {
-          const reach = m.r * (1.6 + this.assist * 1.6);
+          const reach = m.r * (magnet ? 2.6 + assist * 1.4 : 1.6 + assist * 1.6) * (m.ref === p.lockOn || m === p.lockOn ? 1.35 : 1);
           const d = Math.hypot(m.px - raw.x, m.py - raw.y);
           if (d < reach && d < bestD) { best = m; bestD = d; bestR = reach; }
         }
         if (best) {
-          const pull = this.assist * Math.pow(1 - bestD / bestR, 0.6) * 0.9;
+          const pull = magnet ? Math.min(1, 0.55 + 0.45 * Math.pow(1 - bestD / bestR, 0.35))
+            : assist * Math.pow(1 - bestD / bestR, 0.6) * 0.9;
           pos = { x: lerp(raw.x, best.px, pull), y: lerp(raw.y, best.py, pull) };
         }
+        p.lockOn = best ? (best.ref || best) : null;
       }
       p.reticle = pos;
 
@@ -2196,7 +2249,7 @@
       if (!blocked) {
         for (const m of targets) {
           const d = Math.hypot(m.px - pos.x, m.py - pos.y);
-          if (d < m.r * (1 + (pullAim ? 0.3 : 0.7) * this.assist) * (1 + (this.homing || 0) + (this.steadyHit || 0)) && d < td) { target = m.ref || m; td = d; }
+          if (d < m.r * (1 + (pullAim ? 0.3 : magnet ? 1.1 : 0.7) * Math.max(this.assist, magnet ? 0.6 : 0)) * (1 + (this.homing || 0) + (this.steadyHit || 0)) && d < td) { target = m.ref || m; td = d; }
         }
       }
       if (target !== p.dwellTarget) {
@@ -2517,7 +2570,8 @@
           }
         } else if (m.state === 'attacking') {
           const q = Math.min(1, m.t / 0.3);
-          this.drawFrame(img[m.type], s, m.frame, m.px, m.py + q * 80, m.size * (1 + q * 0.6), m.flip, m.t > 0.3 ? 1 - (m.t - 0.3) / 0.15 : 1);
+          const af = s.attackFrame != null ? s.attackFrame : m.frame;     // a walker swipes with its tail
+          this.drawFrame(img[m.type], s, af, m.px, m.py + q * 80, m.size * (1 + q * 0.6), m.flip, m.t > 0.3 ? 1 - (m.t - 0.3) / 0.15 : 1);
         } else {
           if (m.z > 0.7) {
             c.save(); c.globalAlpha = (m.z - 0.7) / 0.3 * 0.5; c.fillStyle = '#ff5a7e';
@@ -2882,7 +2936,7 @@
         // artwork with a frame list: front when still, side frames when moving (mirrored to the left)
         const F = art.frames;
         if (b.state === 'caught') return F.caught;
-        if (b.transT > 0) return F.attack;
+        if (b.transT > 0) return F.roar != null ? F.roar : F.attack;
         if (b.flash > 0.05) return F.hurt;
         if (b.throwAnim > 0) return F.attack;
         if (b.tele > 0) return F.windup;

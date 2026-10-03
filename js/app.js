@@ -213,7 +213,7 @@
   const unlockAll = () => save.options.unlockAll === 'on';
   // "Unlock all" (Options): every upgrade, shop item, drone, trophy, ability, superpower and building,
   // plenty of crystals and materials. The real progress is kept aside and comes back when it is switched off.
-  const UNLOCK_KEYS = ['upg', 'owned', 'trophies', 'mods', 'base', 'mats', 'crystals', 'loadout', 'shopLv'];
+  const UNLOCK_KEYS = ['upg', 'owned', 'trophies', 'mods', 'base', 'mats', 'crystals', 'loadout', 'shopLv', 'dex'];
   function applyUnlockAll(on) {
     if (on && !save.unlockBackup) save.unlockBackup = JSON.parse(JSON.stringify(UNLOCK_KEYS.reduce((o, k) => { o[k] = save[k]; return o; }, {})));
     if (on) {
@@ -229,6 +229,8 @@
       if (!save.base.sanctT) save.base.sanctT = Date.now();
       save.mats = { shard: 999, goo: 999, dust: 999, mist: 999, spark: 999, pearl: 999, glass: 999, echo: 999, vdust: 999 };
       save.crystals = Math.max(save.crystals, 99999);
+      save.dex = Object.assign({}, save.dex);
+      Dex.ALIENS.forEach((a) => { if (!save.dex[a.id]) save.dex[a.id] = 1; });     // every creature in the alien guide
     } else if (!on && save.unlockBackup) {
       UNLOCK_KEYS.forEach((k) => { if (save.unlockBackup[k] !== undefined) save[k] = save.unlockBackup[k]; else delete save[k]; });
       delete save.unlockBackup;
@@ -247,7 +249,7 @@
   // Endless opens after the first world is cleared
   const needsLicence = (w) => !isFreeWorld(w) && !hasFullGame();
   const worldUnlocked = (w) => !needsLicence(w) && (unlockAll() || w === WORLD_IDS[0] || !!LEVELS[w].experimental
-    || (LEVELS[w].endless ? worldCleared(1) : worldCleared(w - 1)));
+    || (LEVELS[w].endless ? worldCleared(1) : w === 10 ? worldCleared(6) : worldCleared(w - 1)));
   const stageUnlocked = (w, s) => unlockAll() || (worldUnlocked(w) && (s === 1 || stageCleared(w, s - 1)));
   const worldStars = (w) => Array.from({ length: STAGES }, (_, i) => stageStars(w, i + 1)).reduce((a, b) => a + b, 0);
   function nextStage(w, s) {
@@ -274,13 +276,15 @@
     // the world screen shows the chosen planet's own scenery
     const bgImg = $('#screen-levels > img.fill');
     bgImg.src = planet && planet.worlds ? planet.worlds[planet.worlds.length - 1].bg : 'assets/level1.jpg';
-    $('#screen-levels').classList.toggle('planet-soon', !!(planet && planet.worlds));
+    const playable = planet && planet.worlds ? planet.worlds.filter((wd) => wd.world).map((wd) => wd.world) : [];
+    $('#screen-levels').classList.toggle('planet-soon', !!(planet && planet.worlds) && !playable.length);
     if (planet && planet.worlds) {
-      // a planet whose worlds are not ready yet: show them, locked, as "soon available"
-      planet.worlds.forEach((wd, i) => {
+      // this planet's playable worlds as normal cards, then the ones that are not ready yet ("soon available")
+      playable.forEach((w) => box.appendChild(worldCard(w)));
+      planet.worlds.filter((wd) => !wd.world).forEach((wd, i) => {
         const b = document.createElement('button');
         b.className = 'level-card locked soon-card';
-        b.style.setProperty('--i', i);
+        b.style.setProperty('--i', i + playable.length);
         b.innerHTML = `<div class="face"><img src="${wd.bg}" alt="">${LOCK_SVG}<div class="label"><b>${t(wd.name)}</b><small class="needs-lic">${t('Soon available')}</small></div></div>`;
         b.addEventListener('click', () => { Sfx.clink(); showToast(t('Soon available')); });
         box.appendChild(b);
@@ -288,7 +292,12 @@
       updatePhoneUi();
       return;
     }
-    for (const w of WORLD_IDS) {
+    for (const w of WORLD_IDS) if ((LEVELS[w].planet || 1) === 1) box.appendChild(worldCard(w));
+    updatePhoneUi();
+  }
+  function worldCard(w) {
+    {
+      const box = { children: { length: 0 } };
       const cfg = LEVELS[w];
       const open = worldUnlocked(w);
       const lic = needsLicence(w);        // needs the full game (licence)
@@ -303,7 +312,7 @@
       const sub = lic ? `<small class="needs-lic">${t('Full game')}</small>`
         : cfg.endless ? (open ? `<small>${t('Best')}: ${t('wave')} ${eb.wave || 0}</small><span class="card-stars">${(eb.score || 0).toLocaleString()}</span>` : `<small>Clear ${LEVELS[1].name} first</small>`)
         : cfg.experimental && open ? `<small>Extra level</small><span class="card-stars">${starSvg(true)} ${worldStars(w)}/${maxStars}</span>`
-        : open ? `<span class="card-stars">${starSvg(true)} ${worldStars(w)}/${maxStars}</span>` : `<small>Clear ${LEVELS[w - 1].name} first</small>`;
+        : open ? `<span class="card-stars">${starSvg(true)} ${worldStars(w)}/${maxStars}</span>` : `<small>Clear ${LEVELS[w === 10 ? 6 : w - 1].name} first</small>`;
       b.innerHTML = `<div class="face"><img src="${cfg.bg}" alt="">${open ? '' : LOCK_SVG}<div class="label"><b>${cfg.name}</b>${sub}</div></div>`;
       b.setAttribute('aria-label', open ? `${cfg.name}, ${worldStars(w)} of ${STAGES * 3} stars` : `${cfg.name}, locked`);
       // the experimental platformer is a single level: start it right away
@@ -312,9 +321,8 @@
         if (!worldUnlocked(w)) return;
         Sfx.select(); if (cfg.plat || cfg.endless) chooseStage(w, 1); else openWorld(w);
       });
-      box.appendChild(b);
+      return b;
     }
-    updatePhoneUi();
   }
 
   // Opening a world: its background zooms in and the 5 levels pop out of the centre along a dotted path
@@ -1445,7 +1453,7 @@
     const overlay = $$('#ov-pause.show, #ov-end.show')[0];
     if (!overlay) return [];
     const sr = stage.getBoundingClientRect();
-    const s = sr.width / 1920;
+    const s = sr.width / window.SV.viewW();            // the stage can be wider than 1920 (expand mode)
     return $$('button', overlay).filter((b) => !b.disabled).map((b) => {
       const r = b.getBoundingClientRect();
       return { el: b, x: (r.left - sr.left) / s, y: (r.top - sr.top) / s, w: r.width / s, h: r.height / s };
@@ -1457,7 +1465,7 @@
   // ---------------- Level flow ----------------
   let lastMode = 'mouse', lastWorld = 1, lastStage = 1;
   function startLevel(mode, world = lastWorld, stage = lastStage) {
-    currentPlanet = 1;
+    currentPlanet = (LEVELS[world] && LEVELS[world].planet) || 1;
     if (!stageUnlocked(world, stage)) return;
     lastMode = mode; lastWorld = world; lastStage = stage;
     $('#ov-world').classList.remove('show');
@@ -1650,7 +1658,8 @@
   const PLANETS = [
     { id: 1, name: 'Novara', img: 'assets/planet1.png', cell: 340, frames: 12, open: true },
     { id: 2, name: 'Cindera', img: 'assets/planet2.png', cell: 400, frames: 12, open: true, soon: true,
-      worlds: [{ name: 'Glimmer Coast', bg: 'assets/cindera1.jpg' }, { name: 'Emberfall Rift', bg: 'assets/cindera2.jpg' },
+      // Glimmer Coast is playable (world 10, the Lavaclaw); the others come later
+      worlds: [{ world: 10, name: 'Glimmer Coast', bg: 'assets/cindera1.jpg' }, { name: 'Emberfall Rift', bg: 'assets/cindera2.jpg' },
         { name: 'Thunder Spires', bg: 'assets/cindera3.jpg' }] },
     { id: 3, name: 'Prismara', img: 'assets/planet3.png', cell: 370, frames: 12, open: false },
     { id: 4, name: 'Tetra', img: 'assets/planet4.png', cell: 360, frames: 16, open: false },
@@ -1706,7 +1715,7 @@
 
   function showPlanets() {
     const totalStars = Object.values(save.stages || {}).reduce((a, s) => a + (s.stars || 0), 0);
-    const worlds = Object.values(LEVELS).filter((l) => !l.plat && !l.endless);
+    const worlds = Object.values(LEVELS).filter((l) => !l.plat && !l.endless && (l.planet || 1) === 1);
     const aliens = new Set(worlds.flatMap((l) => l.types)).size;
     const row = $('#planet-row');
     row.innerHTML = '';
@@ -1714,8 +1723,10 @@
       const b = document.createElement('button');
       b.className = 'planet' + (p.open ? '' : ' locked') + (p.soon ? ' soon' : '');
       b.dataset.planet = p.id;
+      const playW = (p.worlds || []).filter((wd) => wd.world).map((wd) => wd.world);
       const info = p.soon
-        ? `<span class="planet-info">${(p.worlds || []).length} ${t('worlds')}</span><span class="planet-info soon">${t('Soon available')}</span>`
+        ? `<span class="planet-info">${(p.worlds || []).length} ${t('worlds')}${playW.length ? ` · ${playW.length} ${t('open')}` : ''}</span>`
+          + (playW.length ? `<span class="planet-info stars">${starSvg(true)} ${playW.reduce((a, w) => a + worldStars(w), 0)}/${playW.length * STAGES * 3}</span>` : `<span class="planet-info soon">${t('Soon available')}</span>`)
         : p.open
         ? `<span class="planet-info">${worlds.length} ${t('worlds')} · ${aliens} ${t('aliens')} · ${worlds.length} ${t('bosses')}</span>
            <span class="planet-info stars">${starSvg(true)} ${totalStars}/${worlds.length * STAGES * 3}</span>`
@@ -1867,14 +1878,14 @@
       mp.last = now;
       if (Input.hasAim) {
         const k = Math.min(1, dt * (Input.isCam() ? 14 : 40));
-        mp.pos.x += (Input.aim.x * 1920 - mp.pos.x) * k;
+        mp.pos.x += (Input.aim.x * window.SV.viewW() - mp.pos.x) * k;     // the stage can be wider than 1920
         mp.pos.y += (Input.aim.y * 1080 - mp.pos.y) * k;
       }
       const fresh = Input.hasAim && Input.poseFresh();
       const screen = $('#screen-' + current);
       const overlay = $('.overlay.show', screen);
       const root = overlay || screen;
-      const sr = stage.getBoundingClientRect(), s = sr.width / 1920;
+      const sr = stage.getBoundingClientRect(), s = sr.width / window.SV.viewW();
       const hit = $$('button', root).filter((b) => !b.disabled && b.offsetParent !== null && (overlay || !b.closest('.overlay'))).find((b) => {
         const r = b.getBoundingClientRect();
         const x = (r.left - sr.left) / s, y = (r.top - sr.top) / s;
