@@ -1174,3 +1174,6 @@ body.touch .super-txt b { font-size: 36px; }
 .btn.equip-off span { background: linear-gradient(180deg, #2a1660, #170b3e); color: #ffd6f2; }
 /* second Super button (right hand) next to the first */
 .super-btn.right { left: 176px; }
+
+/* alien guide: a page per planet */
+.dex-tabs { display: flex; gap: 14px; justify-content: center; margin: -6px 0 10px; }
