@@ -1,6 +1,6 @@
 # Star Voyager (MVP)
 
-**Version 3.2** (1 October 2026) — same version as the Android app (star-voyager-v3.2.apk).
+**Version 3.5** (3 October 2026) — same version as the Android app (star-voyager-v3.5.apk).
 
 A first-person, motion-controlled shooter for the browser. The game runs on a TV or laptop; an Android phone acts as the camera. The phone tracks your body and sends only the keypoints (no video) straight to the game over WebRTC.
 
@@ -164,7 +164,7 @@ Options has four settings for slower devices:
 - **Graphics:** Sharp 1920×1080 (with glow effects), Fast 1280×720, Low 960×540, Very low 640×360. Auto starts at Fast and steps down below 45 FPS.
 - **Frame rate:** 60, or **30 (steady)**: the game then draws exactly every other screen refresh. On a 60 Hz TV, a steady 30 often feels smoother than an uneven 45.
 - **Effects:** Full or **Reduced** (few sparkles, no screen shake, no bubbles, no moving glows and shadows over the game).
-- **Unlock all** (Options) gives everything for testing: all worlds and levels, all Workshop upgrades (incl. Armour suit Mk5), every crystal-shop item at its highest level and every star-shop item (both drones), all trophies, all abilities at level 3, all superpowers, every base building at its highest level (Med bay, Crew quarters, Hangar, Lab, Alien sanctuary, Observatory) and lots of crystals and materials. Switching it off brings back your real progress.
+- **Unlock all** (Options) gives everything for testing (also every creature in the alien guide): all worlds and levels, all Workshop upgrades (incl. Armour suit Mk5), every crystal-shop item at its highest level and every star-shop item (both drones), all trophies, all abilities at level 3, all superpowers, every base building at its highest level (Med bay, Crew quarters, Hangar, Lab, Alien sanctuary, Observatory) and lots of crystals and materials. Switching it off brings back your real progress.
 - **Show speed (FPS):** shows frames per second and a speed test: *logic* and *draw* are the milliseconds the game itself spends per frame, *slow* is the share of frames that came too late, *worst* the longest wait between two frames. If logic + draw are small (a few ms) but the FPS is still low, the TV's graphics chip or browser is the limit, not the game code.
 
 The game also makes shrunk copies (60% and 35%) of the spritesheets once, and draws from the smallest copy that is still big enough; that saves weak devices a lot of work every frame without looking different.
@@ -266,6 +266,18 @@ Amazon Fire TV does not support Google Cast; for Fire TV the route is an app in 
 After Start and the intro, the **Choose your planet** screen appears on the space background (`assets/space.jpg`). Planets spin slowly (their 12 frames blend into each other, with a gentle sway): **Novara** (`assets/planet1.png`) holds all current worlds and shows "6 worlds · 13 aliens · 6 bosses" and its stars; **Cindera** (`assets/planet2.png`) can be visited: its world screen shows its first three worlds, Glimmer Coast (`assets/cindera1.jpg`) Emberfall Rift (`assets/cindera2.jpg`) and Thunder Spires (`assets/cindera3.jpg`), as *Soon available* (no aliens yet). **Prismara** (`assets/planet3.png`) and **Tetra** (`assets/planet4.png`, 16 frames) are shown as *Coming soon*. The planets sit on a **carousel**: three in view (the chosen one large in the middle), turned with the ‹ › arrows, by swiping, with the left/right keys, or by tapping a planet at the side. After the intro the screen fades through dark into the planets (the intro's sound fades out too), and choosing a planet zooms into it and fades via its glow into the worlds, which come into focus with the cards rising one after another. Tapping anywhere during the intro skips it. Planets are listed in `PLANETS` in `js/app.js`.
 
 The buttons on this screen: **Back** (title screen), **Home** (base), **Continue** (straight to the next level to play, with its world and number shown on the button), **Goals**, **Shop** and **Options**. Choosing Novara zooms into it and opens the world screen (which keeps Workshop, Alien guide and Connect phone).
+
+## Planet Cindera: Glimmer Coast
+
+Cindera's first world, **Glimmer Coast** (world 10, `assets/cindera1.jpg`), has ten levels with the **Lavaclaw** (`assets/lavaclaw.png`, 5×3 frames). The Lavaclaw cannot fly: it walks over the ground toward you with a heavy stomping step, raises rocks before it throws them, and swipes with its tail when it reaches you. Level 10 is the **Lavaclaw Titan**: it stands on the ground, roars when its phase changes, sends lava waves in phase 2 (shield up!) and gets furious in phase 3. Glimmer Coast opens after Starfall Wetlands (the last world of Novara). Emberfall Rift and Thunder Spires stay *Soon available*.
+
+The **alien guide** has a page per planet; the Cindera page has 20 creatures (card images in `assets/dex/`, cut from the Cindera roster). The Lavaclaw can already be caught; the others come with the next worlds.
+
+## Gamepad and mouse
+
+- **Sticky aim with a gamepad** (phone gamepad and touch gamepad): near an alien, rock or boss part the aiming circle locks onto it like a magnet and stays on it while it moves, until you steer clearly away; the hit area is also bigger.
+- **Rotating crystals and weak spots** (Prism Empress, King Nebula) turn **half as fast** when someone plays with a gamepad.
+- **Web version: switch any time.** While playing with the mouse, using the phone gamepad switches to it; moving or clicking the mouse switches back.
 
 ## Expand mode (wide screens)
 
