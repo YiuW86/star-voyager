@@ -2802,4 +2802,286 @@
   "Só na relva, senão cai da ilha!"
  ]
 });
+  I18N.add({
+ "Aliens": [
+  "Aliens",
+  "Aliens",
+  "Aliens",
+  "Aliens",
+  "Aliens"
+ ],
+ "Snacks": [
+  "Snacks",
+  "Snacks",
+  "Goûters",
+  "Golosinas",
+  "Lanches"
+ ],
+ "Ball": [
+  "Bal",
+  "Ball",
+  "Ballon",
+  "Pelota",
+  "Bola"
+ ],
+ "Decorate": [
+  "Versieren",
+  "Dekorieren",
+  "Décorer",
+  "Decorar",
+  "Decorar"
+ ],
+ "Buddy": [
+  "Maatje",
+  "Kumpel",
+  "Copain",
+  "Compañero",
+  "Amigo"
+ ],
+ "Close": [
+  "Sluiten",
+  "Schließen",
+  "Fermer",
+  "Cerrar",
+  "Fechar"
+ ],
+ "OK": [
+  "OK",
+  "OK",
+  "OK",
+  "OK",
+  "OK"
+ ],
+ "Training": [
+  "Training",
+  "Training",
+  "Entraînement",
+  "Entrenamiento",
+  "Treino"
+ ],
+ "Pick a snack, then tap an alien to feed it. Every alien has a favourite snack: find out which one!": [
+  "Kies een snack en tik dan op een alien om hem te voeren. Elke alien heeft een lievelingssnack: ontdek welke!",
+  "Wähle einen Snack und tippe dann auf ein Alien, um es zu füttern. Jedes Alien hat einen Lieblingssnack: finde heraus, welchen!",
+  "Choisis un goûter, puis touche un alien pour le nourrir. Chaque alien a un goûter préféré : découvre lequel !",
+  "Elige una golosina y toca un alien para darle de comer. Cada alien tiene una favorita: ¡descubre cuál!",
+  "Escolhe um lanche e toca num alien para o alimentar. Cada alien tem um lanche favorito: descobre qual!"
+ ],
+ "Build toys for your aliens. Drag them on the grass to move them.": [
+  "Bouw speelgoed voor je aliens. Sleep het over het gras om het te verplaatsen.",
+  "Baue Spielzeug für deine Aliens. Zieh es über das Gras, um es zu verschieben.",
+  "Construis des jouets pour tes aliens. Fais-les glisser sur l'herbe pour les déplacer.",
+  "Construye juguetes para tus aliens. Arrástralos por la hierba para moverlos.",
+  "Constrói brinquedos para os teus aliens. Arrasta-os pela relva para os mudar de sítio."
+ ],
+ "An alien with 5 hearts can come with you into every level and help you.": [
+  "Een alien met 5 hartjes kan met je mee in elk level en je helpen.",
+  "Ein Alien mit 5 Herzen kann dich in jedes Level begleiten und dir helfen.",
+  "Un alien avec 5 cœurs peut t'accompagner dans chaque niveau et t'aider.",
+  "Un alien con 5 corazones puede acompañarte en cada nivel y ayudarte.",
+  "Um alien com 5 corações pode ir contigo em cada nível e ajudar-te."
+ ],
+ "{name} has 5 hearts and can now be your buddy!": [
+  "{name} heeft 5 hartjes en kan nu je maatje zijn!",
+  "{name} hat 5 Herzen und kann jetzt dein Kumpel sein!",
+  "{name} a 5 cœurs et peut maintenant être ton copain !",
+  "¡{name} tiene 5 corazones y ya puede ser tu compañero!",
+  "{name} tem 5 corações e já pode ser o teu amigo!"
+ ],
+ "{name} now has {n} hearts!": [
+  "{name} heeft nu {n} hartjes!",
+  "{name} hat jetzt {n} Herzen!",
+  "{name} a maintenant {n} cœurs !",
+  "¡{name} ya tiene {n} corazones!",
+  "{name} já tem {n} corações!"
+ ],
+ "Present": [
+  "Cadeautje",
+  "Geschenk",
+  "Cadeau",
+  "Regalo",
+  "Presente"
+ ],
+ "A present from {name}!": [
+  "Een cadeautje van {name}!",
+  "Ein Geschenk von {name}!",
+  "Un cadeau de {name} !",
+  "¡Un regalo de {name}!",
+  "Um presente de {name}!"
+ ],
+ "Bring aliens to your ranch first!": [
+  "Breng eerst aliens naar je ranch!",
+  "Bring zuerst Aliens auf deine Ranch!",
+  "Amène d'abord des aliens dans ton ranch !",
+  "¡Primero trae aliens a tu rancho!",
+  "Primeiro traz aliens para o teu rancho!"
+ ],
+ "Not enough materials for this snack": [
+  "Niet genoeg materialen voor deze snack",
+  "Nicht genug Materialien für diesen Snack",
+  "Pas assez de matériaux pour ce goûter",
+  "No tienes suficientes materiales para esta golosina",
+  "Não tens materiais suficientes para este lanche"
+ ],
+ "Not enough materials": [
+  "Niet genoeg materialen",
+  "Nicht genug Materialien",
+  "Pas assez de matériaux",
+  "No tienes suficientes materiales",
+  "Não tens materiais suficientes"
+ ],
+ "Tap an alien to give it a {snack}": [
+  "Tik op een alien om hem een {snack} te geven",
+  "Tippe auf ein Alien, um ihm {snack} zu geben",
+  "Touche un alien pour lui donner : {snack}",
+  "Toca un alien para darle: {snack}",
+  "Toca num alien para lhe dar: {snack}"
+ ],
+ "Loves it!": [
+  "Smult ervan!",
+  "Liebt es!",
+  "Il adore !",
+  "¡Le encanta!",
+  "Adora!"
+ ],
+ "Yum!": [
+  "Mmm!",
+  "Lecker!",
+  "Miam !",
+  "¡Ñam!",
+  "Que bom!"
+ ],
+ "Star cookie": [
+  "Sterrenkoekje",
+  "Sternkeks",
+  "Biscuit étoile",
+  "Galleta estelar",
+  "Bolacha estrela"
+ ],
+ "Goo jelly": [
+  "Slijmpudding",
+  "Glibber-Pudding",
+  "Gelée gluante",
+  "Gelatina viscosa",
+  "Gelatina gosmenta"
+ ],
+ "Moon candy": [
+  "Maansnoepje",
+  "Mondbonbon",
+  "Bonbon lunaire",
+  "Caramelo lunar",
+  "Rebuçado lunar"
+ ],
+ "Crystal berry": [
+  "Kristalbes",
+  "Kristallbeere",
+  "Baie de cristal",
+  "Baya de cristal",
+  "Baga de cristal"
+ ],
+ "Trampoline": [
+  "Trampoline",
+  "Trampolin",
+  "Trampoline",
+  "Cama elástica",
+  "Trampolim"
+ ],
+ "Fountain": [
+  "Fontein",
+  "Brunnen",
+  "Fontaine",
+  "Fuente",
+  "Fonte"
+ ],
+ "Crystal lamp": [
+  "Kristallamp",
+  "Kristalllampe",
+  "Lampe de cristal",
+  "Lámpara de cristal",
+  "Candeeiro de cristal"
+ ],
+ "Built": [
+  "Gebouwd",
+  "Gebaut",
+  "Construit",
+  "Construido",
+  "Construído"
+ ],
+ "{name} built! Drag it to move it.": [
+  "{name} gebouwd! Sleep om te verplaatsen.",
+  "{name} gebaut! Zieh es, um es zu verschieben.",
+  "{name} construit ! Fais-le glisser pour le déplacer.",
+  "¡{name} construido! Arrástralo para moverlo.",
+  "{name} construído! Arrasta para mudar de sítio."
+ ],
+ "Make friends: cuddle, feed and play": [
+  "Word vrienden: knuffel, voer en speel",
+  "Freunde werden: kuscheln, füttern und spielen",
+  "Deviens ami : câline, nourris et joue",
+  "Haz amigos: mima, alimenta y juega",
+  "Faz amigos: mima, alimenta e brinca"
+ ],
+ "Your buddy": [
+  "Je maatje",
+  "Dein Kumpel",
+  "Ton copain",
+  "Tu compañero",
+  "O teu amigo"
+ ],
+ "{name} needs 5 hearts to be your buddy": [
+  "{name} heeft 5 hartjes nodig om je maatje te zijn",
+  "{name} braucht 5 Herzen, um dein Kumpel zu sein",
+  "{name} a besoin de 5 cœurs pour être ton copain",
+  "{name} necesita 5 corazones para ser tu compañero",
+  "{name} precisa de 5 corações para ser o teu amigo"
+ ],
+ "{name} comes with you into battle!": [
+  "{name} gaat met je mee op avontuur!",
+  "{name} begleitet dich in den Kampf!",
+  "{name} t'accompagne au combat !",
+  "¡{name} viene contigo a la aventura!",
+  "{name} vai contigo para a aventura!"
+ ],
+ "Favourite": [
+  "Lievelingssnack",
+  "Lieblingssnack",
+  "Préféré",
+  "Favorita",
+  "Favorito"
+ ],
+ "Heals you 3 health for every catch": [
+  "Geeft je 3 gezondheid per gevangen alien",
+  "Heilt dich um 3 Leben pro Fang",
+  "Te soigne de 3 PV à chaque capture",
+  "Te cura 3 de salud por cada captura",
+  "Cura-te 3 de vida por cada captura"
+ ],
+ "Rocks fly 25% slower": [
+  "Rotsen vliegen 25% langzamer",
+  "Steine fliegen 25% langsamer",
+  "Les rochers volent 25 % moins vite",
+  "Las rocas vuelan un 25% más despacio",
+  "As rochas voam 25% mais devagar"
+ ],
+ "+1 net grenade in every level": [
+  "+1 netgranaat in elk level",
+  "+1 Netzgranate in jedem Level",
+  "+1 grenade-filet dans chaque niveau",
+  "+1 granada de red en cada nivel",
+  "+1 granada de rede em cada nível"
+ ],
+ "+15% crystals from every level": [
+  "+15% kristallen uit elk level",
+  "+15 % Kristalle aus jedem Level",
+  "+15 % de cristaux à chaque niveau",
+  "+15% de cristales en cada nivel",
+  "+15% de cristais em cada nível"
+ ],
+ "+10% points": [
+  "+10% punten",
+  "+10 % Punkte",
+  "+10 % de points",
+  "+10% de puntos",
+  "+10% de pontos"
+ ]
+});
 })();

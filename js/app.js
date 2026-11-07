@@ -176,8 +176,15 @@
     'to-ranch'() { slidePage('ranch', 1); },
     'to-home'() { slidePage('home', -1); },
     'ranch-pick'() { Habitat.pick(); },
+    'badge-close'() { $('#ov-badge').classList.remove('show'); setTimeout(focusFirst, 30); },
     'dex-tab-aliens'() { Dex.setMode('aliens'); Sfx.select(); },
     'dex-tab-bosses'() { Dex.setMode('bosses'); Sfx.select(); },
+    'ranch-snacks'() { Habitat.openSnacks(); },
+    'ranch-ball'() { Habitat.throwBall(); },
+    'ranch-decor'() { Habitat.openDecor(); },
+    'ranch-buddy'() { Habitat.openBuddy(); },
+    'ranch-close'() { ['#ov-snack', '#ov-decor', '#ov-buddy'].forEach((o) => $(o).classList.remove('show')); setTimeout(focusFirst, 30); },
+    'ranch-hint-x'() { Habitat.feedSnack = null; Habitat.hint(null); },
     'ranch-zoom-in'() { Habitat.zoomBy(1.4, null, null, true); Sfx.select(); },
     'ranch-zoom-out'() { Habitat.zoomBy(1 / 1.4, null, null, true); Sfx.select(); },
     'ranch-done'() { $('#ov-ranch').classList.remove('show'); Habitat.start(); setTimeout(focusFirst, 30); },
@@ -241,7 +248,7 @@
   const unlockAll = () => save.options.unlockAll === 'on';
   // "Unlock all" (Options): every upgrade, shop item, drone, trophy, ability, superpower and building,
   // plenty of crystals and materials. The real progress is kept aside and comes back when it is switched off.
-  const UNLOCK_KEYS = ['upg', 'owned', 'trophies', 'mods', 'base', 'mats', 'crystals', 'loadout', 'shopLv', 'dex', 'badges', 'ranch'];
+  const UNLOCK_KEYS = ['upg', 'owned', 'trophies', 'mods', 'base', 'mats', 'crystals', 'loadout', 'shopLv', 'dex', 'badges', 'ranch', 'ranchFriend', 'ranchDecor'];
   function applyUnlockAll(on) {
     if (on && !save.unlockBackup) save.unlockBackup = JSON.parse(JSON.stringify(UNLOCK_KEYS.reduce((o, k) => { o[k] = save[k]; return o; }, {})));
     // keys added later (medals, ranch): keep the real ones aside too
@@ -265,6 +272,9 @@
       save.badges = { cadet: true };
       BADGES.forEach((b) => { save.badges[b.id] = 4; });
       SV.ALL_TYPES.forEach((k) => { save.badges['kind:' + k] = 4; });
+      // every ranch friend on 5 hearts, every decoration built
+      save.ranchFriend = {}; SV.ALL_TYPES.forEach((k) => { save.ranchFriend[k] = 160; });
+      save.ranchDecor = { trampoline: { x: 760, y: 720 }, fountain: { x: 1300, y: 760 }, lamp: { x: 1020, y: 600 } };
     } else if (!on && save.unlockBackup) {
       UNLOCK_KEYS.forEach((k) => { if (save.unlockBackup[k] !== undefined && save.unlockBackup[k] !== null) save[k] = save.unlockBackup[k]; else delete save[k]; });
       delete save.unlockBackup;
@@ -778,6 +788,18 @@
         : `<div class="bbar"><i style="width:${Math.min(100, (val / next) * 100)}%"></i></div><small>${Math.min(val, next).toLocaleString()} / ${next.toLocaleString()} · ${t('next')}: ${t(TIER_NAMES[tier])} ${REWARD(rewards[tier])}</small>`;
       return `<button type="button" class="badge t${tier}${kind ? ' kind' : ''}">${medalSvg(tier, inner)}<div class="bd"><b>${t(name)}</b><p>${t(desc).replace('{n}', (next != null ? next : tiers[3]).toLocaleString())}</p>${prog}<div class="pips">${pips}</div></div></button>`;
     };
+    // the medal wall: big medals with a progress ring; tap one for its card
+    const wall = (window.__badgeInfo = {});
+    const medal = (key, name, desc, val, tiers, rewards, inner, kind) => {
+      const tier = Math.min(4, bdg[key] || 0), next = tiers[tier], prev = tier ? tiers[tier - 1] : 0;
+      const pct = next == null ? 100 : Math.max(0, Math.min(100, ((val - prev) / (next - prev)) * 100));
+      wall[key] = { name, desc, val, tiers, rewards, tier, inner, kind };
+      return `<button type="button" class="mw-item t${tier}${kind ? ' kind' : ''}" data-badge="${key}"><span class="mw-ring" style="--p:${pct}%">${medalSvg(tier, inner)}</span>`
+        + `<b>${t(name)}</b><small>${next == null ? '★ ' + t('Platinum') : `${Math.min(val, next).toLocaleString()} / ${next.toLocaleString()}`}</small></button>`;
+    };
+    const wallGroups = {};
+    for (const b of BADGES) (wallGroups[b.group] = wallGroups[b.group] || []).push(medal(b.id, b.name, b.desc, b.val(s), b.tiers, TIER_REWARD));
+    const wallKinds = (window.SV ? SV.ALL_TYPES : []).map((k) => medal('kind:' + k, SPR[k].name, 'Catch {n} of this kind', (save.dex || {})[k] || 0, KIND_TIERS, KIND_REWARD, `<image href="assets/dex/${k}.png" x="11" y="15" width="26" height="26" preserveAspectRatio="xMidYMid slice" clip-path="circle(12px at 13px 13px)"/>`, true));
     let total = 0, have = 0;
     const groups = {};
     for (const b of BADGES) { (groups[b.group] = groups[b.group] || []).push(card(b.id, b.name, b.desc, b.val(s), b.tiers, TIER_REWARD)); total += 4; have += Math.min(4, bdg[b.id] || 0); }
@@ -794,9 +816,11 @@
       + (nextUp.length ? `<h3>${t('Almost there')}</h3>` + nextUp.map((x) => `<div class="badge-mini"><b>${t(x.b.name)}</b><div class="bbar"><i style="width:${Math.min(100, x.v / x.b.tiers[x.tier] * 100)}%"></i></div><small>${Math.min(x.v, x.b.tiers[x.tier]).toLocaleString()} / ${x.b.tiers[x.tier].toLocaleString()}</small></div>`).join('') : '')
       + `<button class="btn pink badges-open" data-go="badges"><span>${t('See all badges')}</span></button>`;
     $('#badges-count').innerHTML = `${medalSvg(3)}<span>${have} / ${total}</span>`;
-    $('#badges-list').innerHTML = `<div class="badge special${cadet ? ' t3' : ' t0'}">${medalSvg(cadet ? 3 : 0, '<text x="24" y="34" text-anchor="middle" font-size="16" font-weight="800" fill="#fff">C</text>')}<div class="bd"><b>${t('Cadet')}</b><p>${t('Finish the training')}</p><small>${cadet ? t('Unlocked') : t('Planet screen → Training')}</small></div></div>`
-      + Object.entries(groups).map(([g, list]) => `<h3>${t(g)}</h3><div class="badge-grid">${list.join('')}</div>`).join('')
-      + `<h3>${t('Alien badges')}</h3><div class="badge-grid">${kinds.join('')}</div>`;
+    wall.cadet = { name: 'Cadet', desc: 'Finish the training', special: true, tier: cadet ? 3 : 0, inner: '<text x="24" y="34" text-anchor="middle" font-size="16" font-weight="800" fill="#fff">C</text>' };
+    $('#badges-list').innerHTML = `<div class="mw-grid"><button type="button" class="mw-item ${cadet ? 't3' : 't0'}" data-badge="cadet"><span class="mw-ring" style="--p:${cadet ? 100 : 0}%">${medalSvg(cadet ? 3 : 0, wall.cadet.inner)}</span><b>${t('Cadet')}</b><small>${cadet ? t('Unlocked') : t('Training')}</small></button></div>`
+      + Object.entries(wallGroups).map(([g, list]) => `<h3>${t(g)}</h3><div class="mw-grid">${list.join('')}</div>`).join('')
+      + `<h3>${t('Alien badges')}</h3><div class="mw-grid">${wallKinds.join('')}</div>`;
+    $$('#badges-list [data-badge]').forEach((b) => b.addEventListener('click', () => showBadge(b.dataset.badge)));
     $$('[data-claim]').forEach((btn) => btn.addEventListener('click', () => {
       const [kind, id] = btn.dataset.claim.split(':');
       const list = kind === 'w' ? m.weekly : m.daily;
@@ -807,6 +831,26 @@
       persist(); Sfx.win(); renderGoals(); focusFirst();
     }));
     Progress.updateDot();
+  }
+
+  // the card for one medal: what it is for, your progress, and the four tiers with their rewards
+  function showBadge(key) {
+    const w = (window.__badgeInfo || {})[key]; if (!w) return;
+    Sfx.select();
+    let html = `<div class="bp-medal">${medalSvg(w.tier, w.inner)}</div><h2>${t(w.name)}</h2>`;
+    if (w.special) {
+      html += `<p class="bp-desc">${t(w.desc)}</p><p class="bp-state">${w.tier ? '✓ ' + t('Unlocked') : t('Planet screen → Training')}</p>`;
+    } else {
+      const next = w.tiers[w.tier];
+      html += `<p class="bp-desc">${t(w.desc).replace('{n}', (next != null ? next : w.tiers[3]).toLocaleString())}</p>`;
+      html += next == null ? `<p class="bp-state">★ ${t('Platinum')}! ${t('All tiers done')}</p>`
+        : `<div class="bp-bar"><i style="width:${Math.min(100, (w.val / next) * 100)}%"></i></div><p class="bp-state">${Math.min(w.val, next).toLocaleString()} / ${next.toLocaleString()}</p>`;
+      html += `<div class="bp-tiers">` + TIERS.map((tn, i) => `<div class="bp-tier${i < w.tier ? ' done' : i === w.tier ? ' now' : ''}">${medalSvg(i + 1)}<b>${t(TIER_NAMES[i])}</b><span>${w.tiers[i].toLocaleString()}</span><small>${REWARD(w.rewards[i])}</small>${i < w.tier ? '<i>✓</i>' : ''}</div>`).join('') + `</div>`;
+    }
+    html += `<div class="row"><button class="btn pink" data-action="badge-close"><span>${t('OK')}</span></button></div>`;
+    $('#badge-pop').innerHTML = html;
+    $('#ov-badge').classList.add('show');
+    setTimeout(focusFirst, 30);
   }
 
   // ---------------- Home base ----------------
@@ -1044,8 +1088,9 @@
       this.last = performance.now();
       const tick = (now) => { const dt = Math.min(0.05, (now - this.last) / 1000); this.last = now; this.update(dt); this.raf = requestAnimationFrame(tick); };
       this.raf = requestAnimationFrame(tick);
+      this.afterStart();
     },
-    stop() { cancelAnimationFrame(this.raf); this.raf = 0; },
+    stop() { cancelAnimationFrame(this.raf); this.raf = 0; if (this.ball) { this.ball.el.remove(); this.ball = null; const rb = $('#rt-ball'); if (rb) rb.disabled = false; } },
     frame(a, idx) {
       const g = a.el._g || { c: 5, r: 3 };
       idx = idx % (g.c * g.r);
@@ -1114,18 +1159,24 @@
           if (d < 3) a.rush = false; else { a.x += dx / d * s; a.y += dy / d * s; }
         }
         if (a.happy > 0) { a.happy -= dt; continue; }
+        const ctl = this.playStep(a, dt);
         const dx = a.tx - a.x, dy = a.ty - a.y, d = Math.hypot(dx, dy);
         let moving = false;
-        if (d < 4) { a.wait -= dt; if (a.wait <= 0) { const p = this.spot(a, a.size); a.tx = p.x; a.ty = p.y; a.wait = 1 + Math.random() * 3; } }
-        else { const s = Math.min(d, a.speed * dt); a.x += dx / d * s; a.y += dy / d * s; moving = Math.abs(dx) > 8; if (Math.abs(dx) > 2) a.flip = (dx < 0) !== !!a.m.faceLeft; }
+        if (d < 4 || (ctl && ctl.speed === 0)) {
+          if (!ctl && !this.arrive(a)) { a.wait -= dt; if (a.wait <= 0) { const p = this.wanderTarget(a); a.tx = p.x; a.ty = p.y; a.wait = 1 + Math.random() * 3; } }
+        }
+        else { const s = Math.min(d, ((ctl && ctl.speed) || a.speed) * dt); a.x += dx / d * s; a.y += dy / d * s; moving = Math.abs(dx) > 8; if (Math.abs(dx) > 2) a.flip = (dx < 0) !== !!a.m.faceLeft; }
+        a.yOff = ctl && ctl.yOff || 0;
         const frames = moving && a.m.side ? a.m.side : a.m.front;
         this.frame(a, frames[Math.floor(a.t * (moving ? 6 : 3)) % frames.length]);
         const bob = Math.sin(a.t * 2.2) * 8;
         // closer to the bottom = a little bigger (depth)
         const sc = this.depth(a.y);
-        a.el.style.transform = `translate(${a.x}px, ${a.y + bob}px) translate(-50%, -100%) scale(${a.flip ? -sc : sc}, ${sc})`;
-        a.el.style.zIndex = Math.round(a.y);
+        a.el.style.transform = `translate(${a.x}px, ${a.y + bob + (a.yOff || 0)}px) translate(-50%, -100%) scale(${a.flip ? -sc : sc}, ${sc})`;
+        a.el.style.zIndex = Math.round(a.y) + (a.yOff ? 3 : 0);
       }
+      this.updateBall(dt);
+      if (!this.ball && (this.tagT = (this.tagT || 15) - dt) <= 0) { this.tagT = 14 + Math.random() * 12; this.startTag(); }
     },
     renderSlots() {
       const n = this.slots(), used = Math.min(n, (save.ranch || []).length), tiers = this.tiers();
@@ -1153,6 +1204,10 @@
       setTimeout(focusFirst, 30);
     },
     tap(a) {
+      if (this.feedSnack) { this.feed(a); return; }
+      const day = this.day();
+      day.cud[a.k] = (day.cud[a.k] || 0) + 1;
+      if (day.cud[a.k] <= 5) setTimeout(() => this.addFriend(a, 1), 350);
       a.happy = 1.1;
       a.el.classList.remove('hop'); void a.el.offsetWidth; a.el.classList.add('hop');
       Sfx.pop(); [880, 1175, 1568].forEach((f, i) => Sfx.tone(f, 0.12, 'triangle', 0.06, null, 0.08 + i * 0.07));
@@ -1169,11 +1224,328 @@
       const old = box.querySelector('.hab-bubble'); if (old) old.remove();
       const b = document.createElement('div');
       b.className = 'hab-bubble';
-      b.innerHTML = `<b>${SPR[a.k].name}</b><span>${t('Caught')}: ${n.toLocaleString()}</span>${tier ? `<span class="hb-tier t${tier}">${t(TIER_NAMES[tier - 1])}</span>` : ''}`;
+      const fav = (save.ranchFave || {})[a.k] ? this.favourite(a.k) : null;
+      b.innerHTML = `<b>${SPR[a.k].name}</b><span class="hb-hearts">${this.heartStr(a.k)}</span><span>${t('Caught')}: ${n.toLocaleString()}</span>`
+        + (fav ? `<span>${t('Favourite')}: ${fav.icon}</span>` : '') + (save.buddy === a.k ? `<span class="hb-tier t3">${t('Your buddy')}</span>` : tier ? `<span class="hb-tier t${tier}">${t(TIER_NAMES[tier - 1])}</span>` : '');
       b.style.left = a.x + 'px'; b.style.top = a.y - a.el.offsetHeight * 0.95 + 'px';
       box.appendChild(b); setTimeout(() => b.remove(), 2600);
     },
   };
+
+  // =====================================================================================
+  // Ranch life: friendship hearts, snacks, a daily present, playing ball and tag,
+  // decorations the aliens use, and choosing a 5-heart friend as your buddy in battle
+  // =====================================================================================
+  const FRIEND_STEPS = [10, 30, 60, 100, 150];              // friendship points for heart 1..5
+  const SNACKS = [
+    { id: 'cookie', name: 'Star cookie', icon: '🍪', cost: { shard: 2 } },
+    { id: 'jelly', name: 'Goo jelly', icon: '🍮', cost: { goo: 1 } },
+    { id: 'candy', name: 'Moon candy', icon: '🍬', cost: { dust: 1 } },
+    { id: 'berry', name: 'Crystal berry', icon: '🫐', cost: { crystal: 15 } },
+  ];
+  const DECOR = [
+    { id: 'trampoline', name: 'Trampoline', cost: { crystal: 60, shard: 8 }, pos: [760, 720], w: 170,
+      svg: '<svg viewBox="0 0 120 70"><ellipse cx="60" cy="58" rx="50" ry="9" fill="rgba(0,0,0,.3)"/><path d="M18 34v22M102 34v22M40 40v18M80 40v18" stroke="#9fb8ff" stroke-width="5" stroke-linecap="round"/><ellipse cx="60" cy="32" rx="52" ry="15" fill="#ff7ad0"/><ellipse cx="60" cy="31" rx="42" ry="10" fill="#2b1a6e"/><ellipse cx="60" cy="29" rx="30" ry="5" fill="#5a3fd0" opacity=".7"/></svg>' },
+    { id: 'fountain', name: 'Fountain', cost: { crystal: 60, goo: 4 }, pos: [1300, 760], w: 150,
+      svg: '<svg viewBox="0 0 100 100"><ellipse cx="50" cy="90" rx="44" ry="8" fill="rgba(0,0,0,.3)"/><path d="M8 70h84l-8 18H16z" fill="#7fa8ff"/><ellipse cx="50" cy="70" rx="42" ry="10" fill="#bfe8ff"/><ellipse cx="50" cy="70" rx="34" ry="7" fill="#4fb8ff"/><rect x="44" y="34" width="12" height="36" fill="#9fc0ff"/><ellipse cx="50" cy="36" rx="18" ry="6" fill="#bfe8ff"/><path class="jet" d="M50 34c-2-12-10-18-18-14M50 34c2-12 10-18 18-14M50 34V10" stroke="#9ff8ff" stroke-width="4" fill="none" stroke-linecap="round"/></svg>' },
+    { id: 'lamp', name: 'Crystal lamp', cost: { crystal: 60, dust: 2 }, pos: [1020, 600], w: 110,
+      svg: '<svg viewBox="0 0 70 120"><ellipse cx="35" cy="114" rx="24" ry="5" fill="rgba(0,0,0,.3)"/><rect x="31" y="50" width="8" height="62" fill="#7b86c8"/><rect x="22" y="104" width="26" height="8" rx="3" fill="#5a63a8"/><path class="glow" d="M35 4l16 26-16 24-16-24z" fill="#9ff8ff"/><path d="M35 4l7 26-7 24" fill="#e8feff" opacity=".7"/></svg>' },
+  ];
+  const todayKey = () => { const d = new Date(); return `${d.getFullYear()}-${d.getMonth() + 1}-${d.getDate()}`; };
+  const hashKind = (k) => { let h = 0; for (const ch of k) h = (h * 31 + ch.charCodeAt(0)) >>> 0; return h; };
+
+  Object.assign(Habitat, {
+    friendPts(k) { return ((save.ranchFriend || {})[k]) || 0; },
+    hearts(k) { const p = this.friendPts(k); return FRIEND_STEPS.filter((s) => p >= s).length; },
+    heartStr(k) { const h = this.hearts(k); return '♥'.repeat(h) + '♡'.repeat(5 - h); },
+    favourite(k) { return SNACKS[hashKind(k) % SNACKS.length]; },
+    day() {
+      const d = save.ranchDay;
+      if (!d || d.d !== todayKey()) save.ranchDay = { d: todayKey(), cud: {}, fetch: {}, gifts: [] };
+      return save.ranchDay;
+    },
+    addFriend(a, n) {
+      const k = a.k, before = this.hearts(k);
+      save.ranchFriend = save.ranchFriend || {};
+      save.ranchFriend[k] = Math.min(FRIEND_STEPS[4] + 50, this.friendPts(k) + n);
+      persist();
+      this.floatText(a.x, a.y - a.el.offsetHeight * 1.1, `+${n} ♥`, '#ff8ac8');
+      const after = this.hearts(k);
+      if (after > before) {
+        Sfx.win(); window.Haptics && Haptics.buzz(80, 0.6);
+        showToast(after >= 5 ? t('{name} has 5 hearts and can now be your buddy!', { name: SPR[k].name }) : t('{name} now has {n} hearts!', { name: SPR[k].name, n: after }));
+        this.hearts4(a, 8);
+      }
+    },
+    floatText(x, y, text, color) {
+      const f = document.createElement('i');
+      f.className = 'hab-float'; f.textContent = text; f.style.left = x + 'px'; f.style.top = y + 'px'; if (color) f.style.color = color;
+      $('#habitat-fx').appendChild(f); setTimeout(() => f.remove(), 1400);
+    },
+    hearts4(a, n = 4) {
+      const box = $('#habitat-fx');
+      for (let i = 0; i < n; i++) {
+        const h = document.createElement('i');
+        h.className = 'hab-heart'; h.textContent = '♥';
+        h.style.left = a.x + (Math.random() * 70 - 35) + 'px'; h.style.top = a.y - a.el.offsetHeight * 0.8 + 'px';
+        h.style.animationDelay = i * 0.1 + 's';
+        box.appendChild(h); setTimeout(() => h.remove(), 1700);
+      }
+    },
+    hint(text) {
+      const h = $('#ranch-hint');
+      if (!text) { h.classList.remove('show'); return; }
+      $('#ranch-hint-text').textContent = text; h.classList.add('show');
+    },
+    // ---- after the aliens are placed: presents, decorations, buttons ----
+    afterStart() {
+      this.feedSnack = null; this.hint(null);
+      this.ball = null; this.tagT = 10 + Math.random() * 8;
+      const box = $('#habitat');
+      box.querySelectorAll('.hab-gift, .hab-decor').forEach((e) => e.remove());
+      // decorations you built
+      this.decor = [];
+      const dec = save.ranchDecor || {};
+      for (const d of DECOR) {
+        if (!dec[d.id]) continue;
+        const el = document.createElement('button');
+        el.className = 'hab-decor d-' + d.id; el.tabIndex = -1; el.setAttribute('aria-label', t(d.name));
+        el.style.width = d.w + 'px'; el.innerHTML = d.svg;
+        const o = { d, el, x: dec[d.id].x, y: dec[d.id].y };
+        this.placeDecor(o);
+        this.bindDecorDrag(o);
+        box.appendChild(el); this.decor.push(o);
+      }
+      // today's presents: every alien with at least one heart leaves one
+      const day = this.day();
+      for (const a of this.list) {
+        if (this.hearts(a.k) < 1 || day.gifts.includes(a.k)) continue;
+        const p = this.spot(null, 60);
+        const g = document.createElement('button');
+        g.className = 'hab-gift'; g.tabIndex = -1; g.setAttribute('aria-label', t('Present'));
+        g.innerHTML = '<span>🎁</span>';
+        g.style.transform = `translate(${p.x}px, ${p.y}px) translate(-50%, -100%)`; g.style.zIndex = Math.round(p.y);
+        g.addEventListener('pointerdown', (e) => { e.stopPropagation(); this.openGift(a.k, g, p); });
+        box.appendChild(g);
+      }
+      $('#rt-buddy').classList.toggle('dot', !save.buddy && this.caughtKinds().some((k) => this.hearts(k) >= 5));
+    },
+    openGift(k, el, p) {
+      const day = this.day(); if (day.gifts.includes(k)) return;
+      day.gifts.push(k);
+      const h = Math.max(1, this.hearts(k));
+      let text;
+      if (Math.random() < 0.55) { const n = 5 * h; save.crystals += n; text = `+${n} 💎`; }
+      else { const m = ['shard', 'shard', 'goo', 'dust'][Math.floor(Math.random() * 4)], n = m === 'dust' ? 1 : 1 + Math.floor(h / 2); save.mats[m] = (save.mats[m] || 0) + n; text = `+${n} ${t(MAT_NAMES[m])}`; }
+      persist();
+      Sfx.pop(); [784, 988, 1318].forEach((f, i) => Sfx.tone(f, 0.12, 'triangle', 0.06, null, 0.06 + i * 0.07)); window.Haptics && Haptics.buzz(40, 0.5);
+      el.classList.add('open'); setTimeout(() => el.remove(), 600);
+      this.floatText(p.x, p.y - 90, text, '#ffd27a');
+      showToast(t('A present from {name}!', { name: SPR[k].name }));
+    },
+    placeDecor(o) {
+      o.el.style.transform = `translate(${o.x}px, ${o.y}px) translate(-50%, -100%) scale(${this.depth(o.y)})`;
+      o.el.style.zIndex = Math.round(o.y) - 1;
+    },
+    bindDecorDrag(o) {
+      const el = o.el;
+      el.addEventListener('pointerdown', (e) => {
+        e.stopPropagation(); e.preventDefault();
+        try { el.setPointerCapture(e.pointerId); } catch (er) {}
+        const p = this.toField(e);
+        o.press = { id: e.pointerId, ox: o.x - p.x, oy: o.y - p.y, sx: o.x, sy: o.y, moved: false, cx: e.clientX, cy: e.clientY };
+      });
+      el.addEventListener('pointermove', (e) => {
+        const pr = o.press; if (!pr || pr.id !== e.pointerId) return;
+        if (!pr.moved && Math.hypot(e.clientX - pr.cx, e.clientY - pr.cy) < 10) return;
+        pr.moved = true; el.classList.add('held');
+        const p = this.toField(e); o.x = p.x + pr.ox; o.y = p.y + pr.oy;
+        el.classList.toggle('bad', !this.fits(o.x, o.y, o.d.w * 0.7));
+        this.placeDecor(o); el.style.zIndex = 2000;
+      });
+      el.addEventListener('pointerup', (e) => {
+        const pr = o.press; if (!pr || pr.id !== e.pointerId) return;
+        o.press = null; el.classList.remove('held', 'bad');
+        if (!pr.moved) { this.decorTap(o); return; }
+        if (!this.fits(o.x, o.y, o.d.w * 0.7)) { o.x = pr.sx; o.y = pr.sy; Sfx.clink(); showToast(t('Only on the grass, or it falls off the island!')); }
+        else { Sfx.tone(300, 0.1, 'sine', 0.08, 180); save.ranchDecor[o.d.id] = { x: Math.round(o.x), y: Math.round(o.y) }; persist(); }
+        this.placeDecor(o);
+      });
+    },
+    decorTap(o) { o.el.classList.remove('wiggle'); void o.el.offsetWidth; o.el.classList.add('wiggle'); Sfx.tone(660, 0.1, 'triangle', 0.05, 990); },
+    // ---- feeding ----
+    openSnacks() {
+      if (!this.list.length) { showToast(t('Bring aliens to your ranch first!')); return; }
+      const grid = $('#snack-grid');
+      grid.innerHTML = SNACKS.map((s) => {
+        const ok = canPay(s.cost);
+        return `<button class="rp-card${ok ? '' : ' poor'}" data-snack="${s.id}"><i class="rp-ico">${s.icon}</i><b>${t(s.name)}</b><small>${REWARD(s.cost)}</small></button>`;
+      }).join('');
+      grid.querySelectorAll('[data-snack]').forEach((b) => b.addEventListener('click', () => {
+        const s = SNACKS.find((x) => x.id === b.dataset.snack);
+        if (!canPay(s.cost)) { Sfx.clink(); showToast(t('Not enough materials for this snack')); return; }
+        Sfx.select(); $('#ov-snack').classList.remove('show');
+        this.feedSnack = s; this.hint(t('Tap an alien to give it a {snack}', { snack: t(s.name) }) + ' ' + s.icon);
+      }));
+      $('#ov-snack').classList.add('show'); setTimeout(focusFirst, 30);
+    },
+    feed(a) {
+      const s = this.feedSnack;
+      if (!canPay(s.cost)) { this.feedSnack = null; this.hint(null); Sfx.clink(); showToast(t('Not enough materials for this snack')); return; }
+      pay(s.cost); persist();
+      // the snack flies to the alien, which gobbles it up
+      const sn = document.createElement('i');
+      sn.className = 'hab-snack'; sn.textContent = s.icon;
+      sn.style.left = '960px'; sn.style.top = '1000px';
+      $('#habitat-fx').appendChild(sn);
+      requestAnimationFrame(() => { sn.style.left = a.x + 'px'; sn.style.top = (a.y - a.el.offsetHeight * 0.6) + 'px'; sn.style.transform = 'translate(-50%, -50%) scale(0.5)'; });
+      setTimeout(() => {
+        sn.remove();
+        a.happy = 1; a.el.classList.remove('hop'); void a.el.offsetWidth; a.el.classList.add('hop');
+        const fav = this.favourite(a.k).id === s.id;
+        Sfx.tone(260, 0.08, 'square', 0.04); Sfx.tone(320, 0.08, 'square', 0.04, null, 0.1); Sfx.pop();
+        this.hearts4(a, fav ? 7 : 3);
+        if (fav) { save.ranchFave = save.ranchFave || {}; save.ranchFave[a.k] = true; this.floatText(a.x, a.y - a.el.offsetHeight * 1.45, t('Loves it!') + ' 😍', '#ffd27a'); }
+        else this.floatText(a.x, a.y - a.el.offsetHeight * 1.45, t('Yum!') + ' 😋', '#ffffff');
+        this.addFriend(a, fav ? 8 : 4);
+        if (!canPay(s.cost)) { this.feedSnack = null; this.hint(null); }
+      }, 520);
+    },
+    // ---- playing ball: you throw it, the aliens race for it and bring it back ----
+    throwBall() {
+      if (this.ball || this.list.length === 0) { if (!this.list.length) showToast(t('Bring aliens to your ranch first!')); return; }
+      const p = this.spot(null, 40);
+      const el = document.createElement('i'); el.className = 'hab-ball'; el.textContent = '⚽';
+      $('#habitat-fx').appendChild(el);
+      this.ball = { el, x: 960, y: 1060, x0: 960, y0: 1060, tx: p.x, ty: p.y, t: 0, phase: 'fly', holder: null };
+      Sfx.throw(); $('#rt-ball').disabled = true;
+    },
+    updateBall(dt) {
+      const b = this.ball; if (!b) return;
+      b.t += dt;
+      if (b.phase === 'fly') {
+        const k = Math.min(1, b.t / 0.8);
+        b.x = b.x0 + (b.tx - b.x0) * k; b.y = b.y0 + (b.ty - b.y0) * k - Math.sin(k * Math.PI) * 260;
+        if (k >= 1) {
+          b.phase = 'ground'; Sfx.tone(220, 0.08, 'sine', 0.08);
+          // up to three aliens race for it
+          this.list.filter((a) => !a.held && !a.mode).sort((p, q) => Math.hypot(p.x - b.x, p.y - b.y) - Math.hypot(q.x - b.x, q.y - b.y)).slice(0, 3)
+            .forEach((a) => { a.mode = 'chase'; a.useDecor = null; a.goDecor = null; });
+        }
+      } else if (b.phase === 'held') { b.x = b.holder.x; b.y = b.holder.y - b.holder.el.offsetHeight * 1.05; }
+      else if (b.phase === 'drop') { if (b.t > 1.2) { b.el.remove(); this.ball = null; $('#rt-ball').disabled = false; return; } }
+      b.el.style.transform = `translate(${b.x}px, ${b.y}px) translate(-50%, -50%) rotate(${b.t * 400}deg)`;
+      b.el.style.zIndex = Math.round(b.y) + 5;
+    },
+    // ---- tag: two aliens chase each other for a few seconds ----
+    startTag() {
+      const free = this.list.filter((a) => !a.held && !a.mode && !a.useDecor);
+      if (free.length < 2) return;
+      const ch = free[Math.floor(Math.random() * free.length)];
+      const rn = free.filter((a) => a !== ch).sort((p, q) => Math.hypot(p.x - ch.x, p.y - ch.y) - Math.hypot(q.x - ch.x, q.y - ch.y))[0];
+      ch.mode = 'tagChase'; ch.other = rn; ch.modeT = 0;
+      rn.mode = 'tagRun'; rn.other = ch; rn.modeT = 0; rn.fleeT = 0;
+      Sfx.chirp && Sfx.chirp({ base: 600, wave: 'triangle', vol: 1 }, 'giggle');
+    },
+    endTag(a) {
+      for (const x of [a, a.other]) { if (!x) continue; x.mode = null; x.other = null; x.happy = 0.6; x.el.classList.remove('hop'); void x.el.offsetWidth; x.el.classList.add('hop'); x.wait = 1.5; }
+    },
+    // what an alien is busy with (ball, tag, a decoration); null = just wandering
+    playStep(a, dt) {
+      if (a.useDecor) {
+        const u = a.useDecor; u.t += dt;
+        if (u.id === 'fountain' && (u.fx = (u.fx || 0) - dt) <= 0) { u.fx = 0.7; this.hearts4(a, 1); }
+        if (u.id === 'lamp' && (u.fx = (u.fx || 0) - dt) <= 0) { u.fx = 0.5; this.floatText(a.x + (Math.random() * 60 - 30), a.y - a.el.offsetHeight, '✦', '#9ff8ff'); }
+        if (u.t > 3) { a.useDecor = null; a.goDecor = null; a.wait = 1 + Math.random() * 2; return null; }
+        return { speed: 0, yOff: u.id === 'trampoline' ? -Math.abs(Math.sin(u.t * 5.5)) * 110 : 0 };
+      }
+      if (a.mode === 'chase') {
+        const b = this.ball;
+        if (!b || b.phase !== 'ground') { a.mode = null; return null; }
+        a.tx = b.x; a.ty = b.y + 4;
+        if (Math.hypot(b.x - a.x, b.y - a.y) < 34) {
+          b.phase = 'held'; b.holder = a; a.mode = 'fetch';
+          this.list.forEach((o) => { if (o.mode === 'chase') o.mode = null; });
+          const home = this.spot(null, a.size); a.home = { x: 960, y: 860 }; if (!this.fits(960, 860, a.size)) a.home = home;
+          Sfx.chirp && Sfx.chirp({ base: 700, wave: 'sine', vol: 1 }, 'hello');
+        }
+        return { speed: 240 };
+      }
+      if (a.mode === 'fetch') {
+        a.tx = a.home.x; a.ty = a.home.y;
+        if (Math.hypot(a.tx - a.x, a.ty - a.y) < 6) {
+          const b = this.ball; if (b) { b.phase = 'drop'; b.t = 0; b.holder = null; b.x = a.x + 40; b.y = a.y - 20; }
+          a.mode = null; a.happy = 0.8; a.el.classList.remove('hop'); void a.el.offsetWidth; a.el.classList.add('hop');
+          const day = this.day(); day.fetch[a.k] = (day.fetch[a.k] || 0) + 1;
+          if (day.fetch[a.k] <= 3) this.addFriend(a, 3); else this.hearts4(a, 3);
+          Sfx.chirp && Sfx.chirp({ base: 700, wave: 'sine', vol: 1 }, 'giggle');
+        }
+        return { speed: 170 };
+      }
+      if (a.mode === 'tagChase' || a.mode === 'tagRun') {
+        a.modeT += dt;
+        const o = a.other;
+        if (!o || o.mode == null || o.held || a.modeT > 6) { this.endTag(a); return null; }
+        if (a.mode === 'tagChase') { a.tx = o.x; a.ty = o.y; if (Math.hypot(o.x - a.x, o.y - a.y) < 40 && a.modeT > 1) { this.hearts4(a, 2); this.endTag(a); return null; } return { speed: 175 }; }
+        a.fleeT -= dt;
+        if (a.fleeT <= 0) {
+          a.fleeT = 0.8;
+          let best = null, bd = -1;
+          for (let i = 0; i < 6; i++) { const p = this.spot(a, a.size); const d = Math.hypot(p.x - o.x, p.y - o.y); if (d > bd) { bd = d; best = p; } }
+          if (best) { a.tx = best.x; a.ty = best.y; }
+        }
+        return { speed: 165 };
+      }
+      return null;
+    },
+    arrive(a) {
+      // reached a decoration: use it for a while
+      if (a.goDecor) { a.useDecor = { id: a.goDecor, t: 0 }; if (a.goDecor === 'trampoline') Sfx.tone(500, 0.1, 'sine', 0.05, 900); return true; }
+      return false;
+    },
+    wanderTarget(a) {
+      if (this.decor && this.decor.length && Math.random() < 0.3) {
+        const o = this.decor[Math.floor(Math.random() * this.decor.length)];
+        const tx = o.d.id === 'trampoline' ? o.x : o.x + (Math.random() < 0.5 ? -1 : 1) * o.d.w * 0.55, ty = o.d.id === 'trampoline' ? o.y - 12 : o.y + 6;
+        if (o.d.id === 'trampoline' && this.list.some((x) => x !== a && (x.goDecor === 'trampoline'))) return this.spot(a, a.size);
+        if (this.pathOk(a.x, a.y, tx, ty, a.size * 0.6)) { a.goDecor = o.d.id; return { x: tx, y: ty }; }
+      }
+      a.goDecor = null;
+      return this.spot(a, a.size);
+    },
+    // ---- decorations shop ----
+    openDecor() {
+      const grid = $('#decor-grid'), dec = save.ranchDecor || {};
+      grid.innerHTML = DECOR.map((d) => `<button class="rp-card${dec[d.id] ? ' owned' : canPay(d.cost) ? '' : ' poor'}" data-decor="${d.id}"><span class="rp-art">${d.svg}</span><b>${t(d.name)}</b><small>${dec[d.id] ? '✓ ' + t('Built') : REWARD(d.cost)}</small></button>`).join('');
+      grid.querySelectorAll('[data-decor]').forEach((b) => b.addEventListener('click', () => {
+        const d = DECOR.find((x) => x.id === b.dataset.decor);
+        if ((save.ranchDecor || {})[d.id]) { Sfx.select(); return; }
+        if (!canPay(d.cost)) { Sfx.clink(); showToast(t('Not enough materials')); return; }
+        pay(d.cost); save.ranchDecor = save.ranchDecor || {};
+        save.ranchDecor[d.id] = { x: d.pos[0], y: d.pos[1] }; persist(); Sfx.win();
+        showToast(t('{name} built! Drag it to move it.', { name: t(d.name) }));
+        $('#ov-decor').classList.remove('show'); Habitat.start();
+      }));
+      $('#ov-decor').classList.add('show'); setTimeout(focusFirst, 30);
+    },
+    // ---- buddy ----
+    openBuddy() {
+      const grid = $('#buddy-grid'), kinds = this.caughtKinds();
+      grid.innerHTML = kinds.length ? kinds.map((k) => {
+        const h = this.hearts(k), ok = h >= 5, cur = save.buddy === k, bonus = SV.buddyBonusOf(k);
+        return `<button class="rp-card buddy${ok ? '' : ' locked'}${cur ? ' owned' : ''}" data-buddy="${k}"><img src="assets/dex/${k}.png" alt=""><b>${SPR[k].name}</b>`
+          + `<span class="rp-hearts">${this.heartStr(k)}</span><small>${ok ? t(bonus.text) : t('Make friends: cuddle, feed and play')}</small>${cur ? `<i class="rp-tag">${t('Your buddy')}</i>` : ''}</button>`;
+      }).join('') : `<p class="muted">${t('Catch aliens and they will come to live here!')}</p>`;
+      grid.querySelectorAll('[data-buddy]').forEach((b) => b.addEventListener('click', () => {
+        const k = b.dataset.buddy;
+        if (this.hearts(k) < 5) { Sfx.clink(); showToast(t('{name} needs 5 hearts to be your buddy', { name: SPR[k].name })); return; }
+        save.buddy = save.buddy === k ? null : k; persist(); Sfx.equip();
+        if (save.buddy) showToast(t('{name} comes with you into battle!', { name: SPR[k].name }));
+        this.openBuddy(); $('#rt-buddy').classList.remove('dot');
+      }));
+      $('#ov-buddy').classList.add('show'); setTimeout(focusFirst, 30);
+    },
+  });
 
   function openModule(m) {
     const panel = $('#base-panel');
@@ -2476,6 +2848,10 @@
   // ---------------- Keyboard and TV remote ----------------
   document.addEventListener('keydown', (e) => {
     Sfx.unlock();
+    // the ranch and badge pop-ups close first with Escape / Back
+    if ((e.key === 'Escape' || e.key === 'Backspace' || e.key === 'GoBack') && ['#ov-snack', '#ov-decor', '#ov-buddy', '#ov-badge'].some((o) => $(o) && $(o).classList.contains('show'))) {
+      e.preventDefault(); ['#ov-snack', '#ov-decor', '#ov-buddy', '#ov-badge'].forEach((o) => $(o).classList.remove('show')); setTimeout(focusFirst, 30); return;
+    }
     // Orbit's training overlay: Escape / Back = Skip (before) or Back (after)
     const tov = $('#tut-overlay');
     if (tov && tov.classList.contains('show')) {

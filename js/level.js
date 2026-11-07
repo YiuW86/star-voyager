@@ -323,6 +323,19 @@
   const lerp = (a, b, t) => a + (b - a) * t;
   const dist = (a, b) => Math.hypot(a.x - b.x, a.y - b.y);
   const FONT = '"Chakra Petch", "Segoe UI", Roboto, Arial, sans-serif';
+  // A ranch friend with 5 hearts can come along as your buddy; each kind helps in its own way
+  const BUDDY_BONUS = {
+    heal: { text: 'Heals you 3 health for every catch' },
+    slow: { text: 'Rocks fly 25% slower' },
+    net: { text: '+1 net grenade in every level' },
+    crystal: { text: '+15% crystals from every level' },
+    score: { text: '+10% points' },
+  };
+  function buddyBonusOf(k) {
+    const s = SPR[k] || {};
+    const id = s.swim === 'jelly' ? 'heal' : s.swim === 'glide' ? 'slow' : s.swim === 'walk' ? 'net' : s.pulse ? 'crystal' : s.thrower ? 'score' : 'crystal';
+    return { id, text: BUDDY_BONUS[id].text };
+  }
   const EMOJI_FONT = '"Noto Color Emoji", "Apple Color Emoji", "Segoe UI Emoji", sans-serif';
   const pick = (a) => a[Math.floor(Math.random() * a.length)];
 
@@ -676,6 +689,9 @@
       this.hasMedkit = !!up.medkit;
 
       this.health = 100;
+      this.buddy = save && save.buddy && SPR[save.buddy] && !tutorial ? save.buddy : null;
+      this.buddyBonus = this.buddy ? buddyBonusOf(this.buddy).id : null;
+      this.buddyHop = 0; this.buddyT = 0; this._buddyPaid = false;
       this.caught = Object.fromEntries(TYPES.map((t) => [t, 0]));
       this.monsters = []; this.particles = []; this.voxels = []; this.trails = []; this.lasers = []; this.rocks = []; this.nets = []; this.flying = [];
       this.spawnTimer = 0.8;
@@ -745,7 +761,7 @@
         reticle: { x: W / 2, y: H / 2 }, smoothAim: { x: W / 2, y: H / 2 },
         still: { x: 0, y: 0, t: 0 },
         belt: { open: false, hover: 0, sel: null, selT: 0, away: 0, anim: 0 },
-        grenades: (up.grenadePouch ? 5 : 3) + Math.floor(((this.baseLv || {}).lab || 0) / 2),
+        grenades: (up.grenadePouch ? 5 : 3) + Math.floor(((this.baseLv || {}).lab || 0) / 2) + (this.buddyBonus === 'net' ? 1 : 0),
         timeGrenades: up.timeGrenade ? (up.timePouch ? 4 : 2) + (((this.baseLv || {}).lab || 0) >= 3 ? 1 : 0) : 0,
         shieldHP: SHIELD_MAX, shieldRecharge: 0, shieldFlash: 0,
         tHold: 0, tLatch: true, menuHold: 0,
@@ -1499,6 +1515,21 @@
         if (!said && Math.random() < 0.35) { said = true; this.emote(m, '😱', 1.2); this.chirp(m, 'scared'); }
       }
     },
+    // your buddy from the ranch floats beside the blaster and cheers when you catch an alien
+    drawBuddy() {
+      if (!this.buddy || this.state === 'idle') return;
+      const s = SPR[this.buddy], img = Assets.images[this.buddy];
+      if (!s || !img) return;
+      this.buddyT += 1 / 60;
+      if (this.buddyHop > 0) this.buddyHop -= 1 / 60;
+      const hop = this.buddyHop > 0 ? Math.sin((0.45 - this.buddyHop) / 0.45 * Math.PI) * 60 : 0;
+      const x = W / 2 - 235 + Math.sin(this.buddyT * 0.9) * 10, y = H - 115 + Math.sin(this.buddyT * 2.2) * 8 - hop;
+      const fr = s.front[Math.floor(this.buddyT * 4) % s.front.length];
+      const c = this.ctx;
+      c.save(); c.globalAlpha = 0.35; c.fillStyle = '#000'; c.beginPath(); c.ellipse(x, H - 40, 50, 10, 0, 0, Math.PI * 2); c.fill(); c.restore();
+      this.drawFrame(img, s, fr, x, y, 130, false, 1, Math.sin(this.buddyT * 1.7) * 0.08 + (hop ? 0.15 : 0), 1 + (hop ? 0.05 : 0), 1 - (hop ? 0.05 : 0));
+      if (hop > 40 && Math.random() < 0.08) this.burst(x, y - 70, '#ff7ab0', 2, false);
+    },
     // ---- trails ----
     emitTrail(m, dt) {
       if (this.fxReduced || m.state !== 'alive' || m.z < 0.05) return;
@@ -1655,7 +1686,7 @@
       for (let i = 0; i < n; i++) pts.push([Math.cos(i / n * Math.PI * 2) * rand(0.7, 1), Math.sin(i / n * Math.PI * 2) * rand(0.7, 1)]);
       this.rocks.push({
         x0: m.px, y0: m.py, tx: this.gunBase(target) + rand(this.players.length > 1 ? -200 : -380, this.players.length > 1 ? 200 : 380), ty: H * 0.8,
-        t: 0, dur: kind === 'ring' ? rand(2.3, 2.8) : rand(1.6, 2.1), color: SPR[m.type].color, spin: rand(-4, 4), pts,
+        t: 0, dur: (kind === 'ring' ? rand(2.3, 2.8) : rand(1.6, 2.1)) * (this.buddyBonus === 'slow' ? 1.25 : 1), color: SPR[m.type].color, spin: rand(-4, 4), pts,
         x: m.px, y: m.py, size: 20, r: 10, state: 'fly', rock: true, target: target.id, kind: kind || 'rock',
         art: m.bossArt || null, variant: Math.floor(Math.random() * 3),
       });
@@ -3633,7 +3664,7 @@
         if (this.combo >= 5) this.hud('stat', { ev: 'combo', n: this.combo });
         if (this.combo === 5 || this.combo === 10) this.orbitSay('combo');
       }
-      const got = Math.round(pts * (noCombo ? 1 : this.mult) * (this.hyperT > 0 ? 2 : 1));
+      const got = Math.round(pts * (noCombo ? 1 : this.mult) * (this.hyperT > 0 ? 2 : 1) * (this.buddyBonus === 'score' ? 1.1 : 1));
       this.score += got;
       this.floater(x, y, '+' + got, this.hyperT > 0 ? '#ffe680' : this.mult > 1 && !noCombo ? '#ffd27a' : '#ffffff');
       this.hud('score', this.score);
@@ -4122,6 +4153,10 @@
       this.hud('caught', m.type);
       this.dissolveMonster(m, netted);
       this.lifeFear(m);
+      if (this.buddy) {
+        this.buddyHop = 0.45;
+        if (this.buddyBonus === 'heal' && this.health < 100) { this.health = Math.min(100, this.health + 3); this.hud('health'); }
+      }
       Sfx.dissolve();
       this.burst(m.px, m.py, SPR[m.type].color, 22, true);
       if (this.caught[m.type] === goalOf(m.type) && !this['done_' + m.type]) { this['done_' + m.type] = true; this.hud('toast', SPR[m.type].name + ' complete!'); }
@@ -4204,6 +4239,7 @@
       } : { noDamage: 0, accuracy: 0, time: 0 };
       this.score += this.bonus.noDamage + this.bonus.accuracy + this.bonus.time;
       this.players.forEach((p) => { p.belt.open = false; });
+      if (this.buddyBonus === 'crystal' && !this._buddyPaid) { this._buddyPaid = true; this.earned = Math.round(this.earned * 1.15); }
       if (this.onEnd) this.onEnd({
         won: this.won, time,
         accuracy: this.shots ? Math.round((this.hits / this.shots) * 100) : 0,
@@ -4409,6 +4445,7 @@
       }
 
       this.drawVoxels();
+      this.drawBuddy();
       // Particles and laser shots (each player's laser in their own colour)
       c.save();
       c.globalCompositeOperation = 'lighter';
@@ -5104,5 +5141,5 @@
     },
   };
 
-  window.SV = { SPECIALS, SPECIAL_INFO, specialOf, SUPERS, viewW: () => W, REGION_MAT, Assets, Input, inputs, Level, SPR, LEVELS, STAGES, stageConfig, starRating, ALL_TYPES, GEAR, TIME_GEAR, SHIELD_MAX, TROPHIES, shieldMax: () => SHIELD_MAX, get TYPES() { return TYPES; }, get GOAL() { return GOAL; }, goalOf };
+  window.SV = { buddyBonusOf, SPECIALS, SPECIAL_INFO, specialOf, SUPERS, viewW: () => W, REGION_MAT, Assets, Input, inputs, Level, SPR, LEVELS, STAGES, stageConfig, starRating, ALL_TYPES, GEAR, TIME_GEAR, SHIELD_MAX, TROPHIES, shieldMax: () => SHIELD_MAX, get TYPES() { return TYPES; }, get GOAL() { return GOAL; }, goalOf };
 })();

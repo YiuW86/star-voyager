@@ -5,7 +5,7 @@
 /* Always play the newest version: ask the website which version is live (bypassing any saved copy);
    if this page is older, load the page again once with the new version number. */
 (function () {
-  var BUILD = '3.46';
+  var BUILD = '3.46.1';
   try {
     fetch('version.json?t=' + Date.now(), { cache: 'no-store' }).then(function (r) { return r.ok ? r.json() : null; }).then(function (j) {
       if (!j || !j.v || j.v === BUILD) return;
@@ -25,7 +25,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Chakra+Petch:wght@400;500;600;700&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="css/style.css?v=3.46">
+  <link rel="stylesheet" href="css/style.css?v=3.46.1">
 </head>
 <body>
 <svg width="0" height="0" style="position:absolute" aria-hidden="true"><defs>
@@ -211,7 +211,38 @@
       <h1 class="title ranch-title">Ranch</h1>
       <div class="ranch-slots" id="ranch-slots"></div>
     </div>
-    <button class="btn pink ranch-add" data-action="ranch-pick"><span>Choose aliens</span></button>
+    <div class="ranch-tools">
+      <button class="rt-btn" data-action="ranch-pick"><i>🏡</i><span>Aliens</span></button>
+      <button class="rt-btn" data-action="ranch-snacks" id="rt-snacks"><i>🍪</i><span>Snacks</span></button>
+      <button class="rt-btn" data-action="ranch-ball" id="rt-ball"><i>⚽</i><span>Ball</span></button>
+      <button class="rt-btn" data-action="ranch-decor"><i>🎨</i><span>Decorate</span></button>
+      <button class="rt-btn" data-action="ranch-buddy" id="rt-buddy"><i>🤝</i><span>Buddy</span></button>
+    </div>
+    <div class="ranch-hint" id="ranch-hint"><span id="ranch-hint-text"></span><button class="rh-x" data-action="ranch-hint-x" aria-label="Cancel">✕</button></div>
+    <div class="overlay" id="ov-snack">
+      <div class="panel ranch-panel"><div class="inner">
+        <h2>Snacks</h2>
+        <p class="muted">Pick a snack, then tap an alien to feed it. Every alien has a favourite snack: find out which one!</p>
+        <div class="rp-grid" id="snack-grid"></div>
+        <div class="row"><button class="btn" data-action="ranch-close"><span>Close</span></button></div>
+      </div></div>
+    </div>
+    <div class="overlay" id="ov-decor">
+      <div class="panel ranch-panel"><div class="inner">
+        <h2>Decorate</h2>
+        <p class="muted">Build toys for your aliens. Drag them on the grass to move them.</p>
+        <div class="rp-grid" id="decor-grid"></div>
+        <div class="row"><button class="btn" data-action="ranch-close"><span>Close</span></button></div>
+      </div></div>
+    </div>
+    <div class="overlay" id="ov-buddy">
+      <div class="panel ranch-panel"><div class="inner">
+        <h2>Buddy</h2>
+        <p class="muted">An alien with 5 hearts can come with you into every level and help you.</p>
+        <div class="rp-grid buddy-grid" id="buddy-grid"></div>
+        <div class="row"><button class="btn" data-action="ranch-close"><span>Close</span></button></div>
+      </div></div>
+    </div>
     <button class="page-tab left" data-action="to-home"><b>‹</b><span>Spacedome</span></button>
     <div class="overlay" id="ov-ranch">
       <div class="panel ranch-panel"><div class="inner">
@@ -321,6 +352,9 @@
         <div class="goals-count" id="badges-count"></div>
       </header>
       <div class="badges-list" id="badges-list"></div>
+    </div>
+    <div class="overlay" id="ov-badge">
+      <div class="panel badge-pop"><div class="inner" id="badge-pop"></div></div>
     </div>
   </section>
 
@@ -533,17 +567,17 @@
 
 <script src="https://unpkg.com/peerjs@1.5.4/dist/peerjs.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
-<script src="js/config.js?v=3.46"></script>
-<script src="js/i18n.js?v=3.46"></script>
-<script src="js/i18n-more.js?v=3.46"></script>
-<script src="js/audio.js?v=3.46"></script>
-<script src="js/net.js?v=3.46"></script>
-<script src="js/level.js?v=3.46"></script>
-<script src="js/dex.js?v=3.46"></script>
-<script src="js/cloud.js?v=3.46"></script>
-<script src="js/touch.js?v=3.46"></script>
-<script src="js/story.js?v=3.46"></script>
-<script src="js/app.js?v=3.46"></script>
-<script src="js/cast-receiver.js?v=3.46"></script>
+<script src="js/config.js?v=3.46.1"></script>
+<script src="js/i18n.js?v=3.46.1"></script>
+<script src="js/i18n-more.js?v=3.46.1"></script>
+<script src="js/audio.js?v=3.46.1"></script>
+<script src="js/net.js?v=3.46.1"></script>
+<script src="js/level.js?v=3.46.1"></script>
+<script src="js/dex.js?v=3.46.1"></script>
+<script src="js/cloud.js?v=3.46.1"></script>
+<script src="js/touch.js?v=3.46.1"></script>
+<script src="js/story.js?v=3.46.1"></script>
+<script src="js/app.js?v=3.46.1"></script>
+<script src="js/cast-receiver.js?v=3.46.1"></script>
 </body>
 </html>
