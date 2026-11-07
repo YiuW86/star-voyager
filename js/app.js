@@ -1036,7 +1036,7 @@
         this.sheet(k, m, el);
         el.innerHTML = '<i class="hab-shadow"></i>';
         const a = { k, m, el, size, x: p.x, y: p.y, tx: p.x, ty: p.y, speed: 35 + Math.random() * 35, wait: Math.random() * 2, t: Math.random() * 10, flip: false, happy: 0 };
-        el.addEventListener('pointerdown', (e) => { e.stopPropagation(); this.tap(a); });
+        this.bindDrag(a);
         box.appendChild(el);
         return a;
       });
@@ -1052,9 +1052,67 @@
       const col = idx % g.c, row = Math.floor(idx / g.c);
       a.el.style.backgroundPosition = `${g.c > 1 ? col / (g.c - 1) * 100 : 0}% ${g.r > 1 ? row / (g.r - 1) * 100 : 0}%`;
     },
+    // tap an alien to cuddle it; press and drag to pick it up and put it somewhere else on the fields
+    toField(e) {
+      const r = $('#screen-ranch .ranch-frame').getBoundingClientRect();
+      return { x: (e.clientX - r.left) / r.width * 1920, y: (e.clientY - r.top) / r.height * 1080 };
+    },
+    bindDrag(a) {
+      const el = a.el;
+      el.addEventListener('pointerdown', (e) => {
+        e.stopPropagation(); e.preventDefault();
+        try { el.setPointerCapture(e.pointerId); } catch (er) {}
+        const p = this.toField(e);
+        a.press = { id: e.pointerId, cx: e.clientX, cy: e.clientY, ox: a.x - p.x, oy: a.y - p.y, sx: a.x, sy: a.y };
+      });
+      el.addEventListener('pointermove', (e) => {
+        const pr = a.press; if (!pr || pr.id !== e.pointerId) return;
+        if (!a.held && Math.hypot(e.clientX - pr.cx, e.clientY - pr.cy) > 10) {
+          a.held = true; el.classList.add('held');
+          Sfx.tone(520, 0.12, 'triangle', 0.06, 900); window.Haptics && Haptics.buzz(20, 0.3);
+          const old = $('#habitat-fx .hab-bubble'); if (old) old.remove();
+        }
+        if (a.held) {
+          const p = this.toField(e);
+          a.x = p.x + pr.ox; a.y = p.y + pr.oy;
+          el.classList.toggle('bad', !this.fits(a.x, a.y, a.size));
+        }
+      });
+      const end = (e, cancelled) => {
+        const pr = a.press; if (!pr || pr.id !== e.pointerId) return;
+        a.press = null;
+        if (!a.held) { if (!cancelled) this.tap(a); return; }
+        a.held = false; el.classList.remove('held', 'bad');
+        if (!cancelled && this.fits(a.x, a.y, a.size)) {
+          // put down here: a little landing bounce, then it stays a while before wandering again
+          a.tx = a.x; a.ty = a.y; a.wait = 4 + Math.random() * 3; a.happy = 0.6;
+          el.classList.remove('hop'); void el.offsetWidth; el.classList.add('hop');
+          Sfx.tone(300, 0.1, 'sine', 0.08, 180); [660, 990].forEach((f, i) => Sfx.tone(f, 0.08, 'triangle', 0.05, null, 0.06 + i * 0.06));
+          window.Haptics && Haptics.buzz(30, 0.4);
+        } else {
+          // not on the grass (it would fall off the island!): it hurries back
+          a.tx = pr.sx; a.ty = pr.sy; a.rush = true; a.wait = 2;
+          Sfx.clink(); showToast(t('Only on the grass, or it falls off the island!'));
+        }
+      };
+      el.addEventListener('pointerup', (e) => end(e, false));
+      el.addEventListener('pointercancel', (e) => end(e, true));
+    },
     update(dt) {
       for (const a of this.list) {
         a.t += dt;
+        if (a.held) {
+          // dangling in your fingers: wriggling a little
+          this.frame(a, a.m.front[Math.floor(a.t * 8) % a.m.front.length]);
+          const sc = this.depth(a.y) * 1.12, wr = Math.sin(a.t * 14) * 8;
+          a.el.style.transform = `translate(${a.x}px, ${a.y - 26}px) translate(-50%, -100%) rotate(${wr}deg) scale(${a.flip ? -sc : sc}, ${sc})`;
+          a.el.style.zIndex = 2000;
+          continue;
+        }
+        if (a.rush) {
+          const dx = a.tx - a.x, dy = a.ty - a.y, d = Math.hypot(dx, dy), s = Math.min(d, 900 * dt);
+          if (d < 3) a.rush = false; else { a.x += dx / d * s; a.y += dy / d * s; }
+        }
         if (a.happy > 0) { a.happy -= dt; continue; }
         const dx = a.tx - a.x, dy = a.ty - a.y, d = Math.hypot(dx, dy);
         let moving = false;
@@ -2077,6 +2135,12 @@
         pips.classList.toggle('lots', L.magSize > 24);
       }
       [...pips.children].forEach((p, i) => p.classList.toggle('off', i >= P1.ammo));
+      // the modern counter: bullets left / magazine size
+      $('#ammo-num').textContent = P1.ammo; $('#ammo-max').textContent = '/' + L.magSize;
+      const ac = $('#ammo-count');
+      ac.classList.toggle('low', P1.ammo > 0 && P1.ammo <= Math.max(2, Math.round(L.magSize * 0.2)));
+      ac.classList.toggle('empty', P1.ammo === 0);
+      ac.classList.remove('tick'); void ac.offsetWidth; ac.classList.add('tick');
     }
     if (kind === 'all' || kind === 'catch') {
       for (const t of types()) {
@@ -2093,6 +2157,7 @@
         : 'Blaster';
       $('#gear-label').textContent = label;
       $('#pips').style.opacity = P1.equipped === 'gun' ? 1 : 0.25;
+      $('#ammo-count').style.opacity = P1.equipped === 'gun' ? 1 : 0.3;
     }
     if (kind === 'fps') {
       const el = $('#fps');
@@ -2376,8 +2441,8 @@
     }
     $('#end-tip').textContent = tip;
     const survive = r.special === 'survive';
+    // (how many of each alien you caught is not shown: it is not relevant once the level is over)
     const caught = r.endless ? `<span>${t('Wave')}</span><b>${r.wave}</b>` : (survive ? `<span>${t('Survived')}</span><b>${r.won ? '60 s' : Math.floor(r.survived || 0) + ' s'}</b>` : '')
-      + types().map((t) => `<span>${SPR[t].name}</span><b>${survive ? r.caught[t] : `${r.caught[t]}/${goal(t)}`}</b>`).join('')
       + (r.boss ? `<span>${r.boss.name}</span><b>${r.boss.caught ? 'Caught!' : 'Got away'}</b>` : '');
     const bonusRows = r.won && r.bonus ? `
       <span>${t('No damage bonus')}</span><b>${r.bonus.noDamage.toLocaleString()}</b>

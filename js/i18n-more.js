@@ -2793,4 +2793,13 @@
   "Descobertos {a}/{b}"
  ]
 });
+  I18N.add({
+ "Only on the grass, or it falls off the island!": [
+  "Alleen op het gras, anders valt hij van het eiland!",
+  "Nur auf das Gras, sonst fällt es von der Insel!",
+  "Seulement sur l'herbe, sinon il tombe de l'île !",
+  "¡Solo en la hierba, o se caerá de la isla!",
+  "Só na relva, senão cai da ilha!"
+ ]
+});
 })();

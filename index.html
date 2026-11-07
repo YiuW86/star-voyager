@@ -5,7 +5,7 @@
 /* Always play the newest version: ask the website which version is live (bypassing any saved copy);
    if this page is older, load the page again once with the new version number. */
 (function () {
-  var BUILD = '3.45';
+  var BUILD = '3.46';
   try {
     fetch('version.json?t=' + Date.now(), { cache: 'no-store' }).then(function (r) { return r.ok ? r.json() : null; }).then(function (j) {
       if (!j || !j.v || j.v === BUILD) return;
@@ -25,7 +25,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Chakra+Petch:wght@400;500;600;700&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="css/style.css?v=3.45">
+  <link rel="stylesheet" href="css/style.css?v=3.46">
 </head>
 <body>
 <svg width="0" height="0" style="position:absolute" aria-hidden="true"><defs>
@@ -461,6 +461,7 @@
       <div class="ammo">
         <div class="gear-label" id="gear-label">Blaster</div>
         <div class="pips" id="pips"></div>
+        <div class="ammo-count" id="ammo-count"><svg class="ac-ico" viewBox="0 0 12 28" aria-hidden="true"><path d="M6 0c3 3 5 7 5 11v13H1V11C1 7 3 3 6 0z" fill="currentColor"/><rect x="0" y="25" width="12" height="3" rx="1" fill="currentColor"/></svg><b id="ammo-num">8</b><small id="ammo-max">/8</small></div>
         <div class="wallet"><i class="crystal"></i><span id="hud-crystals">0</span></div>
       </div>
       <div class="fps" id="fps"></div>
@@ -532,17 +533,17 @@
 
 <script src="https://unpkg.com/peerjs@1.5.4/dist/peerjs.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
-<script src="js/config.js?v=3.45"></script>
-<script src="js/i18n.js?v=3.45"></script>
-<script src="js/i18n-more.js?v=3.45"></script>
-<script src="js/audio.js?v=3.45"></script>
-<script src="js/net.js?v=3.45"></script>
-<script src="js/level.js?v=3.45"></script>
-<script src="js/dex.js?v=3.45"></script>
-<script src="js/cloud.js?v=3.45"></script>
-<script src="js/touch.js?v=3.45"></script>
-<script src="js/story.js?v=3.45"></script>
-<script src="js/app.js?v=3.45"></script>
-<script src="js/cast-receiver.js?v=3.45"></script>
+<script src="js/config.js?v=3.46"></script>
+<script src="js/i18n.js?v=3.46"></script>
+<script src="js/i18n-more.js?v=3.46"></script>
+<script src="js/audio.js?v=3.46"></script>
+<script src="js/net.js?v=3.46"></script>
+<script src="js/level.js?v=3.46"></script>
+<script src="js/dex.js?v=3.46"></script>
+<script src="js/cloud.js?v=3.46"></script>
+<script src="js/touch.js?v=3.46"></script>
+<script src="js/story.js?v=3.46"></script>
+<script src="js/app.js?v=3.46"></script>
+<script src="js/cast-receiver.js?v=3.46"></script>
 </body>
 </html>

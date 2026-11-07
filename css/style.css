@@ -1775,3 +1775,26 @@ body.touch .boss-card { width: 340px; } body.touch .boss-card b { font-size: 34p
 .dex-planet b { font-size: 46px; color: var(--gold); text-shadow: 0 2px 10px rgba(0, 0, 0, 0.6); }
 .dex-planet span { font-size: 26px; color: #c8d7ff; }
 body.touch .dex-planet b { font-size: 56px; } body.touch .dex-planet span { font-size: 32px; }
+
+/* v3.46 battle HUD: a modern ammo counter instead of bullet pips; materials stacked vertically */
+@font-face { font-family: 'Orbitron'; src: url('../assets/fonts/orbitron-700.woff2') format('woff2'); font-weight: 700; font-display: swap; }
+.ammo .pips { display: none; }
+.ammo-count { display: flex; align-items: baseline; gap: 8px; font-family: 'Orbitron', 'Chakra Petch', sans-serif; font-weight: 700; color: #eaffff;
+  text-shadow: 0 0 14px rgba(98, 240, 255, 0.65), 0 2px 6px rgba(0, 0, 0, 0.8); font-variant-numeric: tabular-nums; line-height: 1; }
+.ammo-count .ac-ico { width: 16px; height: 36px; color: var(--cyan); align-self: center; filter: drop-shadow(0 0 6px var(--cyan)); }
+.ammo-count b { font-size: 66px; letter-spacing: 1px; }
+.ammo-count small { font-size: 26px; color: rgba(200, 240, 255, 0.65); }
+.ammo-count.tick b { animation: ammo-tick 0.18s ease-out; }
+@keyframes ammo-tick { 0% { transform: scale(0.86); } 100% { transform: scale(1); } }
+.ammo-count.low b { color: #ffd27a; text-shadow: 0 0 14px rgba(255, 190, 80, 0.8), 0 2px 6px rgba(0, 0, 0, 0.8); }
+.ammo-count.empty b { color: #ff6a7a; text-shadow: 0 0 16px rgba(255, 80, 100, 0.9), 0 2px 6px rgba(0, 0, 0, 0.8); animation: ammo-empty 0.8s ease-in-out infinite; }
+@keyframes ammo-empty { 50% { opacity: 0.45; } }
+.ammo.two .ammo-count, #screen-game.plat .ammo .ammo-count { display: none; }
+.mats-hud { left: 18px; bottom: 30px; flex-direction: column; gap: 8px; padding: 10px 12px; }
+.mats-hud span { min-width: 64px; }
+
+/* v3.46 ranch: pick an alien up and put it down somewhere else */
+.hab-alien { touch-action: none; cursor: grab; }
+.hab-alien.held { cursor: grabbing; filter: drop-shadow(0 26px 14px rgba(0, 0, 0, 0.45)) drop-shadow(0 0 12px rgba(127, 246, 255, 0.8)); transition: none; }
+.hab-alien.held .hab-shadow { opacity: 0.25; transform: scale(0.7) translateY(26px); }
+.hab-alien.bad { filter: drop-shadow(0 26px 14px rgba(0, 0, 0, 0.45)) drop-shadow(0 0 14px rgba(255, 80, 100, 0.95)); }
