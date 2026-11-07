@@ -45,8 +45,59 @@
 
   <!-- Intro video after pressing Start -->
   <section id="screen-intro" class="screen intro">
-    <video id="intro-video" src="assets/intro.mp4" playsinline preload="auto"></video>
+    <video id="intro-video" poster="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" src="assets/intro.mp4" playsinline preload="auto"></video>
     <button class="btn small intro-skip" data-action="intro-skip"><span>Skip</span></button>
+  </section>
+
+  <!-- Opening film of the mystery planet ???? (plays each time you go there) -->
+  <section id="screen-voidintro" class="screen voidintro">
+    <video id="void-video" poster="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" src="assets/void-intro.mp4" playsinline preload="none"></video>
+    <button class="btn small intro-skip void-skip" data-action="void-skip"><span>Skip</span></button>
+  </section>
+
+  <!-- Equipment: the film plays (once per session), then freezes on the astronaut; slots left and right -->
+  <section id="screen-equip" class="screen equip">
+    <video id="equip-video" poster="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" src="assets/equip.mp4" playsinline preload="none"></video>
+    <img id="equip-still" src="assets/equip-final.jpg" alt="">
+    <audio id="equip-music" src="assets/equip-music.webm" loop preload="none"></audio>
+    <div class="equip-ui" id="equip-ui">
+      <h1 class="title equip-title">Equipment</h1>
+      <div class="equip-col left" id="equip-left"></div>
+      <div class="equip-col right" id="equip-right"></div>
+      <div class="equip-stats" id="equip-stats"></div>
+      <button class="btn equip-back" data-action="equip-back"><span>Back</span></button>
+    </div>
+    <button class="btn small intro-skip equip-skip" data-action="equip-skip"><span>Skip</span></button>
+    <div class="overlay" id="ov-equip">
+      <div class="panel equip-panel"><div class="inner">
+        <div id="equip-pick"></div>
+        <div class="row"><button class="btn pink" data-action="equip-pick-close"><span>Done</span></button></div>
+      </div></div>
+    </div>
+    <div class="overlay" id="ov-equip-tip">
+      <div class="panel equip-tip"><div class="inner">
+        <h2>New: upgrade your superpowers!</h2>
+        <p>Choose your gear here: a superpower for each hand, your weapon mod, your helper bots, your drone ability and the look of your blaster.</p>
+        <p><b>Superpowers can now be upgraded.</b> Open a hand slot and press <b>Upgrade</b> on a superpower.</p>
+        <p class="muted">Level 2: lasts 30% longer and works a bit stronger.<br>Level 3: lasts 60% longer with an extra power (needs that superpower's boss trophy).</p>
+        <p class="muted">A gold ▲ on a slot means an upgrade is ready to buy.</p>
+        <div class="row"><button class="btn pink" data-action="equip-tip-ok"><span>Got it!</span></button></div>
+      </div></div>
+    </div>
+  </section>
+
+  <!-- Cinema: films and conversations to watch again -->
+  <section id="screen-cinema" class="screen dim-bg">
+    <img class="fill" src="assets/space.jpg" alt="">
+    <div class="center-col cinema">
+      <div class="cine-head"><h1 class="title">Cinema</h1><p class="muted cine-sub">Watch your films and conversations again.</p></div>
+      <div class="cine-scroll"><div class="cine-grid" id="cine-grid"></div></div>
+      <button class="btn" data-go="planets"><span>Back</span></button>
+    </div>
+    <div class="film-player" id="film-player">
+      <video id="film-video" poster="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" playsinline preload="none"></video>
+      <button class="btn small intro-skip film-close" data-action="film-close"><span>Back</span></button>
+    </div>
   </section>
 
   <!-- Planet choice (after the intro): for now one planet; its worlds are chosen on the next screen -->
@@ -54,15 +105,22 @@
     <img class="fill" src="assets/space.jpg" alt="">
     <div class="planets-head"><h1 class="title">Choose your planet</h1></div>
     <div class="planet-row" id="planet-row"></div>
-    <button class="carousel-arrow left" data-action="planet-prev" aria-label="Previous planet">‹</button>
-    <button class="carousel-arrow right" data-action="planet-next" aria-label="Next planet">›</button>
+    <!-- the hub: Back and Options in the top corners, "prepare" on the left, your collection on the right, Continue below -->
+    <button class="btn small hub-back" data-go="start"><span>Back</span></button>
+    <button class="hub-gear" data-action="planet-options" aria-label="Options"><svg viewBox="0 0 64 64"><path d="M32 6 L37 6 L39 14 L45 17 L52 12 L56 16 L51 23 L54 29 L62 31 V37 L54 39 L51 45 L56 52 L52 56 L45 51 L39 54 L37 62 H27 L25 54 L19 51 L12 56 L8 52 L13 45 L10 39 L2 37 V31 L10 29 L13 23 L8 16 L12 12 L19 17 L25 14 L27 6 Z" fill="currentColor" opacity="0.3" stroke="currentColor" stroke-width="3.5" stroke-linejoin="round"/><circle cx="32" cy="34" r="9" fill="none" stroke="currentColor" stroke-width="4"/></svg></button>
+    <div class="hub-dock left">
+      <button class="hub-btn" data-go="home"><i class="hub-ico"><svg viewBox="0 0 64 64"><path d="M8 40 C8 22 20 12 32 12 C44 12 56 22 56 40 Z" fill="currentColor" opacity="0.25"/><path d="M8 40 C8 22 20 12 32 12 C44 12 56 22 56 40 M4 40 H60 M20 40 V50 H44 V40 M32 12 V40 M14 26 H50" fill="none" stroke="currentColor" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/></svg></i><span>Spacedome</span></button>
+      <button class="hub-btn" data-action="open-equip"><i class="hub-ico"><svg viewBox="0 0 64 64"><circle cx="32" cy="26" r="17" fill="currentColor" opacity="0.25"/><circle cx="32" cy="26" r="17" fill="none" stroke="currentColor" stroke-width="4"/><path d="M21 25 Q32 17 43 25 Q32 33 21 25 Z" fill="currentColor"/><path d="M14 58 C14 46 22 42 32 42 C42 42 50 46 50 58" fill="none" stroke="currentColor" stroke-width="4" stroke-linecap="round"/></svg><i class="goal-dot" id="equip-dot"></i></i><span>Equipment</span></button>
+      <button class="hub-btn" data-go="shop"><i class="hub-ico"><svg viewBox="0 0 64 64"><path d="M12 22 H52 L48 54 H16 Z" fill="currentColor" opacity="0.25"/><path d="M12 22 H52 L48 54 H16 Z M23 22 V16 C23 10 27 7 32 7 C37 7 41 10 41 16 V22" fill="none" stroke="currentColor" stroke-width="4" stroke-linejoin="round" stroke-linecap="round"/><path d="M32 30 L35 37 L42 37 L36 41 L38 48 L32 44 L26 48 L28 41 L22 37 L29 37 Z" fill="currentColor"/></svg></i><span>Shop</span></button>
+      <button class="hub-btn" data-action="training"><i class="hub-ico"><svg viewBox="0 0 64 64"><circle cx="32" cy="32" r="24" fill="currentColor" opacity="0.25" stroke="currentColor" stroke-width="4"/><circle cx="32" cy="32" r="14" fill="none" stroke="currentColor" stroke-width="4"/><circle cx="32" cy="32" r="5" fill="currentColor"/><path d="M32 2 V14 M32 50 V62 M2 32 H14 M50 32 H62" stroke="currentColor" stroke-width="4" stroke-linecap="round"/></svg></i><span>Training</span></button>
+    </div>
+    <div class="hub-dock right">
+      <button class="hub-btn" data-go="dex"><i class="hub-ico"><svg viewBox="0 0 64 64"><path d="M10 12 H28 C31 12 32 14 32 17 V54 C32 51 30 50 27 50 H10 Z M54 12 H36 C33 12 32 14 32 17 V54 C32 51 34 50 37 50 H54 Z" fill="currentColor" opacity="0.25" stroke="currentColor" stroke-width="4" stroke-linejoin="round"/><circle cx="21" cy="28" r="5" fill="currentColor"/><path d="M38 24 H48 M38 32 H48 M38 40 H45" stroke="currentColor" stroke-width="3.5" stroke-linecap="round"/></svg></i><span>Alien guide</span></button>
+      <button class="hub-btn" data-go="cinema"><i class="hub-ico"><svg viewBox="0 0 64 64"><rect x="8" y="16" width="48" height="34" rx="5" fill="currentColor" opacity="0.25" stroke="currentColor" stroke-width="4"/><path d="M27 25 L41 33 L27 41 Z" fill="currentColor"/><path d="M8 24 H56 M8 42 H56" stroke="currentColor" stroke-width="2" opacity="0.6"/></svg></i><span>Cinema</span></button>
+      <button class="hub-btn" data-go="goals"><i class="hub-ico"><svg viewBox="0 0 64 64"><path d="M20 10 H44 V24 C44 32 39 37 32 37 C25 37 20 32 20 24 Z" fill="currentColor" opacity="0.25" stroke="currentColor" stroke-width="4" stroke-linejoin="round"/><path d="M20 15 H11 C11 24 15 28 20 28 M44 15 H53 C53 24 49 28 44 28 M32 37 V46 M22 54 H42 M26 54 L28 46 H36 L38 54" fill="none" stroke="currentColor" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/></svg><i class="goal-dot" id="goal-dot"></i></i><span>Goals</span></button>
+    </div>
     <div class="planets-bar">
-      <button class="btn" data-go="start"><span>Back</span></button>
-      <button class="btn" data-go="home"><span>Home</span></button>
       <button class="btn pink continue-btn" data-action="continue" id="continue-btn"><span>Continue<small id="continue-where"></small></span></button>
-      <button class="btn" data-go="goals"><span>Goals</span><i class="goal-dot" id="goal-dot"></i></button>
-      <button class="btn pink" data-go="shop"><span>Shop</span></button>
-      <button class="btn" data-action="planet-options"><span>Options</span></button>
     </div>
   </section>
 
@@ -79,9 +137,7 @@
       </div>
       <div class="row">
         <button class="btn" data-go="planets"><span>Back</span></button>
-        <button class="btn" data-go="workshop" data-from="levels"><span>Workshop</span></button>
-        <button class="btn" data-go="dex"><span>Alien guide</span></button>
-        <button class="btn" data-action="connect"><span>Connect phone</span></button>
+        <button class="btn web-only" data-action="connect"><span>Connect phone</span></button>
       </div>
       <div class="phone-status"><i class="dot" data-phone-dot></i><span data-phone-text>Phone not connected</span></div>
     </div>
@@ -93,10 +149,11 @@
         <h1 class="title" id="world-title"></h1>
         <div class="world-stars" id="world-stars"></div>
       </div>
-      <svg class="stage-path" id="stage-path" viewBox="0 0 1920 1080" preserveAspectRatio="none"><path id="stage-path-line" d=""/></svg>
+      <svg class="stage-path" id="stage-path" viewBox="0 0 1920 1080" preserveAspectRatio="none"><defs><mask id="stage-path-reveal" maskUnits="userSpaceOnUse" x="-100" y="-100" width="4000" height="1400"><path id="stage-path-mask" d="" fill="none" stroke="#fff" stroke-width="30" stroke-linecap="round"/></mask></defs><path id="stage-path-line" d="" mask="url(#stage-path-reveal)"/></svg>
       <div class="stage-map" id="stage-map"></div>
       <div class="world-actions">
         <button class="btn" data-action="world-close"><span>All worlds</span></button>
+        <button class="btn" data-action="open-equip-world"><span>Equipment</span></button>
       </div>
     </div>
   </section>
@@ -110,8 +167,41 @@
       <div class="inventory home-inv" id="home-inv"></div>
     </div>
     <div id="buildings"></div>
+    <!-- swipe left (or this button) for the Ranch -->
+    <button class="page-tab right" data-action="to-ranch"><span>Ranch</span><b>›</b></button>
     <div class="overlay" id="ov-base">
       <div class="panel base-panel"><div class="inner" id="base-panel"></div></div>
+    </div>
+  </section>
+
+  <!-- Ranch: the aliens you choose live here (next to the Spacedome: swipe right to go back) -->
+  <section id="screen-ranch" class="screen ranch">
+    <div class="ranch-world" id="ranch-world">
+      <img class="fill" src="assets/ranch.jpg" alt="">
+      <div class="ranch-frame">
+        <div id="habitat"></div>
+        <div id="habitat-fx"></div>
+      </div>
+    </div>
+    <div class="ranch-shade"></div>
+    <div class="ranch-zoom">
+      <button class="zoom-btn" id="ranch-zoom-in" data-action="ranch-zoom-in" aria-label="Zoom in">+</button>
+      <button class="zoom-btn" id="ranch-zoom-out" data-action="ranch-zoom-out" aria-label="Zoom out">&minus;</button>
+    </div>
+    <div class="home-top ranch-top">
+      <button class="btn small" data-action="to-home"><span>‹ Spacedome</span></button>
+      <h1 class="title ranch-title">Ranch</h1>
+      <div class="ranch-slots" id="ranch-slots"></div>
+    </div>
+    <button class="btn pink ranch-add" data-action="ranch-pick"><span>Choose aliens</span></button>
+    <button class="page-tab left" data-action="to-home"><b>‹</b><span>Spacedome</span></button>
+    <div class="overlay" id="ov-ranch">
+      <div class="panel ranch-panel"><div class="inner">
+        <h2>Who lives on your ranch?</h2>
+        <p class="muted" id="ranch-pick-info"></p>
+        <div class="ranch-grid" id="ranch-grid"></div>
+        <div class="row"><button class="btn pink" data-action="ranch-done"><span>Done</span></button></div>
+      </div></div>
     </div>
   </section>
 
@@ -137,7 +227,6 @@
       <div class="row">
         <button class="btn small" data-action="mods-weapon" id="tab-mw"><span>Weapon mods</span></button>
         <button class="btn small" data-action="mods-drone" id="tab-md"><span>Drone abilities</span></button>
-        <button class="btn small" data-action="mods-super" id="tab-ms"><span>Superpowers</span></button>
       </div>
       <div class="loadout" id="loadout"></div>
       <div class="inventory" id="mods-inv"></div>
@@ -167,14 +256,20 @@
     <img class="fill" src="assets/level1.jpg" alt="">
     <div class="dex-wrap">
       <header class="dex-head">
-        <button class="btn small" data-go="levels"><span>Back</span></button>
+        <button class="btn small" data-go="planets"><span>Back</span></button>
         <h1 class="title">Alien guide</h1>
         <div class="dex-count" id="dex-count">Discovered 0/20</div>
       </header>
+      <div class="dex-tabs">
+        <button class="dex-tab on" data-tab="aliens" data-action="dex-tab-aliens"><span>Aliens</span></button>
+        <button class="dex-tab" data-tab="bosses" data-action="dex-tab-bosses"><span>Bosses</span></button>
+      </div>
       <div class="dex-grid" id="dex-grid"></div>
       <p class="muted dex-hint">Select an alien to read about it. With the phone: point at it and hold for 1 second.</p>
     </div>
     <div class="overlay" id="ov-dex">
+      <button class="dex-nav prev" data-action="dex-prev" aria-label="Previous alien"><svg viewBox="0 0 48 48" aria-hidden="true"><path d="M26 3 L3 24 L26 45 L26 33 L45 33 L45 15 L26 15 Z"/></svg></button>
+      <button class="dex-nav next" data-action="dex-next" aria-label="Next alien"><svg viewBox="0 0 48 48" aria-hidden="true"><path d="M26 3 L3 24 L26 45 L26 33 L45 33 L45 15 L26 15 Z"/></svg></button>
       <div class="panel dex-panel"><div class="inner">
         <div class="dex-detail" id="dex-detail"></div>
         <div class="row"><button class="btn pink" data-action="dex-close"><span>Back to the guide</span></button></div>
@@ -195,6 +290,19 @@
         <div class="missions" id="missions"></div>
         <div class="achievements" id="achievements"></div>
       </div>
+    </div>
+  </section>
+
+  <!-- Badges: their own scrollable screen with big cards (readable on a phone) -->
+  <section id="screen-badges" class="screen dim-bg">
+    <img class="fill" src="assets/level1.jpg" alt="">
+    <div class="goals-wrap badges-wrap">
+      <header class="goals-head">
+        <button class="btn small" data-go="goals"><span>Back</span></button>
+        <h1 class="title">Badges</h1>
+        <div class="goals-count" id="badges-count"></div>
+      </header>
+      <div class="badges-list" id="badges-list"></div>
     </div>
   </section>
 
@@ -245,6 +353,10 @@
           <div class="seg lang-seg" data-opt="lang"><button data-v="en">English</button><button data-v="nl">Nederlands</button><button data-v="de">Deutsch</button><button data-v="fr">Français</button><button data-v="es">Español</button><button data-v="pt">Português</button></div>
           <label>Sound</label>
           <div class="seg" data-opt="sound"><button data-v="on">On</button><button data-v="off">Off</button></div>
+          <label>Training</label>
+          <div class="seg"><button data-action="training"><span>Play the training</span></button></div>
+          <label>Vibration</label>
+          <div class="seg" data-opt="vibrate"><button data-v="on">On</button><button data-v="off">Off</button></div>
           <label>Aim assist</label>
           <div class="seg" data-opt="assist"><button data-v="0">Off</button><button data-v="1">Low</button><button data-v="2">Normal</button><button data-v="3">Strong</button></div>
           <label>Aiming hand</label>
@@ -303,7 +415,17 @@
   <!-- Game -->
   <section id="screen-game" class="screen">
     <canvas id="game-canvas" width="1280" height="720"></canvas>
+    <!-- film after defeating The Void (boss of the ???? world) -->
+    <div class="void-outro" id="void-outro">
+      <video id="void-outro-video" poster="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" src="assets/void-outro.mp4" playsinline preload="none"></video>
+      <button class="btn small intro-skip void-skip" data-action="void-outro-skip"><span>Skip</span></button>
+      <p class="void-taunt" id="void-taunt">This isn't over, astronaut…</p>
+    </div>
     <div class="damage" id="damage"></div>
+    <!-- Training: Orbit's instructions, step by step -->
+    <div class="tut-box" id="tut-box" aria-live="polite"><i class="tb-face"></i><div class="tb-body"><div class="tb-top"><b>Orbit</b><span class="tb-steps"></span><span class="tb-progress"></span></div><p class="tb-text"></p></div></div>
+    <!-- Orbit's speech bubble during levels -->
+    <div class="orbit-say" id="orbit-say" aria-live="polite"><i class="os-face"></i><span class="os-bubble"><b>Orbit</b><span class="os-text"></span></span></div>
     <div class="hud">
       <!-- health: slim glowing capsule, the number above it -->
       <div class="health" id="health">
@@ -394,6 +516,7 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
 <script src="js/config.js"></script>
 <script src="js/i18n.js"></script>
+<script src="js/i18n-more.js"></script>
 <script src="js/audio.js"></script>
 <script src="js/net.js"></script>
 <script src="js/level.js"></script>
