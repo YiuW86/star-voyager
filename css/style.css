@@ -906,7 +906,7 @@ body.touch .planet::before { top: 240px; width: 510px; height: 510px; }
 #screen-levels.planet-soon .connect-line, #screen-levels.planet-soon .phone-status { display: none !important; }
 
 /* ---------- Superpowers ---------- */
-.super-ico { display: inline-block; width: 64px; height: 64px; flex: none; background: url(../assets/supers.png) no-repeat;
+.super-ico { display: inline-block; width: 64px; height: 64px; flex: none; background: url(../assets/supers.webp) no-repeat;
   background-size: 800% 100%; background-position: calc(var(--si, 0) * 100% / 7) 0; }
 /* the Super button in the HUD: its ring fills with the meter, and it glows when ready */
 .super-btn { position: absolute; left: 44px; top: 150px; width: 120px; height: 120px; border-radius: 50%; border: 0; padding: 0; cursor: pointer;
@@ -1177,3 +1177,601 @@ body.touch .super-txt b { font-size: 36px; }
 
 /* alien guide: a page per planet */
 .dex-tabs { display: flex; gap: 14px; justify-content: center; margin: -6px 0 10px; }
+
+/* alien guide: the cards scroll inside the screen (also on phones) */
+.dex-wrap { padding-bottom: 24px; }
+.dex-grid { flex: 1; min-height: 0; overflow-y: auto; align-content: start; padding: 8px 14px 20px;
+  grid-template-columns: repeat(auto-fill, 222px); width: min(100%, 1720px); justify-content: center; scrollbar-width: thin; }
+.dex-tabs { display: none; }
+body.touch .dex-grid { grid-template-columns: repeat(auto-fill, 250px); }
+body.touch .dex-card { width: 250px; height: 236px; }
+
+
+/* the mystery planet ????: not dimmed like the others, but dark with an eerie purple glow */
+.planet.locked.mystery .planet-canvas { filter: drop-shadow(0 0 26px rgba(170, 90, 255, 0.75)) drop-shadow(0 0 60px rgba(98, 60, 255, 0.45)); }
+.planet.mystery .planet-name { color: #c9a6ff; text-shadow: 0 0 18px rgba(170, 90, 255, 0.9); letter-spacing: 6px; }
+.planet.mystery .planet-info.soon { color: #c9a6ff; }
+
+/* alien guide: the page scrolls, the picture stays in view; "Where to catch it" with a level button per level */
+.dex-detail { max-height: 800px; overflow-y: auto; scrollbar-width: thin; padding-right: 10px; }
+.dex-big { position: sticky; top: 0; }
+.dex-where { margin-top: 10px; display: flex; flex-direction: column; gap: 14px; }
+.dex-where h3 { margin: 6px 0 0; font-size: 34px; color: var(--gold); letter-spacing: 1px; }
+.dex-where .muted { margin: -6px 0 4px; font-size: 22px; }
+.where-world {
+  position: relative; padding: 16px 20px 18px; border-radius: 18px; overflow: hidden; isolation: isolate;
+  border: 3px solid transparent;
+  background: linear-gradient(rgba(6, 14, 40, 0.78), rgba(6, 14, 40, 0.9)) padding-box,
+              linear-gradient(120deg, var(--cyan), var(--pink), var(--gold), var(--cyan)) border-box;
+  box-shadow: 0 0 22px rgba(98, 240, 255, 0.35), inset 0 0 30px rgba(98, 240, 255, 0.12);
+}
+.where-world::before { content: ''; position: absolute; inset: 0; z-index: -1; background: var(--bg) center / cover; opacity: 0.45; }
+.where-head { display: flex; align-items: baseline; gap: 16px; flex-wrap: wrap; margin-bottom: 12px; }
+.where-head b { font-size: 30px; color: #fff; text-shadow: 0 0 12px rgba(98, 240, 255, 0.8); }
+.where-head small { font-size: 21px; color: var(--cyan-soft); }
+.where-levels { display: flex; flex-wrap: wrap; gap: 12px; }
+.where-lv {
+  position: relative; min-width: 64px; height: 64px; padding: 0 12px; border-radius: 14px; cursor: pointer;
+  font-family: inherit; font-weight: 700; font-size: 28px; color: #fff;
+  border: 3px solid var(--cyan); background: radial-gradient(circle at 50% 30%, rgba(98, 240, 255, 0.45), rgba(10, 30, 90, 0.95));
+  box-shadow: 0 0 14px rgba(98, 240, 255, 0.6); transition: transform 0.12s ease, box-shadow 0.12s ease;
+}
+.where-lv span { display: inline-flex; align-items: center; gap: 6px; }
+.where-lv:hover, .where-lv:focus-visible, .where-lv.pointed { transform: scale(1.12); box-shadow: 0 0 26px var(--cyan); outline: none; }
+.where-lv.boss { border-color: var(--gold); box-shadow: 0 0 16px rgba(255, 210, 122, 0.7);
+  background: radial-gradient(circle at 50% 30%, rgba(255, 210, 122, 0.5), rgba(70, 30, 90, 0.95)); }
+.where-lv .cr { width: 26px; height: 17px; fill: var(--gold); }
+.where-lv.locked { border-color: rgba(255, 255, 255, 0.25); background: rgba(20, 26, 50, 0.85); color: rgba(255, 255, 255, 0.45); box-shadow: none; }
+.where-lv .lk { position: absolute; top: -10px; right: -10px; width: 26px; height: 26px; padding: 3px; border-radius: 50%;
+  background: #12183a; fill: none; stroke: #bff9ff; stroke-width: 2; }
+
+/* alien guide page: thick round arrows to the previous / next alien */
+.dex-nav {
+  position: absolute; top: calc(50% - 55px); width: 110px; height: 110px; border-radius: 50%; z-index: 6; cursor: pointer; padding: 0;
+  display: grid; place-items: center; border: 4px solid var(--cyan); background: radial-gradient(circle at 50% 35%, rgba(40, 70, 170, 0.95), rgba(12, 28, 94, 0.95));
+  color: var(--cyan-soft); box-shadow: 0 0 22px rgba(98, 240, 255, 0.55); transition: transform 0.12s ease, border-color 0.12s ease, color 0.12s ease;
+}
+.dex-nav svg { width: 62px; height: 62px; fill: currentColor; filter: drop-shadow(0 0 6px rgba(98, 240, 255, 0.8)); }
+.dex-nav.prev { left: max(8px, calc(50% - 805px)); }
+.dex-nav.next { right: max(8px, calc(50% - 805px)); }
+.dex-nav.next svg { transform: scaleX(-1); }
+.dex-nav:hover, .dex-nav:focus-visible, .dex-nav.pointed { border-color: var(--gold); color: var(--gold); transform: scale(1.08); outline: none; }
+body.touch .dex-nav { width: 130px; height: 130px; }
+body.touch .dex-nav.prev { left: max(8px, calc(50% - 815px)); }
+body.touch .dex-nav.next { right: max(8px, calc(50% - 815px)); }
+
+/* opening film of the mystery planet ???? */
+.screen.voidintro { background: #000; }
+#void-video { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; background: #000; }
+.void-skip { position: absolute; z-index: 2; right: 28px; bottom: 28px; }
+
+/* the ???? world: same level icons, but purple-black with white numbers */
+.void-world .stage-node .hex { background: linear-gradient(160deg, #c08cff, #6a2cc8 45%, #12001f 100%); box-shadow: none; }
+.void-world .stage-node .hex > div { background: radial-gradient(circle at 50% 35%, #4a1880, #12031f 65%, #000 100%); color: #fff;
+  text-shadow: 0 0 14px #b06cff, 0 0 4px #fff; }
+.void-world .stage-node.cleared .hex { background: linear-gradient(160deg, #f0dcff, #a35cff 45%, #1a0430 100%); }
+.void-world .stage-node.locked .hex { background: linear-gradient(160deg, #4a3a66, #1a1028); }
+.void-world .stage-node.locked .hex > div { background: #0a0612; color: #fff; opacity: 0.9; }
+.void-world .stage-node.boss .hex { background: linear-gradient(160deg, #e2b8ff, #7a2ad6 45%, #0a0012 100%); }
+.void-world .stage-node.boss .hex > div { background: radial-gradient(circle at 50% 35%, #5a1a96, #0e0218 70%, #000 100%); color: #fff; text-shadow: 0 0 16px #c08cff; }
+.void-world .stage-node.boss .boss-crown path { fill: #e8d4ff; stroke: #fff; }
+.void-world .boss-warn { background: linear-gradient(180deg, #e8d4ff, #a35cff); color: #12001f; }
+.void-world .stage-node .node-label, .void-world .stage-node.boss .node-label { color: #e8d4ff; }
+.void-world .stage-path path { stroke: rgba(214, 180, 255, 0.85); }
+.void-world .world-head .title { color: #e8d4ff; text-shadow: 0 0 24px rgba(170, 90, 255, 0.9); letter-spacing: 8px; }
+.void-world .stage-node.locked .hex svg { stroke: #fff; }
+
+/* film after defeating The Void: covers the game, fades in from black */
+.void-outro { position: absolute; inset: 0; z-index: 60; display: none; background: #000; opacity: 0; transition: opacity 0.6s ease; }
+.void-outro.show { display: block; }
+.void-outro.in { opacity: 1; }
+.void-outro video { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; background: #000; }
+.void-outro .void-skip { position: absolute; z-index: 2; right: 28px; bottom: 28px; }
+
+/* ================= Equipment ================= */
+.screen.equip { background: #000; overflow: hidden; }
+#equip-video, #equip-still { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
+#equip-still { opacity: 0; transition: opacity 0.4s ease; }
+.screen.equip.ready #equip-still { opacity: 1; }
+.screen.equip.ready #equip-video { visibility: hidden; }
+.equip-skip { position: absolute; z-index: 3; right: 28px; bottom: 28px; }
+.screen.equip.ready .equip-skip { display: none; }
+.equip-ui { position: absolute; inset: 0; z-index: 2; opacity: 0; pointer-events: none; transition: opacity 0.5s ease 0.15s; }
+.screen.equip.ready .equip-ui { opacity: 1; pointer-events: auto; }
+.equip-title { position: absolute; top: 28px; left: 0; right: 0; text-align: center; margin: 0; }
+.equip-col { position: absolute; top: 170px; display: flex; flex-direction: column; gap: 26px; }
+.equip-col.left { right: calc(50% + 250px); align-items: flex-end; }
+.equip-col.right { left: calc(50% + 250px); align-items: flex-start; }
+.eq-slot { display: grid; grid-template-columns: auto; justify-items: center; gap: 6px; width: 250px; padding: 0; border: 0; background: none; cursor: pointer; color: #fff; font-family: inherit; }
+.eq-label { font-size: 20px; letter-spacing: 1px; color: var(--cyan-soft); text-transform: uppercase; text-shadow: 0 2px 6px #000; }
+.eq-box { position: relative; width: 150px; height: 150px; display: flex; align-items: center; justify-content: center; gap: 4px;
+  background: radial-gradient(circle at 50% 35%, rgba(40, 80, 190, 0.85), rgba(8, 18, 64, 0.92)); border: 4px solid var(--cyan);
+  clip-path: polygon(16px 0, calc(100% - 16px) 0, 100% 16px, 100% calc(100% - 16px), calc(100% - 16px) 100%, 16px 100%, 0 calc(100% - 16px), 0 16px);
+  box-shadow: 0 0 20px rgba(98, 240, 255, 0.5); transition: transform 0.12s ease, border-color 0.12s ease; }
+.eq-box .super-ico.big, .eq-box .super-ico { width: 110px; height: 110px; }
+.eq-box .mat { width: 84px; height: 84px; }
+.eq-box img { width: 64px; height: 64px; object-fit: contain; }
+.eq-box .eq-svg { width: 110px; height: 110px; }
+.eq-plus { font-size: 72px; font-weight: 700; color: rgba(191, 249, 255, 0.55); }
+.eq-name { font-size: 24px; text-shadow: 0 2px 6px #000; text-align: center; }
+.eq-sub { font-size: 18px; color: var(--gold); text-shadow: 0 2px 6px #000; }
+.eq-slot:hover .eq-box, .eq-slot:focus-visible .eq-box, .eq-slot.pointed .eq-box { transform: scale(1.08); border-color: var(--gold); }
+.eq-slot:focus-visible { outline: none; }
+.eq-up { position: absolute; top: 6px; right: 10px; font-style: normal; font-size: 30px; color: var(--gold); text-shadow: 0 0 10px var(--gold); animation: boss-pulse 1.1s ease-in-out infinite; }
+.equip-stats { position: absolute; left: 0; right: 0; bottom: 120px; display: flex; flex-wrap: wrap; justify-content: center; gap: 10px 14px; padding: 0 240px; }
+.equip-stats span { padding: 6px 14px; font-size: 20px; color: #e8f7ff; background: rgba(8, 18, 64, 0.8); border: 1px solid rgba(98, 240, 255, 0.5); border-radius: 18px; }
+.equip-back { position: absolute; left: 50%; bottom: 28px; transform: translateX(-50%); }
+.equip-panel { width: 1640px; }
+.equip-panel .inner { padding: 30px 40px; display: flex; flex-direction: column; gap: 18px; max-height: 960px; }
+#equip-pick h2 { margin: 0 0 10px; font-size: 40px; }
+.pick-grid { display: flex; flex-wrap: wrap; gap: 16px; max-height: 760px; overflow-y: auto; padding: 6px; scrollbar-width: thin; }
+.pick { width: 360px; display: flex; flex-direction: column; gap: 8px; padding: 12px; border: 2px solid rgba(98, 240, 255, 0.35); border-radius: 14px; background: rgba(8, 18, 64, 0.7); }
+.pick.on { border-color: #7dffb0; box-shadow: 0 0 18px rgba(125, 255, 176, 0.45); }
+.pick.locked { opacity: 0.55; filter: grayscale(0.7); }
+.pick-main { display: grid; grid-template-columns: 96px 1fr; grid-template-rows: auto auto auto; column-gap: 12px; align-items: center; text-align: left;
+  padding: 6px; border: 0; background: none; color: #fff; font-family: inherit; cursor: pointer; border-radius: 10px; }
+.pick-main:disabled { cursor: default; }
+.pick-main:hover:not(:disabled), .pick-main:focus-visible, .pick-main.pointed { background: rgba(98, 240, 255, 0.15); outline: none; }
+.pick-ico { grid-row: 1 / span 3; width: 96px; height: 96px; display: flex; align-items: center; justify-content: center; gap: 2px; }
+.pick-ico .super-ico.big, .pick-ico .super-ico { width: 90px; height: 90px; }
+.pick-ico .mat { width: 70px; height: 70px; }
+.pick-ico img { width: 46px; height: 46px; object-fit: contain; }
+.pick-ico .eq-svg { width: 90px; height: 90px; }
+.pick-main b { font-size: 24px; }
+.pick-main small { font-size: 17px; color: var(--muted); line-height: 1.25; }
+.pick-main em { font-style: normal; font-size: 18px; color: #7dffb0; font-weight: 600; }
+.pick-main em.lock { color: #ffb4c6; }
+.pick-lv { border-top: 1px solid rgba(98, 240, 255, 0.25); padding-top: 8px; display: flex; flex-direction: column; gap: 6px; }
+.pick-lv p { margin: 0; font-size: 18px; }
+.pick-lv .next { color: var(--cyan-soft); }
+.pick-lv .cost { display: flex; flex-wrap: wrap; gap: 8px; font-size: 18px; }
+.pick-lv .cost .mat { width: 20px; height: 20px; vertical-align: -4px; }
+.pick-lv .cost .short { color: #ff8a9a; }
+.pick-lv .btn { align-self: flex-start; }
+.equip-tip { width: 980px; }
+.equip-tip .inner { padding: 40px 52px; display: flex; flex-direction: column; gap: 14px; }
+.equip-tip h2 { margin: 0; color: var(--gold); font-size: 42px; }
+.equip-tip p { margin: 0; font-size: 26px; }
+.in-use { align-self: center; color: #7dffb0; font-weight: 700; font-size: 20px; }
+#equip-dot.on, .goal-dot.on { display: block; }
+
+/* ================= Cinema ================= */
+.cinema { gap: 18px; }
+.cine-sub { margin: -10px 0 4px; font-size: 24px; }
+.cine-grid { display: grid; grid-template-columns: repeat(3, 420px); gap: 26px 30px; }
+.cine-tile { position: relative; display: flex; flex-direction: column; gap: 6px; padding: 10px 10px 14px; border: 0; cursor: pointer; color: #fff; font-family: inherit; text-align: left;
+  background: linear-gradient(160deg, var(--cyan), var(--cyan-deep) 60%, var(--violet));
+  clip-path: polygon(18px 0, calc(100% - 18px) 0, 100% 18px, 100% calc(100% - 18px), calc(100% - 18px) 100%, 18px 100%, 0 calc(100% - 18px), 0 18px);
+  transition: transform 0.12s ease, filter 0.12s ease; }
+.cine-pic { display: block; width: 100%; aspect-ratio: 16 / 9; background: #000 center / cover no-repeat; clip-path: polygon(12px 0, calc(100% - 12px) 0, 100% 12px, 100% 100%, 0 100%, 0 12px); }
+.cine-kind { position: absolute; top: 18px; left: 20px; padding: 3px 10px; font-size: 17px; font-weight: 700; color: #0a1440; background: var(--cyan-soft); border-radius: 10px; }
+.cine-tile b { font-size: 26px; padding: 0 6px; }
+.cine-tile small { font-size: 18px; padding: 0 6px; color: #b9a6d8; }
+.cine-tile:hover, .cine-tile:focus-visible, .cine-tile.pointed { transform: scale(1.05); filter: drop-shadow(0 0 14px var(--cyan)); outline: none; }
+/* not seen yet: a shadowy frame */
+.cine-tile.locked { background: linear-gradient(160deg, #3a3354, #14102a 70%); }
+.cine-tile.locked .cine-pic { filter: brightness(0.12) blur(6px) grayscale(1); }
+.cine-tile.locked .cine-kind { background: #3a3354; color: #9a90b8; }
+.cine-tile.locked b { color: #8e86a8; letter-spacing: 6px; }
+.film-player { position: absolute; inset: 0; z-index: 30; display: none; background: #000; }
+.film-player.show { display: block; }
+.film-player video { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: contain; background: #000; }
+.film-player .film-close { position: absolute; z-index: 2; right: 28px; bottom: 28px; }
+/* Equipment and Cinema: top right of the planet screen */
+.planets-top { position: absolute; top: 40px; right: 48px; display: flex; flex-direction: column; gap: 16px; z-index: 3; }
+.planets-top .btn { position: relative; }
+/* slots further out, clear of the astronaut */
+.equip-col { top: 190px; gap: 30px; }
+.equip-col.left { right: calc(50% + 400px); }
+.equip-col.right { left: calc(50% + 400px); }
+/* Equipment layout: the film in a band with black borders above and below (smaller astronaut),
+   title in the top border, slots halfway between the astronaut and the screen edges,
+   stats just above the bottom border, Back in the bottom-left corner */
+#equip-video, #equip-still {
+  top: 140px; bottom: auto; left: 0; right: 0; width: 100%; height: 800px; object-fit: contain;
+  -webkit-mask-image: linear-gradient(90deg, transparent calc(50% - 711px), #000 calc(50% - 560px), #000 calc(50% + 560px), transparent calc(50% + 711px));
+  mask-image: linear-gradient(90deg, transparent calc(50% - 711px), #000 calc(50% - 560px), #000 calc(50% + 560px), transparent calc(50% + 711px));
+}
+.equip-title { top: 26px; font-size: 76px; }
+.equip-col { top: 190px; gap: 28px; }
+.equip-col.left { right: auto; left: calc((50% - 270px) / 2); transform: translateX(-50%); align-items: center; }
+.equip-col.right { left: calc(100% - (50% - 270px) / 2); transform: translateX(-50%); align-items: center; }
+.equip-stats { bottom: 150px; padding: 0 20px; }
+.equip-back { left: 40px; bottom: 26px; transform: none; }
+/* slots a little smaller so the columns fit inside the picture band */
+.equip-col { top: 172px; gap: 16px; }
+.equip-ui .eq-box { width: 124px; height: 124px; }
+.equip-ui .eq-box .super-ico.big, .equip-ui .eq-box .super-ico, .equip-ui .eq-box .eq-svg { width: 92px; height: 92px; }
+.equip-ui .eq-box .mat { width: 70px; height: 70px; }
+.equip-ui .eq-box img { width: 54px; height: 54px; }
+.equip-ui .eq-slot { gap: 4px; }
+.equip-ui .eq-name { font-size: 22px; }
+/* The Void films (level 10 of ????): the whole picture, with black borders above and below (nothing cut off) */
+#void-video, .void-outro video {
+  top: 100px; bottom: auto; left: 0; right: 0; width: 100%; height: 880px; object-fit: contain;
+  -webkit-mask-image: linear-gradient(90deg, transparent calc(50% - 782px), #000 calc(50% - 640px), #000 calc(50% + 640px), transparent calc(50% + 782px));
+  mask-image: linear-gradient(90deg, transparent calc(50% - 782px), #000 calc(50% - 640px), #000 calc(50% + 640px), transparent calc(50% + 782px));
+}
+
+/* Cinema: the page scrolls, so the title and every tile fit on any screen */
+#screen-cinema .center-col.cinema { justify-content: flex-start; overflow-y: auto; padding: 40px 0 50px; gap: 18px; scrollbar-width: thin; }
+#screen-cinema .center-col.cinema > * { flex: none; }
+#screen-cinema .cine-grid { grid-template-columns: repeat(auto-fill, 400px); width: min(100%, 1340px); justify-content: center; }
+
+/* ===== Films: as large as possible, thin black borders above and below, and where the screen is
+   wider than the film a blurred, darker copy of the same film fills the sides (YouTube style) ===== */
+#void-video, .void-outro video {
+  top: 60px; height: 960px; -webkit-mask-image: none; mask-image: none;
+}
+#equip-video, #equip-still { top: 104px; height: 892px; -webkit-mask-image: none; mask-image: none; }
+.film-player video { top: 0; height: 100%; }
+/* the blurred copy is zoomed in, so the colourful middle of the film reaches the sides */
+.blur-twin { position: absolute; left: 0; right: 0; width: 100%; overflow: hidden; pointer-events: none; background: #000; }
+.blur-twin > video, .blur-twin > img, .void-outro .blur-twin > video {
+  position: absolute; inset: 0; top: 0; width: 100%; height: 100%; object-fit: cover;
+  transform: scale(1.45); filter: blur(30px) brightness(0.68) saturate(1.3); -webkit-mask-image: none; mask-image: none;
+}
+#void-video-blur, #void-outro-video-blur { top: 60px; height: 960px; }
+#equip-video-blur, #equip-still-blur { top: 104px; height: 892px; }
+#film-video-blur { top: 0; height: 100%; }
+#equip-still-blur { opacity: 0; transition: opacity 0.4s ease; }
+.screen.equip.ready #equip-still-blur { opacity: 1; }
+.screen.equip.ready #equip-video-blur { visibility: hidden; }
+/* Equipment: the astronaut is a little bigger now, so the slots and stats move with it */
+.equip-title { top: 14px; font-size: 72px; }
+.equip-col { top: 150px; gap: 18px; }
+.equip-col.left { left: calc((50% - 300px) / 2); }
+.equip-col.right { left: calc(100% - (50% - 300px) / 2); }
+.equip-stats { bottom: 112px; }
+.equip-back { bottom: 18px; }
+/* the films themselves have no black background, so the blurred copy behind them shows at the sides */
+#void-video, #void-outro-video, #film-video, #equip-video { background: transparent; }
+
+/* ===== Orbit's speech bubble in levels (left side, under the health bar) ===== */
+.orbit-say { position: absolute; left: 40px; top: 150px; z-index: 6; display: flex; align-items: flex-start; gap: 12px; max-width: 640px;
+  pointer-events: none; opacity: 0; transform: translateX(-40px) scale(0.9); transform-origin: left top; transition: opacity 0.3s ease, transform 0.35s cubic-bezier(.2,1.4,.4,1); }
+.orbit-say.show { opacity: 1; transform: none; }
+.orbit-say .os-face { flex: none; width: 96px; height: 96px; border-radius: 50%; background: url(../assets/story/orbit.jpg) 0 0 / 300% 300% no-repeat #0a1440;
+  border: 4px solid #7dffb0; box-shadow: 0 0 18px rgba(125, 255, 176, 0.6); }
+.orbit-say .os-bubble { position: relative; margin-top: 8px; padding: 12px 20px 14px; border-radius: 18px; background: rgba(8, 22, 70, 0.92);
+  border: 3px solid #7dffb0; color: #fff; font-size: 26px; line-height: 1.25; box-shadow: 0 6px 20px rgba(0, 0, 0, 0.5); }
+.orbit-say .os-bubble::before { content: ''; position: absolute; left: -14px; top: 24px; border: 10px solid transparent; border-right: 12px solid #7dffb0; border-left: 0; }
+.orbit-say .os-bubble b { display: block; font-size: 18px; letter-spacing: 2px; color: #7dffb0; text-transform: uppercase; margin-bottom: 2px; }
+/* survive levels: no catch goals to show */
+#screen-game.survive #catches { display: none; }
+/* level map: special levels get a small label, the mini-boss level a red warning */
+.stage-node .node-special { position: absolute; left: 50%; top: -30px; transform: translateX(-50%); white-space: nowrap; padding: 3px 12px;
+  border-radius: 999px; font-size: 17px; font-weight: 700; letter-spacing: 1px; color: #0a1440; background: linear-gradient(180deg, #bff9ff, #62d8ff); box-shadow: 0 2px 8px rgba(0,0,0,0.4); }
+.stage-node.sp-survive .node-special { background: linear-gradient(180deg, #d8ffe6, #7dffb0); }
+.stage-node.sp-storm .node-special { background: linear-gradient(180deg, #ffe2b8, #ffb347); }
+.stage-node.sp-dark .node-special { background: linear-gradient(180deg, #8a86b8, #3a3560); color: #fff; }
+.stage-node.sp-rescue .node-special { background: linear-gradient(180deg, #ffe0f4, #ff9ad8); }
+.stage-node .boss-warn.mini-warn { background: linear-gradient(180deg, #ffb0b0, #ff3a3a); color: #fff; text-shadow: 0 1px 2px #600; animation: boss-pulse 1.1s ease-in-out infinite; }
+.stage-node.sp-mini .hex { box-shadow: 0 0 24px rgba(255, 60, 60, 0.75); }
+.stage-node.locked .node-special { opacity: 0.6; }
+/* ???? stays sealed until the Mistwyrm King is freed */
+.planet.mystery.sealed { filter: grayscale(0.4) brightness(0.7); }
+
+/* Spacedome: room for nine Champion statues along the bottom */
+.statue i { width: 112px; height: 112px; border-width: 3px; }
+.statue span { max-width: 150px; text-align: center; font-size: 15px; line-height: 1.15; padding: 3px 8px; }
+
+/* level map: the levels pop up one by one, quick and bouncy (the order is timed in playMapIntro) */
+.stage-node { transition: transform 0.32s cubic-bezier(0.34, 1.7, 0.64, 1), opacity 0.18s ease; }
+.stage-node.pre { transform: translate(-50%, -50%) scale(0.2); opacity: 0; }
+/* the mask that reveals the dashed level line bit by bit (not itself dashed or hidden) */
+.stage-path #stage-path-mask { opacity: 1; stroke: #fff; stroke-width: 30; transition: none; }
+
+/* posters fill the video like the film itself (no grey Android play icon) */
+video { object-fit: cover; }
+#void-video, .void-outro video, #equip-video, .film-player video { object-fit: contain; }
+.blur-twin > video { object-fit: cover; }
+
+/* ===== Planet screen = the hub ===== */
+#screen-planets .planets-bar { bottom: 46px; }
+#screen-planets .continue-btn { min-width: 460px; }
+.hub-back { position: absolute; top: 40px; left: 44px; z-index: 5; }
+.hub-gear { position: absolute; top: 34px; right: 44px; z-index: 5; width: 96px; height: 96px; border-radius: 50%; padding: 14px; cursor: pointer;
+  color: var(--cyan-soft); background: radial-gradient(circle at 50% 35%, rgba(40, 80, 190, 0.9), rgba(8, 18, 64, 0.95)); border: 3px solid var(--cyan);
+  box-shadow: 0 0 18px rgba(98, 240, 255, 0.45); transition: transform 0.15s ease, border-color 0.15s, color 0.15s; }
+.hub-gear svg { width: 100%; height: 100%; }
+.hub-gear:hover, .hub-gear:focus-visible, .hub-gear.pointed { transform: rotate(30deg) scale(1.08); border-color: var(--gold); color: var(--gold); outline: none; }
+.hub-dock { position: absolute; top: 230px; z-index: 4; display: flex; flex-direction: column; gap: 22px; }
+.hub-dock.left { left: 40px; }
+.hub-dock.right { right: 40px; }
+.hub-btn { display: flex; flex-direction: column; align-items: center; gap: 8px; width: 170px; padding: 0; border: 0; background: none; cursor: pointer; color: #fff; font-family: inherit; }
+.hub-ico { position: relative; display: block; width: 112px; height: 112px; padding: 22px; border-radius: 50%; color: var(--cyan-soft);
+  background: radial-gradient(circle at 50% 30%, rgba(46, 96, 210, 0.95), rgba(10, 22, 76, 0.96)); border: 4px solid var(--cyan);
+  box-shadow: 0 0 22px rgba(98, 240, 255, 0.45), inset 0 -8px 18px rgba(0, 0, 0, 0.35); transition: transform 0.15s ease, border-color 0.15s, color 0.15s, box-shadow 0.15s; }
+.hub-ico svg { display: block; width: 100%; height: 100%; }
+.hub-ico .goal-dot { position: absolute; top: 4px; right: 4px; }
+.hub-btn span { font-size: 24px; font-weight: 700; letter-spacing: 0.5px; text-shadow: 0 2px 8px #000, 0 0 2px #000; }
+.hub-btn:hover .hub-ico, .hub-btn:focus-visible .hub-ico, .hub-btn.pointed .hub-ico { transform: scale(1.1); border-color: var(--gold); color: var(--gold); box-shadow: 0 0 30px rgba(255, 210, 122, 0.6); }
+.hub-btn:focus-visible { outline: none; }
+/* the planet arrows sit next to the planet name now (the edges belong to the docks) */
+#screen-planets .carousel-arrow { top: calc(50% + 150px); }
+#screen-planets .carousel-arrow.left { left: calc(50% - 400px); }
+#screen-planets .carousel-arrow.right { right: calc(50% - 400px); }
+/* the web version only: connect a phone as a controller */
+body.touch .web-only { display: none; }
+
+/* ===== Cinema: the title stays in place, only the films scroll ===== */
+#screen-cinema .center-col.cinema { justify-content: flex-start; overflow: hidden; padding: 34px 0 34px; gap: 16px; height: 100%; box-sizing: border-box; }
+#screen-cinema .cine-head { flex: none; text-align: center; }
+#screen-cinema .cine-head .title { margin: 0; }
+#screen-cinema .cine-scroll { flex: 1 1 auto; min-height: 0; width: 100%; overflow-y: auto; overscroll-behavior: contain; scrollbar-width: thin;
+  -webkit-mask-image: linear-gradient(180deg, transparent 0, #000 22px, #000 calc(100% - 22px), transparent 100%);
+          mask-image: linear-gradient(180deg, transparent 0, #000 22px, #000 calc(100% - 22px), transparent 100%); padding: 18px 0; }
+#screen-cinema .cine-scroll .cine-grid { margin: 0 auto; }
+#screen-cinema .center-col.cinema > .btn { flex: none; }
+
+#screen-cinema .center-col.cinema > .cine-scroll { flex: 1 1 auto; min-height: 0; }
+
+/* ===== Training ===== */
+/* Orbit in front of the dimmed screen */
+.tut-overlay { position: absolute; inset: 0; z-index: 80; display: none; align-items: center; justify-content: center; }
+.tut-overlay.show { display: flex; }
+.tut-overlay .tut-dim { position: absolute; inset: 0; background: rgba(4, 8, 30, 0.72); backdrop-filter: blur(3px); animation: tut-fade 0.5s ease both; }
+.tut-card { position: relative; display: flex; align-items: center; gap: 46px; max-width: 1400px; padding: 0 60px; animation: tut-in 0.6s cubic-bezier(.2,1.3,.4,1) both; }
+.tut-orbit { flex: none; width: 380px; height: 380px; border-radius: 50%; background: url(../assets/story/orbit.jpg) 0 0 / 300% 300% no-repeat #0a1440;
+  border: 8px solid #7dffb0; box-shadow: 0 0 60px rgba(125, 255, 176, 0.55), 0 20px 50px rgba(0,0,0,0.6); animation: tut-float 3s ease-in-out infinite; }
+.tut-talk { position: relative; padding: 34px 44px 30px; border-radius: 28px; background: rgba(8, 22, 70, 0.95); border: 4px solid #7dffb0; color: #fff; max-width: 820px;
+  box-shadow: 0 16px 50px rgba(0, 0, 0, 0.55); }
+.tut-talk::before { content: ''; position: absolute; left: -26px; top: 70px; border: 18px solid transparent; border-right: 24px solid #7dffb0; border-left: 0; }
+.tut-talk b { display: block; font-size: 26px; letter-spacing: 3px; color: #7dffb0; text-transform: uppercase; margin-bottom: 8px; }
+.tut-talk p { font-size: 38px; line-height: 1.3; margin: 0 0 14px; opacity: 0; animation: tut-line 0.5s ease forwards; }
+.tut-buttons { margin-top: 22px; justify-content: flex-start; gap: 22px; }
+.tut-reward { display: flex; gap: 24px; align-items: center; margin: 6px 0 4px; font-size: 34px; opacity: 0; animation: tut-line 0.5s ease 1.4s forwards; }
+.tut-reward span { display: inline-flex; align-items: center; gap: 8px; color: var(--gold); }
+.tut-reward svg { width: 40px; height: 40px; }
+.tut-badge { padding: 4px 18px; border-radius: 999px; background: linear-gradient(180deg, #ffe7a3, #ffb74d); color: #3a2400 !important; font-weight: 800; }
+@keyframes tut-fade { from { opacity: 0; } }
+@keyframes tut-in { from { opacity: 0; transform: translateY(40px) scale(0.92); } }
+@keyframes tut-float { 50% { transform: translateY(-14px); } }
+@keyframes tut-line { to { opacity: 1; } }
+/* the instruction box in the training level (top middle) */
+.tut-box { position: absolute; left: 50%; top: 150px; transform: translateX(-50%) scale(0.9); z-index: 7; display: flex; gap: 18px; align-items: center;
+  width: min(1100px, 80%); padding: 16px 26px 16px 16px; border-radius: 24px; background: rgba(8, 22, 70, 0.92); border: 4px solid #7dffb0;
+  box-shadow: 0 10px 34px rgba(0, 0, 0, 0.5); opacity: 0; pointer-events: none; transition: opacity 0.3s, transform 0.35s cubic-bezier(.2,1.4,.4,1); }
+.tut-box.show { opacity: 1; transform: translateX(-50%); }
+.tut-box.pop { animation: tut-pop 0.45s ease; }
+.tut-box.hint { border-color: var(--gold); }
+.tut-box .tb-face { flex: none; width: 110px; height: 110px; border-radius: 50%; background: url(../assets/story/orbit.jpg) 0 0 / 300% 300% no-repeat #0a1440; border: 4px solid #7dffb0; }
+.tut-box .tb-body { flex: 1; min-width: 0; }
+.tut-box .tb-top { display: flex; align-items: center; gap: 14px; }
+.tut-box .tb-top b { font-size: 20px; letter-spacing: 2px; color: #7dffb0; text-transform: uppercase; }
+.tut-box .tb-steps { display: flex; gap: 6px; }
+.tut-box .tb-steps i { width: 14px; height: 14px; border-radius: 50%; background: rgba(255,255,255,0.2); }
+.tut-box .tb-steps i.done { background: #7dffb0; }
+.tut-box .tb-steps i.now { background: var(--gold); box-shadow: 0 0 10px var(--gold); }
+.tut-box .tb-progress { margin-left: auto; font-size: 26px; font-weight: 800; color: var(--gold); }
+.tut-box .tb-text { margin: 6px 0 0; font-size: 31px; line-height: 1.25; color: #fff; }
+@keyframes tut-pop { 30% { transform: translateX(-50%) scale(1.04); } }
+#screen-game.tutorial #catches { display: none; }
+/* the touch button to press glows and pulses */
+#touchpad .tp-item.tut-glow { animation: tut-glow 0.9s ease-in-out infinite; z-index: 3; }
+#touchpad .tp-item.tut-glow::after { content: ''; position: absolute; inset: -16px; border-radius: 50%; border: 6px solid #ffd27a; box-shadow: 0 0 26px #ffd27a; animation: tut-ring 0.9s ease-out infinite; pointer-events: none; }
+@keyframes tut-glow { 50% { filter: brightness(1.5) drop-shadow(0 0 18px #ffd27a); } }
+@keyframes tut-ring { from { transform: scale(0.85); opacity: 1; } to { transform: scale(1.35); opacity: 0; } }
+
+/* the joystick glows on its round base */
+#touchpad .tp-base.tut-glow { animation: tut-glow 0.9s ease-in-out infinite; }
+#touchpad .tp-base.tut-glow::after { content: ''; position: absolute; inset: -16px; border-radius: 50%; border: 6px solid #ffd27a; box-shadow: 0 0 26px #ffd27a; animation: tut-ring 0.9s ease-out infinite; pointer-events: none; }
+
+/* ===== Badges (Goals screen, right column) ===== */
+.achievements { display: block; }
+.achievements h2 { font-size: 34px; margin: 6px 0 10px; }
+.achievements h3 { font-size: 24px; margin: 18px 0 8px; color: var(--cyan-soft); letter-spacing: 1px; text-transform: uppercase; }
+.badge-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; }
+.badge { display: flex; gap: 12px; align-items: center; padding: 10px 14px; background: rgba(12, 28, 94, 0.88); border-left: 5px solid rgba(159, 183, 232, 0.35); }
+.badge.t1 { border-left-color: #cd8a4a; } .badge.t2 { border-left-color: #d6dde8; } .badge.t3 { border-left-color: #ffd27a; }
+.badge.t4 { border-left-color: #aef4ff; background: linear-gradient(90deg, rgba(60, 120, 200, 0.55), rgba(12, 28, 94, 0.9)); }
+.badge.special { margin-bottom: 4px; }
+.badge .medal { width: 64px; height: 64px; flex: none; }
+.badge .medal.tier4 { filter: drop-shadow(0 0 8px #aef4ff); }
+.badge .bd { flex: 1; min-width: 0; }
+.badge b { font-size: 21px; color: #fff; }
+.badge p { font-size: 16px; margin: 1px 0 4px; color: var(--muted); }
+.badge small { font-size: 15px; color: var(--gold); display: block; }
+.badge small .mat { width: 18px; height: 18px; vertical-align: -4px; }
+.badge small.maxed { color: #aef4ff; font-weight: 700; }
+.badge .bbar { height: 8px; background: rgba(255, 255, 255, 0.12); margin-bottom: 3px; }
+.badge .bbar i { display: block; height: 100%; background: linear-gradient(90deg, var(--cyan), var(--gold)); }
+.badge .pips { display: flex; gap: 6px; margin-top: 5px; }
+.badge .pip { width: 16px; height: 16px; border-radius: 50%; border: 2px solid rgba(255,255,255,0.35); }
+.badge .pip.bronze.on { background: #cd8a4a; border-color: #ffd2a8; } .badge .pip.silver.on { background: #d6dde8; border-color: #fff; }
+.badge .pip.gold.on { background: #ffd27a; border-color: #fff4c9; } .badge .pip.platinum.on { background: #aef4ff; border-color: #fff; box-shadow: 0 0 8px #aef4ff; }
+.goals-count { display: flex; align-items: center; gap: 8px; }
+.goals-count .medal { width: 44px; height: 44px; }
+
+/* ===== Living habitat (Spacedome): caught aliens float between the buildings ===== */
+#habitat { position: absolute; top: 0; left: calc(50% - 960px); width: 1920px; height: 1080px; z-index: 1; pointer-events: none; }
+#buildings { z-index: 2; pointer-events: none; }
+#buildings > * { pointer-events: auto; }
+#buildings .statue { pointer-events: none; }
+.hab-alien { position: absolute; left: 0; top: 0; padding: 0; border: 0; background: transparent no-repeat 0 0 / 500% 300%; cursor: pointer; pointer-events: auto;
+  transform-origin: 50% 100%; filter: drop-shadow(0 6px 10px rgba(0, 0, 0, 0.35)); }
+.hab-alien:focus { outline: none; }
+.hab-alien .hab-shadow { position: absolute; left: 20%; right: 20%; bottom: -6px; height: 12px; border-radius: 50%; background: rgba(0, 0, 20, 0.35); filter: blur(3px); }
+.hab-alien.hop { animation: hab-hop 0.9s cubic-bezier(.3,1.6,.5,1); }
+@keyframes hab-hop { 0% { margin-top: 0; } 25% { margin-top: -70px; } 50% { margin-top: 0; } 65% { margin-top: -26px; } 80% { margin-top: 0; } }
+.hab-heart { position: absolute; z-index: 2000; color: #ff6fa8; font-size: 34px; font-style: normal; pointer-events: none; text-shadow: 0 0 8px #fff;
+  animation: hab-heart 1.4s ease-out forwards; }
+@keyframes hab-heart { from { transform: translate(-50%, 0) scale(0.6); opacity: 1; } to { transform: translate(-50%, -120px) scale(1.2); opacity: 0; } }
+.hab-bubble { position: absolute; z-index: 2001; transform: translate(-50%, -100%); padding: 8px 16px; border-radius: 16px; background: rgba(8, 22, 70, 0.94);
+  border: 3px solid #7dffb0; color: #fff; text-align: center; pointer-events: none; white-space: nowrap; animation: tut-in 0.35s ease both; }
+.hab-bubble b { display: block; font-size: 22px; }
+.hab-bubble span { font-size: 17px; color: var(--muted); margin: 0 4px; }
+.hab-bubble .hb-tier { color: #0a1440; font-weight: 800; padding: 1px 10px; border-radius: 999px; }
+.hb-tier.t1 { background: #cd8a4a; } .hb-tier.t2 { background: #d6dde8; } .hb-tier.t3 { background: #ffd27a; } .hb-tier.t4 { background: #aef4ff; }
+.hab-empty { position: absolute; left: 50%; top: 820px; transform: translateX(-50%); padding: 10px 22px; border-radius: 14px; background: rgba(8, 22, 70, 0.8);
+  color: #fff; font-size: 24px; pointer-events: none; }
+
+/* habitat: bigger, softly glowing aliens; hearts and name bubbles above the building labels */
+.hab-alien { filter: drop-shadow(0 0 10px rgba(191, 249, 255, 0.55)) drop-shadow(0 8px 10px rgba(0, 0, 0, 0.35)); }
+#habitat-fx { position: absolute; top: 0; left: calc(50% - 960px); width: 1920px; height: 1080px; z-index: 4; pointer-events: none; }
+
+/* ===== Ranch (next to the Spacedome) ===== */
+#screen-ranch img.fill { left: calc(50% - 960px); width: 1920px; filter: saturate(0.9) brightness(0.7); }
+#screen-ranch { background: #0a1440; overflow: hidden; }
+.ranch-shade { position: absolute; inset: 0; background: linear-gradient(180deg, rgba(6, 12, 44, 0.55), rgba(6, 12, 44, 0.15) 40%, rgba(6, 12, 44, 0.35)); }
+.ranch-frame { position: absolute; top: 0; left: calc(50% - 960px); width: 1920px; height: 1080px; }
+.ranch-fence { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; }
+.ranch-frame #habitat, .ranch-frame #habitat-fx { left: 0; }
+.ranch-top { z-index: 5; }
+.ranch-title { margin: 0 auto; font-size: 72px; }
+.ranch-slots { display: flex; flex-direction: column; align-items: flex-end; color: #fff; text-shadow: 0 2px 6px #000; }
+.ranch-slots b { font-size: 40px; color: var(--gold); line-height: 1; }
+.ranch-slots span { font-size: 18px; color: var(--cyan-soft); text-transform: uppercase; letter-spacing: 1px; }
+.ranch-slots small { font-size: 16px; color: var(--muted); }
+.ranch-add { position: absolute; left: 50%; bottom: 34px; transform: translateX(-50%); z-index: 5; }
+.ranch-panel { width: min(1500px, 92%); }
+.ranch-panel h2 { margin: 0 0 4px; }
+.ranch-grid { display: grid; grid-template-columns: repeat(5, 1fr); gap: 14px; max-height: 620px; overflow-y: auto; padding: 6px; margin: 12px 0; }
+.ranch-opt { position: relative; display: flex; flex-direction: column; align-items: center; gap: 4px; padding: 10px; border: 3px solid rgba(98, 240, 255, 0.35); border-radius: 14px;
+  background: rgba(10, 22, 76, 0.85); color: #fff; font-family: inherit; cursor: pointer; transition: transform 0.12s, border-color 0.12s; }
+.ranch-opt img { width: 140px; height: 140px; object-fit: contain; }
+.ranch-opt b { font-size: 21px; } .ranch-opt small { font-size: 15px; color: var(--muted); }
+.ranch-opt i { position: absolute; top: 8px; right: 10px; width: 36px; height: 36px; border-radius: 50%; display: flex; align-items: center; justify-content: center;
+  font-style: normal; font-size: 24px; font-weight: 800; background: rgba(255, 255, 255, 0.15); }
+.ranch-opt.in { border-color: #7dffb0; box-shadow: 0 0 18px rgba(125, 255, 176, 0.45); }
+.ranch-opt.in i { background: #7dffb0; color: #0a1440; }
+.ranch-opt:hover, .ranch-opt:focus-visible, .ranch-opt.pointed { transform: scale(1.05); border-color: var(--gold); outline: none; }
+/* the side tab to the other page */
+.page-tab { position: absolute; top: 50%; z-index: 6; transform: translateY(-50%); display: flex; align-items: center; gap: 8px; padding: 18px 16px; border: 3px solid var(--cyan);
+  background: rgba(10, 22, 76, 0.88); color: #fff; font-family: inherit; font-size: 24px; font-weight: 700; cursor: pointer; box-shadow: 0 0 18px rgba(98, 240, 255, 0.4); }
+.page-tab b { font-size: 46px; line-height: 0.8; color: var(--gold); }
+.page-tab.right { right: 0; border-right: 0; border-radius: 18px 0 0 18px; }
+.page-tab.left { left: 0; border-left: 0; border-radius: 0 18px 18px 0; }
+.page-tab:hover, .page-tab:focus-visible, .page-tab.pointed { border-color: var(--gold); outline: none; }
+.page-tab.right b { animation: tab-nudge 1.4s ease-in-out infinite; }
+@keyframes tab-nudge { 50% { transform: translateX(6px); } }
+/* page slide */
+.screen.slide-from-right { animation: page-in-right 0.45s cubic-bezier(.2,.8,.3,1); }
+.screen.slide-from-left { animation: page-in-left 0.45s cubic-bezier(.2,.8,.3,1); }
+@keyframes page-in-right { from { transform: translateX(100%); } }
+@keyframes page-in-left { from { transform: translateX(-100%); } }
+/* Spacedome and Ranch: sideways swipes switch pages (pictures are not draggable) */
+#screen-home, #screen-ranch { touch-action: none; }
+#screen-home > img.fill, #screen-ranch img.fill { pointer-events: none; -webkit-user-drag: none; user-select: none; }
+/* Ranch: the same blurred side fill as the Spacedome on wide screens; a readable place counter */
+#screen-ranch::before { content: ""; position: absolute; inset: -40px; background: url(../assets/home.jpg) center / cover no-repeat; filter: blur(30px) brightness(0.45); }
+#screen-ranch img.fill, #screen-ranch .ranch-shade, #screen-ranch .ranch-frame { z-index: 0; }
+.ranch-slots small { font-size: 20px; color: #dfe9ff; }
+.ranch-slots b { font-size: 46px; }
+.ranch-add { left: 0; right: 0; margin: 0 auto; width: fit-content; transform: none; }
+
+/* the ranch picture: a floating island with fenced fields */
+#screen-ranch::before { background-image: url(../assets/ranch.jpg); filter: blur(30px) brightness(0.5); }
+#screen-ranch img.fill { filter: none; height: 1080px; object-fit: cover; }
+.ranch-shade { background: linear-gradient(180deg, rgba(6, 12, 44, 0.55), rgba(6, 12, 44, 0) 22%, rgba(6, 12, 44, 0) 80%, rgba(6, 12, 44, 0.45)); }
+
+/* ===== v3.40 ranch: zoomable island, smaller aliens ===== */
+.ranch-world { position: absolute; inset: 0; z-index: 0; transform-origin: 50% 50%; will-change: transform; }
+.ranch-world.ease { transition: transform 0.25s ease-out; }
+#screen-ranch .ranch-shade { pointer-events: none; z-index: 1; }
+.ranch-zoom { position: absolute; right: 40px; bottom: 40px; z-index: 6; display: flex; flex-direction: column; gap: 14px; }
+.zoom-btn { width: 84px; height: 84px; border-radius: 50%; border: 3px solid rgba(159, 233, 255, 0.7); background: rgba(8, 22, 70, 0.85); color: #fff;
+  font: 800 52px/1 inherit; display: flex; align-items: center; justify-content: center; padding: 0 0 6px; cursor: pointer; box-shadow: 0 4px 14px rgba(0,0,0,0.4); }
+.zoom-btn:disabled { opacity: 0.35; }
+.zoom-btn:hover, .zoom-btn:focus-visible, .zoom-btn.pointed { border-color: var(--gold); transform: scale(1.08); outline: none; }
+body.touch .zoom-btn { width: 120px; height: 120px; font-size: 70px; }
+
+/* ===== v3.40 Badges screen: big, readable cards that scroll ===== */
+.badges-list { flex: 1; min-height: 0; overflow-y: auto; padding: 0 12px 40px 4px; touch-action: pan-y; -webkit-overflow-scrolling: touch; }
+.badges-list h3 { font-size: 34px; margin: 26px 0 12px; color: var(--cyan-soft); letter-spacing: 1px; text-transform: uppercase; }
+.badges-list .badge-grid { grid-template-columns: repeat(3, 1fr); gap: 16px; }
+.badges-list .badge { width: 100%; text-align: left; color: inherit; font: inherit; cursor: default; padding: 18px 22px; gap: 20px; border-top: 0; border-right: 0; border-bottom: 0; border-radius: 6px; }
+.badges-list .badge:focus-visible, .badges-list .badge.pointed { outline: 4px solid var(--gold); outline-offset: 2px; }
+.badges-list .badge .medal { width: 110px; height: 110px; }
+.badges-list .badge b { font-size: 32px; }
+.badges-list .badge p { font-size: 25px; margin: 4px 0 8px; }
+.badges-list .badge small { font-size: 23px; }
+.badges-list .badge small .mat { width: 26px; height: 26px; vertical-align: -6px; }
+.badges-list .badge .bbar { height: 14px; border-radius: 7px; overflow: hidden; margin-bottom: 6px; }
+.badges-list .badge .pip { width: 26px; height: 26px; border-width: 3px; }
+.badges-list .badge.special { margin-bottom: 6px; max-width: 900px; }
+body.touch .badges-list .badge-grid { grid-template-columns: repeat(2, 1fr); gap: 20px; }
+body.touch .badges-list .badge .medal { width: 140px; height: 140px; }
+body.touch .badges-list .badge b { font-size: 44px; }
+body.touch .badges-list .badge p { font-size: 34px; }
+body.touch .badges-list .badge small { font-size: 31px; }
+body.touch .badges-list .badge .pip { width: 32px; height: 32px; }
+body.touch .badges-list h3 { font-size: 44px; }
+body.touch .badges-wrap .goals-head .title { font-size: 84px; }
+#badges-count { justify-self: end; }
+/* the summary on the Goals screen */
+.achievements .badge-summary { display: flex; align-items: center; gap: 20px; padding: 16px 20px; background: rgba(12, 28, 94, 0.88); border-left: 5px solid #ffd27a; }
+.achievements .badge-summary .medal { width: 96px; height: 96px; }
+.achievements .badge-summary b { font-size: 48px; color: var(--gold); }
+.achievements .badge-summary p { font-size: 22px; margin: 0; color: var(--muted); }
+.achievements .badge-mini { padding: 12px 18px; margin-bottom: 10px; background: rgba(12, 28, 94, 0.78); }
+.achievements .badge-mini b { font-size: 24px; display: block; margin-bottom: 6px; }
+.achievements .badge-mini .bbar { height: 12px; background: rgba(255, 255, 255, 0.12); border-radius: 6px; overflow: hidden; }
+.achievements .badge-mini .bbar i { display: block; height: 100%; background: linear-gradient(90deg, var(--cyan), var(--gold)); }
+.achievements .badge-mini small { font-size: 19px; color: var(--muted); }
+.achievements .badges-open { margin-top: 18px; width: 100%; }
+body.touch .achievements .badge-summary b { font-size: 60px; }
+body.touch .achievements .badge-summary p { font-size: 30px; }
+body.touch .achievements .badge-mini b { font-size: 34px; }
+body.touch .achievements .badge-mini small { font-size: 26px; }
+
+/* v3.40: the Void's last words on a black screen after his film */
+.void-outro.taunt video, .void-outro.taunt .blur-twin { opacity: 0; transition: opacity 0.6s; }
+.void-outro.taunt .void-skip { display: none; }
+.void-taunt { position: absolute; left: 0; right: 0; top: 50%; transform: translateY(-50%) scale(0.96); margin: 0; z-index: 3; text-align: center; padding: 0 60px;
+  font-size: 76px; font-weight: 800; font-style: italic; letter-spacing: 2px; color: #e6d4ff; opacity: 0; pointer-events: none;
+  text-shadow: 0 0 24px #9b4dff, 0 0 60px #5a1aa8; transition: opacity 1.6s ease, transform 4s ease-out; }
+.void-taunt.show { opacity: 1; transform: translateY(-50%) scale(1.04); }
+
+/* ===== v3.40 Alien guide: Aliens / Bosses tabs and boss pages ===== */
+#screen-dex .dex-tabs { display: flex; gap: 0; margin: -8px 0 4px; border-radius: 999px; background: rgba(8, 22, 70, 0.8); padding: 6px; border: 2px solid rgba(98, 240, 255, 0.35); }
+.dex-tab { min-width: 220px; padding: 10px 30px; border: 0; border-radius: 999px; background: transparent; color: var(--cyan-soft); font: 700 30px/1.1 inherit; cursor: pointer; letter-spacing: 1px; }
+.dex-tab.on { background: linear-gradient(180deg, #ff7ad0, #c43c9c); color: #fff; box-shadow: 0 0 16px rgba(255, 122, 208, 0.5); }
+.dex-tab:hover, .dex-tab:focus-visible, .dex-tab.pointed { outline: 3px solid var(--gold); outline-offset: 2px; }
+body.touch .dex-tab { min-width: 280px; font-size: 40px; padding: 14px 36px; }
+.dex-grid.bosses { grid-template-columns: repeat(auto-fill, 300px); gap: 22px; }
+.boss-card { position: relative; width: 300px; padding: 12px 12px 16px; border: 3px solid rgba(255, 210, 122, 0.45); border-radius: 18px; cursor: pointer;
+  background: linear-gradient(180deg, rgba(40, 30, 110, 0.92), rgba(10, 20, 64, 0.95)); color: #fff; font: inherit; display: flex; flex-direction: column; align-items: center; gap: 6px;
+  transition: transform 0.12s ease, box-shadow 0.12s ease; }
+.boss-card:hover, .boss-card:focus-visible, .boss-card.pointed { transform: scale(1.05); border-color: var(--gold); box-shadow: 0 0 22px rgba(255, 210, 122, 0.55); outline: none; }
+.boss-pic { display: block; width: 100%; aspect-ratio: 1 / 1; border-radius: 12px; overflow: hidden; background: radial-gradient(circle, #2a2470, #0a0f33); }
+.boss-pic img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.boss-card.void .boss-pic img { object-fit: contain; }
+.boss-card b { font-size: 28px; text-align: center; }
+.boss-card small { font-size: 19px; color: var(--muted); text-align: center; }
+.boss-tag { position: absolute; top: 2px; right: 2px; padding: 3px 12px; border-radius: 0 14px 0 12px; background: var(--gold); color: #1a1040; font-size: 17px; font-weight: 800; }
+.boss-card.void { border-color: rgba(176, 108, 255, 0.8); background: linear-gradient(180deg, rgba(50, 10, 90, 0.95), rgba(8, 4, 24, 0.97)); box-shadow: 0 0 22px rgba(160, 80, 255, 0.45); }
+.boss-card.void .boss-tag { background: #b06cff; color: #fff; }
+.boss-card.locked .boss-pic img, .boss-pic.locked img, .void-form.locked img { filter: brightness(0) drop-shadow(0 0 10px rgba(170, 110, 255, 0.8)); }
+.boss-card.locked b { color: var(--muted); letter-spacing: 4px; }
+body.touch .dex-grid.bosses { grid-template-columns: repeat(auto-fill, 340px); }
+body.touch .boss-card { width: 340px; } body.touch .boss-card b { font-size: 34px; } body.touch .boss-card small { font-size: 24px; }
+.boss-detail { display: flex; gap: 44px; align-items: flex-start; width: 100%; }
+.boss-pic.big { width: 470px; flex: none; position: sticky; top: 0; border: 3px solid rgba(255, 210, 122, 0.5); }
+.boss-detail .dex-info { flex: 1; min-width: 0; }
+.boss-detail.void { flex-direction: column; gap: 26px; }
+.void-forms { display: flex; gap: 30px; width: 100%; }
+.void-form { flex: 1; display: flex; flex-direction: column; align-items: center; gap: 8px; padding: 16px; border-radius: 18px; background: radial-gradient(circle at 50% 35%, rgba(120, 50, 200, 0.45), rgba(10, 4, 30, 0.9)); border: 2px solid rgba(176, 108, 255, 0.6); }
+.void-form .boss-pic { aspect-ratio: 16 / 9; background: none; }
+.void-form .boss-pic img { object-fit: contain; }
+.void-form b { font-size: 34px; color: #e2c9ff; text-shadow: 0 0 14px #9b4dff; }
+.void-form p { font-size: 22px; margin: 0; text-align: center; color: var(--muted); }
+
+.badges-list .badge .pip { background: transparent; box-shadow: none; }
+.badges-list .badge .pip.bronze.on { background: #cd8a4a; } .badges-list .badge .pip.silver.on { background: #d6dde8; }
+.badges-list .badge .pip.gold.on { background: #ffd27a; } .badges-list .badge .pip.platinum.on { background: #aef4ff; box-shadow: 0 0 8px #aef4ff; }
+
+/* v3.43 planet carousel: no arrows, it turns round and follows your finger */
+#screen-planets > .carousel-arrow { display: none; }
+.planet-row .planet { translate: var(--drag, 0px) 0; transition: transform 0.6s cubic-bezier(0.33, 1, 0.68, 1), opacity 0.6s, filter 0.6s, translate 0.35s ease-out; }
+.planet-row.dragging .planet { transition: transform 0.6s cubic-bezier(0.33, 1, 0.68, 1), opacity 0.6s, filter 0.6s; }
+.planet-row { touch-action: pan-y; cursor: grab; }
+.planet-row.dragging { cursor: grabbing; }
+
+/* v3.43 Alien guide: aliens grouped per planet */
+.dex-planet { grid-column: 1 / -1; display: flex; align-items: baseline; gap: 22px; margin: 18px 0 2px; padding-bottom: 6px; border-bottom: 2px solid rgba(255, 210, 122, 0.35); }
+.dex-planet:first-child { margin-top: 0; }
+.dex-planet b { font-size: 46px; color: var(--gold); text-shadow: 0 2px 10px rgba(0, 0, 0, 0.6); }
+.dex-planet span { font-size: 26px; color: #c8d7ff; }
+body.touch .dex-planet b { font-size: 56px; } body.touch .dex-planet span { font-size: 32px; }

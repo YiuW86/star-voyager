@@ -46,6 +46,7 @@
     // Options
     'Language': ['Taal', 'Sprache', 'Langue', 'Idioma', 'Idioma'],
     'Sound': ['Geluid', 'Ton', 'Son', 'Sonido', 'Som'],
+    'Vibration': ['Trillen', 'Vibration', 'Vibration', 'Vibración', 'Vibração'],
     'On': ['Aan', 'An', 'Oui', 'Sí', 'Sim'],
     'Off': ['Uit', 'Aus', 'Non', 'No', 'Não'],
     'Aim assist': ['Richthulp', 'Zielhilfe', 'Aide à la visée', 'Ayuda de puntería', 'Ajuda de mira'],
@@ -616,6 +617,10 @@
     'Novara': ['Novara', 'Novara', 'Novara', 'Novara', 'Novara'],
     'Lavaclaw': ['Lavaklauw', 'Lavaklaue', 'Lavapince', 'Garra de lava', 'Garra de lava'],
     'Lavaclaw Titan': ['Lavaklauw-titan', 'Lavaklauen-Titan', 'Titan Lavapince', 'Titán Garra de lava', 'Titã Garra de lava'],
+    'Bubble Shallows': ['Bellenondiepte', 'Blasenuntiefe', 'Hauts-fonds à Bulles', 'Bajíos de Burbujas', 'Baixios de Bolhas'],
+    'Moonglass Caves': ['Maanglasgrotten', 'Mondglashöhlen', 'Grottes de Verre Lunaire', 'Cuevas de Cristal Lunar', 'Cavernas de Vidro Lunar'],
+    'Petal Peaks': ['Bloembladtoppen', 'Blütenblattgipfel', 'Pics des Pétales', 'Picos de Pétalos', 'Picos das Pétalas'],
+    'Magmalith Colossus': ['Magmalith-kolos', 'Magmalith-Koloss', 'Colosse Magmalith', 'Coloso Magmalith', 'Colosso Magmalith'],
     'Extra level': ['Extra level', 'Extra-Level', 'Niveau bonus', 'Nivel extra', 'Nível extra'],
     'Starfall Wetlands': ['Sterrenval-moeras', 'Sternfall-Sumpf', 'Marais des Étoiles', 'Pantano Estelar', 'Pântano Estelar'],
     'Unlock all levels': ['Alle levels openen', 'Alle Level freischalten', 'Débloquer tous les niveaux', 'Desbloquear todos los niveles', 'Desbloquear todos os níveis'],
@@ -660,6 +665,8 @@
   const I18N = {
     LANGS, NAMES,
     lang: 'en',
+    // more texts from other files (js/i18n-more.js): { English: [Dutch, German, French, Spanish, Portuguese] }
+    add(rows) { Object.assign(T, rows); },
     t(text, vars) {
       let out = this.tr(text);
       if (vars) for (const [k, v] of Object.entries(vars)) out = out.split('{' + k + '}').join(v);

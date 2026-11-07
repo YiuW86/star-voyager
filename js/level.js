@@ -12,7 +12,7 @@
   const LEVELS = {
     1: { name: 'Crystal Shores', bg: 'assets/level1.jpg', types: ['nebula', 'prism', 'solara'],
          boss: { name: 'King Nebula', sprite: 'nebula', hp: 20 } },
-    2: { name: 'Glowwood Forest', bg: 'assets/level2.jpg', types: ['pulsar', 'ember', 'glide'],
+    2: { name: 'Glowwood Forest', bg: 'assets/level2.jpg', video: { src: 'assets/glowwood.mp4', flow: 'glowwood' }, types: ['pulsar', 'ember', 'glide'],
          boss: { name: 'Prism Empress', sprite: 'prism', hp: 24 } },
     // Underwater: aliens swim and bubbles rise
     3: { name: 'Sunken Lagoon', bg: 'assets/level3.jpg', types: ['nimbus', 'splash', 'echo'], underwater: true,
@@ -25,22 +25,121 @@
          boss: { name: 'Vortex King', sprite: 'vortex', hp: 40 } },
     // Endless: wave after wave through all worlds; every 5th wave is a boss
     8: { name: 'Endless', bg: 'assets/level1.jpg', types: [], endless: true },
-    // Planet Cindera, first world: the Lavaclaw walks on the ground (it cannot fly)
-    10: { name: 'Glimmer Coast', planet: 2, bg: 'assets/cindera1.jpg', types: ['lavaclaw'],
-          boss: { name: 'Lavaclaw Titan', sprite: 'lavaclaw', hp: 36 } },
+    // Planet Cindera has no playable worlds right now (its worlds show as 'Soon available')
+    // Planet Prismara: unlocks after Starfall Wetlands (after: 6). rank = difficulty step after the Novara worlds.
+    // The backgrounds are borrowed from Novara until Prismara has its own pictures.
+    // The mystery planet ????: one world, open right away (free), reached through its opening film.
+    // void: the level map uses the purple-black level icons
+    30: { name: '????', planet: 5, free: true, void: true, rank: 7, bg: 'assets/void-bg.jpg',
+          types: ['echo', 'vortex', 'razor'], boss: { name: 'The Void', sprite: 'void', void: true, hp: 120 } },
+    20: { name: 'Bubble Shallows', planet: 3, after: 6, rank: 7, bg: 'assets/level3.jpg', underwater: true,
+          types: ['orblet', 'skybloom', 'slimora'], boss: { name: 'Skybloom Queen', sprite: 'skybloom', hp: 30 } },
+    21: { name: 'Moonglass Caves', planet: 3, rank: 8, bg: 'assets/level5.jpg',
+          types: ['orbello', 'emberoo', 'vaporis'], boss: { name: 'Orbello Prime', sprite: 'orbello', hp: 34 } },
+    22: { name: 'Petal Peaks', planet: 3, rank: 9, bg: 'assets/level1.jpg',
+          types: ['floravex', 'vaporis', 'orblet'], boss: { name: 'Mistwyrm King', sprite: 'vaporis', hp: 38 } },
   };
+  // Levels with a video background. The player walks through the video in steps: aliens only come
+  // while standing still at a stop. Once that group is caught, the video plays on to the next stop.
+  // Each stop is one round of aliens: round = how many aliens come per round. The number of stops
+  // follows from that (the first and the last frame of the video count as stops).
+  // e.g. '1-1': { src: 'assets/walk1.mp4', round: 5 } = world 1, level 1; '3': {...} = every level of world 3.
+  // Empty for now: all worlds use their static background again.
+  const WALKS = {};
+
   // Each world has 10 levels. Levels 1-9 are regular, level 10 ends with the world's boss.
   // Every level asks for 15 to 20 aliens in total, spread over its kinds of aliens.
   // Early levels have 2 kinds of aliens, later ones 3; the boss level asks for 15 plus the boss.
+  // Special levels, the same in every world (levels 1-2 normal, 10 = boss):
+  //  3 rescue: protect a friendly alien in a bubble · 4 only: catch one kind, leave the others
+  //  5 mini: a giant red mini-boss crashes down · 6 survive: stay alive 60 seconds
+  //  7 storm: a meteor storm halfway · 8 dark: your aim is a flashlight · 9 crystal: aliens attack your crystal
+  const SPECIALS = { 3: 'rescue', 4: 'only', 5: 'mini', 6: 'survive', 7: 'storm', 8: 'dark', 9: 'crystal' };
+  const SPECIAL_INFO = {
+    rescue: { title: 'Rescue!', sub: 'Protect the friendly alien in the bubble', tag: 'Rescue' },
+    only: { title: 'Only catch {name}!', sub: 'Leave the other aliens alone', tag: 'One kind' },
+    mini: { title: 'Warning: mini-boss!', sub: 'A giant alien will crash down', tag: 'Mini-boss' },
+    survive: { title: 'Survive 60 seconds!', sub: 'Stay alive until the timer runs out', tag: 'Survive' },
+    storm: { title: 'Meteor storm ahead!', sub: 'Shoot the meteors before they hit you', tag: 'Meteor storm' },
+    dark: { title: 'Lights out!', sub: 'Your aim is your flashlight', tag: 'Dark' },
+    crystal: { title: 'Protect your crystal!', sub: 'Aliens attack the crystal, not you', tag: 'Protect' },
+  };
+  const BOSS_INTRO = 3.6;         // seconds of the boss entrance
+  // Training steps (in order); the last one is a short real wave
+  const TUT_STEPS = ['aim', 'fire', 'reload', 'armour', 'shield', 'net', 'final', 'done'];
+  const TUT_FINAL = TUT_STEPS.indexOf('final');
+  // what the child is told; {aim} {fire} {reload} {shield} {grenade} become the right button for their controls
+  const TUT_TEXT = {
+    aim: ['First: aiming! Use {aim} to move your aiming circle onto the glowing ring.', 'Tip: follow the arrow. Keep the circle on the ring for a moment.'],
+    fire: ['Great aim! Here comes an alien. Put the circle on it and press {fire} to catch it.', 'Tip: first move the circle onto the alien, then press {fire}.'],
+    reload: ['Oh no, your blaster is empty! Press {reload} to reload.', 'Tip: press {reload}. The little bars at the bottom show your shots.'],
+    armour: ['This alien wears armour. It needs a few hits. Keep pressing {fire}!', 'Tip: keep the circle on it and press {fire} again and again.'],
+    shield: ['Watch out, this one throws rocks! Press {shield} to hold up your shield, and block a rock.', 'Tip: press {shield} before the rock reaches you.'],
+    net: ['Three at once! Press {grenade} for a net grenade, aim at the group, then press {fire} to throw it.', 'Tip: you can also catch them one by one with {fire}.'],
+    final: ['Final test! Catch 5 aliens. Careful, now they can hit back!', 'You can do it, Commander!'],
+    done: ['Training complete! You are a real Cadet now!', ''],
+  };
+  const TUT_GLOW = { aim: 'stick', fire: 'fire', reload: 'reload', armour: 'fire', shield: 'shield', net: 'grenade', final: null, done: null };
+  const SURVIVE_TIME = 60;
+  function specialOf(world, stage) {
+    const w = LEVELS[world];
+    if (!w || w.plat || w.endless) return null;
+    return SPECIALS[stage] || null;
+  }
+  // Orbit, your robot buddy, talks during levels (small speech bubbles)
+  const ORBIT_LINES = {
+    hello: ["Let's catch some aliens, Commander!", 'Scanners on. Here they come!', 'Ready when you are, Commander!'],
+    rescue: ['A friendly alien is trapped! Keep the attackers away from the bubble!', 'Aliens with a red ! are going for the bubble. Stop them first!'],
+    only: ['Only the aliens on the list, Commander. Leave the others alone!'],
+    mini: ['My sensors pick up something BIG. Stay sharp!'],
+    survive: ['Just stay alive for one minute. You can do it!'],
+    storm: ['Weather report: cloudy, with a chance of METEORS.'],
+    dark: ["It's dark in here... good thing your blaster has a flashlight!"],
+    crystal: ['Guard the crystal! If it breaks, we lose.'],
+    armour: ['Watch out, armoured ones! They need more hits.', 'That one has armour. Keep shooting!'],
+    low: ['Health low, Commander! Use your shield!', 'Ouch! Careful, your health is low!'],
+    combo: ['Nice combo, Commander!', 'Wow, you are on fire!', 'Amazing catches!'],
+    hyper: ['HYPER MODE! Double points, go go go!'],
+    boss: ['That is the ruler of this world. Free them from the mark!', 'Here comes the boss. Remember: shield up when it attacks!'],
+    miniNow: ['MINI-BOSS! It has a lot of health. Keep hitting it!'],
+    stormNow: ['Meteors incoming! Shoot them out of the sky!'],
+    friendLow: ['The bubble is cracking! Protect it!'],
+    guardLow: ['The crystal is almost broken! Hurry!'],
+    dizzy: ['Whoa, everything is spinning... hang in there!'],
+    win: ['Great job, Commander!', 'Level clear! High five! ...I have no hands. Low five?'],
+    joke: ['Why did the alien bring a ladder? To reach the next level!', "Why don't aliens eat clowns? They taste funny!",
+      'What do you call a sleeping alien? An unidentified sleeping object!', 'I asked a star for a joke. It was too bright for me.',
+      'Fun fact: robots like me run on batteries... and cookies. Mostly batteries.', 'How do aliens keep their pants up? With an asteroid belt!'],
+  };
+  // Moving backgrounds: a looping film instead of the picture (all levels of the world).
+  // Measured from the film, 4 samples per second: how fast the camera moves forward (1 = average)
+  // and how quickly the picture slides sideways / up and down (in screen widths / heights per second).
+  // Aliens come closer faster when the camera rushes forward, and slide along with the scenery when it turns.
+  const BG_RATE = 1;             // playing speed of the film in normal levels (original speed)
+  const BG_SPEED_EFFECT = 0.55;  // how strongly the film's rushing / slowing changes the aliens' speed (1 = fully)
+  const BG_FLOW = { glowwood: {"speed":[0.5,0.64,0.66,0.72,0.81,0.83,0.79,0.78,0.73,0.69,0.7,0.8,0.91,1.02,1.2,1.49,1.7,1.7,1.43,0.74,1.07,1.59,1.1,0.85,1.17,1.16,1.28,1.37,1.25,1.18,1.25,1.24,1.21,1.24,1.24,1.27,1.25,1.17,0.98,0.73,0.71,0.74,0.71,0.66,0.6,0.55,0.56,0.67,0.97,1.54,1.7,1.7,1.4,1.7,1.7,1.25,1.32,1.39,1.64,1.7,1.69,1.54,1.45,1.34,1.27,1.23,1.25,1.32,1.36,1.32,1.17,1.05,0.89,0.7,0.63,0.61,0.6,0.56,0.5,0.5,0.5,0.56,0.63,0.67,0.72,0.84,1.04,1.16,0.92,0.89,1.02,1.17,1.32,1.42,1.49,1.52,1.54,1.55,1.54,1.49,1.41,1.18,0.91,0.78,0.67,0.57,0.5,0.5,0.5,0.5,0.5,0.5,0.5,0.5,0.5,0.5,0.5,0.5,0.5],"panX":[0.055,0.056,0.023,0.004,0.002,0.002,0.002,0.003,0.012,0.029,0.062,0.101,0.127,0.14,0.136,0.122,0.092,0.051,0.015,-0.001,-0.033,-0.096,-0.172,-0.246,-0.303,-0.308,-0.28,-0.217,-0.118,-0.028,0.03,0.09,0.127,0.121,0.083,0.052,0.039,0.033,0.03,0.028,0.025,0.024,0.026,0.033,0.044,0.062,0.081,0.112,0.193,0.303,0.335,0.226,0.107,0.07,0.046,0.03,0.028,0.024,0.021,0.012,0.012,0.015,0.017,0.024,0.035,0.047,0.056,0.061,0.06,0.056,0.049,0.038,0.027,0.019,0.012,0.005,-0.0,-0.032,-0.105,-0.177,-0.232,-0.268,-0.293,-0.307,-0.307,-0.285,-0.234,-0.155,-0.061,0.032,0.079,0.093,0.108,0.125,0.142,0.144,0.136,0.116,0.097,0.08,0.062,0.046,0.034,0.027,0.024,0.022,0.021,0.019,0.017,0.015,0.013,0.013,0.011,0.011,0.01,0.009,0.009,0.014,0.033],"panY":[-0.011,-0.052,-0.057,-0.052,-0.04,-0.032,-0.026,-0.019,-0.015,-0.019,-0.027,-0.033,-0.036,-0.044,-0.045,-0.044,-0.043,-0.039,-0.024,-0.023,-0.032,-0.039,-0.046,-0.062,-0.066,-0.067,-0.061,-0.057,-0.044,-0.027,-0.005,0.023,0.081,0.159,0.237,0.291,0.314,0.271,0.163,0.014,-0.129,-0.231,-0.288,-0.321,-0.31,-0.275,-0.239,-0.21,-0.166,-0.117,-0.073,-0.012,0.05,0.029,-0.001,-0.008,-0.039,-0.068,-0.067,-0.045,-0.014,-0.003,-0.01,-0.017,-0.016,-0.01,-0.006,-0.005,-0.006,-0.009,-0.013,-0.021,-0.029,-0.032,-0.033,-0.03,-0.031,-0.048,-0.079,-0.103,-0.121,-0.133,-0.141,-0.149,-0.156,-0.153,-0.136,-0.103,-0.062,-0.026,0.004,0.037,0.08,0.128,0.18,0.202,0.209,0.226,0.23,0.212,0.17,0.109,0.063,0.048,0.038,0.031,0.027,0.023,0.016,0.011,0.008,0.006,0.002,-0.001,-0.005,-0.009,-0.012,-0.011,-0.004]} };
   const STAGES = 10;
-  const TOTALS = [15, 15, 16, 16, 17, 17, 18, 19, 20, 15];
+  const TOTALS = [14, 15, 16, 16, 17, 17, 18, 19, 20, 15];
   function stageConfig(world, stage) {
     const w = LEVELS[world];
     if (w.plat) return { ...w, world, stage, types: [], goal: 0, boss: null, par: 140, speedMul: 1 };
-    if (w.endless) return { ...w, world, stage: 1, types: LEVELS[1].types.slice(), goals: {}, goal: 0, total: 0, boss: null, par: 0, speedMul: 1 };
+    if (w.endless) return { ...w, world, stage: 1, types: LEVELS[1].types.slice(), goals: {}, goal: 0, total: 0, boss: null, par: 0, ...difficulty(1, 1) };
     const n = w.types.length;
     const typeCount = Math.min(n, stage <= 2 ? 2 : 3);
     const types = w.types.slice(0, typeCount);
+    const special = specialOf(world, stage);
+    const rank0 = w.rank || world;
+    // Level 4: catch only one kind; the others are decoys that fly past (shooting them costs points)
+    if (special === 'only') {
+      const tgt = types[(world + 1) % types.length], tot = TOTALS[stage - 1];
+      return { ...w, world, stage, special, types: [tgt], decoys: types.filter((t) => t !== tgt), goals: { [tgt]: tot }, goal: tot, total: tot, boss: null, par: Math.round(tot * 3.2), ...difficulty(stage, rank0) };
+    }
+    // Level 6: no catch goals, stay alive for 60 seconds
+    if (special === 'survive') {
+      const goals = Object.fromEntries(types.map((t) => [t, 9999]));
+      return { ...w, world, stage, special, types, goals, goal: 9999, total: 0, boss: null, par: SURVIVE_TIME, ...difficulty(stage, rank0) };
+    }
+    // every level asks for a little more than the one before (levels 1-2: 14 and 15, split over 2 kinds)
     const total = TOTALS[stage - 1];
     const goals = {};
     types.forEach((t, i) => { goals[t] = Math.floor(total / types.length) + (i < total % types.length ? 1 : 0); });
@@ -48,8 +147,30 @@
     const boss = stage === STAGES ? w.boss : null;
     // target time for 3 stars: about 3 seconds per catch, plus time for the boss
     const par = Math.round(total * 3 + (boss ? boss.hp * 1.8 + 8 : 0));
-    return { ...w, world, stage, types, goals, goal, total, boss, par, speedMul: 1 + 0.035 * (stage - 1) + 0.04 * (world - 1) };
+    const rank = w.rank || world;
+    return { ...w, world, stage, special, types, goals, goal, total, boss, par: par + (special === 'mini' ? 25 : special === 'storm' ? 10 : 0), ...difficulty(stage, rank) };
   }
+
+  // Difficulty: every level of a world is harder than the one before, and every world a little harder than the last.
+  //  speedMul  = how fast aliens approach (and how often new ones come)
+  //  attackMul = how often aliens throw rocks
+  //  damage    = % health lost per hit
+  //  armour    = chance an alien has a shield (needs several hits) and how many hits that shield takes
+  function difficulty(stage, rank) {
+    const s = stage - 1, r = rank - 1;
+    return {
+      speedMul: 1 + 0.055 * s + 0.04 * r,
+      attackMul: 1 + 0.07 * s + 0.03 * r,
+      damage: Math.min(12, 4 + 0.55 * s + 0.25 * r),
+      armourChance: stage < 2 ? 0 : Math.min(0.6, 0.04 * s + 0.02 * r),
+      armourHp: 2 + Math.floor(s / 4) + Math.floor(r / 3),
+      // how lively and evasive aliens move: wandering, dodging your aim, sometimes flying back
+      evade: Math.min(1, 0.3 + 0.075 * s + 0.04 * r),
+    };
+  }
+  // Getting hit 4 times within 2 seconds makes you dizzy for 2 seconds (no actions, you still get hit);
+  // afterwards you cannot get dizzy again for 5 seconds.
+  const DIZZY = { hits: 4, window: 2, time: 2, immune: 5 };
 
   // Stars (1-3) for a cleared level: health left counts most, then accuracy, then time
   function starRating({ won, time, accuracy, health, par }) {
@@ -61,7 +182,7 @@
     return { stars: score >= 0.85 ? 3 : score >= 0.6 ? 2 : 1, score, parts: { health: hp, accuracy: acc, time: tm } };
   }
 
-  const ALL_TYPES = ['nebula', 'prism', 'solara', 'glide', 'vexa', 'pulsar', 'ember', 'nimbus', 'echo', 'splash', 'razor', 'orbita', 'vortex', 'lavaclaw'];
+  const ALL_TYPES = ['nebula', 'prism', 'solara', 'glide', 'vexa', 'pulsar', 'ember', 'nimbus', 'echo', 'splash', 'razor', 'orbita', 'vortex', 'skybloom', 'slimora', 'vaporis', 'emberoo', 'floravex', 'orbello', 'orblet'];
   let TYPES = LEVELS[1].types;                       // types of the level being played
   let DWELL_TIME = 0.45;         // seconds the circle must rest on a target to fire the blaster
   let SHOT_COOLDOWN = 0.28;     // these three change with Workshop upgrades
@@ -91,7 +212,6 @@
     prism:  { 2: 'Phase 2: break the crystals in order 1, 2, 3!', 3: 'Phase 3: crystals and red glows!' },
     echo:   { 2: 'Phase 2: the lights go out!', 3: 'Phase 3: more sound rings!' },
     vortex: { 2: 'Phase 2: shoot between the spinning blades!', 3: 'Phase 3: the vortex pulls your aim!' },
-    lavaclaw: { 2: 'Phase 2: ground slams send lava waves! Use your shield!', 3: 'Phase 3: the {name} is furious!' },
   };
 
   // Every world has its own material, dropped only there (and in Endless waves in that world)
@@ -107,13 +227,11 @@
     nebula: { img: 'nebula_king', fx: 'nebula_king_fx', meta: { fw: 255, fh: 234 }, fxMeta: { fw: 249, fh: 236 }, crown: true },
     // Ember Lord: 5x3 sheet. 0/5 front, 2/3/8/9/11/12 moving sideways (eye to the right; mirrored when going left),
     // 13 winding up, 14 spinning attack, 10 hurt / dizzy
-    lavaclaw: { img: 'lavaclaw', meta: { fw: 246, fh: 234 }, crown: false, ground: true,
-      frames: { idle: [0, 1, 2, 3, 4], side: [0, 1, 2, 3, 4], windup: 5, attack: 6, hurt: 13, caught: 11, roar: 9 } },
     ember: { img: 'ember_lord', meta: { fw: 256, fh: 303 }, crown: true,
       frames: { idle: [0, 5], side: [2, 3, 8, 9, 11, 12], windup: 13, attack: 14, hurt: 10, caught: 10 } },
   };
 
-  // Superpowers (order = icons in assets/supers.png). `ready` ones work in the game already.
+  // Superpowers (order = icons in assets/supers.webp). `ready` ones work in the game already.
   const SUPERS = {
     mindswirl: { i: 0, name: 'Mind Swirl', ready: true },
     shockwave: { i: 1, name: 'Shockwave', ready: true },
@@ -146,28 +264,57 @@
   // front = frames facing the player, side = frames facing right (mirrored for left).
   // thrower = this monster throws rocks the shield can block.
   const SPR = {
-    gun:    { src: 'assets/gun.png',    fw: 346, fh: 325 },
-    nebula: { src: 'assets/nebula.png', fw: 238, fh: 246, front: [0, 12, 11, 12], side: [1, 14, 9], color: '#c79bff', name: 'Nebula', speed: [8, 10] },
-    prism:  { src: 'assets/prism.png',  fw: 236, fh: 249, front: [0, 5, 11, 5],   side: [9, 14, 10], color: '#7fe3ff', name: 'Prism',  speed: [9, 11], thrower: true },
-    solara: { src: 'assets/solara.png', fw: 274, fh: 242, front: [0, 4, 12, 4],   side: [6, 9, 14], color: '#ffd27a', name: 'Solara', speed: [6.5, 8.5] },
-    glide:  { src: 'assets/glide.png',  fw: 262, fh: 212, front: [0, 11, 0, 11],  side: [2, 10, 14, 12], color: '#8ff0c8', name: 'Glide', speed: [6, 7.5] },
-    vexa:   { src: 'assets/vexa.png',   fw: 245, fh: 234, front: [0, 1, 11, 1],   side: [3, 9, 10, 14], color: '#ffa45c', name: 'Vexa',  speed: [9, 11], thrower: true },
+    gun:    { src: 'assets/gun.webp',    fw: 346, fh: 325 },
+    nebula: { src: 'assets/nebula.webp', fw: 238, fh: 246, front: [0, 12, 11, 12], side: [1, 14, 9], color: '#c79bff', name: 'Nebula', speed: [8, 10] },
+    prism:  { src: 'assets/prism.webp',  fw: 236, fh: 249, front: [0, 5, 11, 5],   side: [9, 14, 10], color: '#7fe3ff', name: 'Prism',  speed: [9, 11], thrower: true },
+    solara: { src: 'assets/solara.webp', fw: 274, fh: 242, front: [0, 4, 12, 4],   side: [6, 9, 14], color: '#ffd27a', name: 'Solara', speed: [6.5, 8.5] },
+    glide:  { src: 'assets/glide.webp',  fw: 262, fh: 212, front: [0, 11, 0, 11],  side: [2, 10, 14, 12], color: '#8ff0c8', name: 'Glide', speed: [6, 7.5] },
+    vexa:   { src: 'assets/vexa.webp',   fw: 245, fh: 234, front: [0, 1, 11, 1],   side: [3, 9, 10, 14], color: '#ffa45c', name: 'Vexa',  speed: [9, 11], thrower: true },
     // pulse = moves toward you in bursts, to the rhythm of its glowing bubbles
-    pulsar: { src: 'assets/pulsar.png', fw: 244, fh: 229, front: [0, 10, 11, 10], side: [3, 8, 9], color: '#b8f06a', name: 'Pulsar', speed: [7, 9], pulse: true },
+    pulsar: { src: 'assets/pulsar.webp', fw: 244, fh: 229, front: [0, 10, 11, 10], side: [3, 8, 9], color: '#b8f06a', name: 'Pulsar', speed: [7, 9], pulse: true },
     // swim: 'jelly' = pushes forward in strokes like a jellyfish, 'glide' = glides and banks like a manta ray
     // open/push = frames with tentacles spread and pulled in (jellyfish stroke)
-    nimbus: { src: 'assets/nimbus.png', fw: 266, fh: 243, front: [0, 1], push: [5], side: [3, 4, 9, 7], color: '#8fd8ff', name: 'Nimbus', speed: [8, 10], swim: 'jelly' },
-    echo:   { src: 'assets/echo.png',   fw: 278, fh: 255, front: [0, 5, 10, 5], side: [2, 3, 8, 9], color: '#c79bff', name: 'Echo', speed: [7, 9], swim: 'glide', thrower: true },
-    splash: { src: 'assets/splash.png', fw: 265, fh: 246, front: [0, 12], push: [5, 14], side: [3, 4, 9, 7], color: '#ff9ad8', name: 'Splash', speed: [7.5, 9.5], swim: 'jelly' },
+    nimbus: { src: 'assets/nimbus.webp', fw: 266, fh: 243, front: [0, 1], push: [5], side: [3, 4, 9, 7], color: '#8fd8ff', name: 'Nimbus', speed: [8, 10], swim: 'jelly' },
+    echo:   { src: 'assets/echo.webp',   fw: 278, fh: 255, front: [0, 5, 10, 5], side: [2, 3, 8, 9], color: '#c79bff', name: 'Echo', speed: [7, 9], swim: 'glide', thrower: true },
+    splash: { src: 'assets/splash.webp', fw: 265, fh: 246, front: [0, 12], push: [5, 14], side: [3, 4, 9, 7], color: '#ff9ad8', name: 'Splash', speed: [7.5, 9.5], swim: 'jelly' },
     // Starfall Wetlands: Razor scuttles fast and throws spikes, Orbita glides like a little planet, Vortex spins toward you in bursts
-    razor:  { src: 'assets/razor.png',  fw: 248, fh: 238, front: [0, 12, 6, 12], side: [5, 11, 3], color: '#c79bff', name: 'Razor', speed: [6, 7.5], thrower: true },
-    orbita: { src: 'assets/orbita.png', fw: 235, fh: 263, front: [0, 4, 8, 4],   side: [6, 5, 11], color: '#9fd8ff', name: 'Orbita', speed: [8, 10], swim: 'glide' },
-    vortex: { src: 'assets/vortex.png', fw: 275, fh: 244, front: [0, 12, 8, 12], side: [5, 14, 9], color: '#ff8ad8', name: 'Vortex', speed: [7, 9], pulse: true, thrower: true },
-    // Lavaclaw walks: 0-4 walking, 5 tail up, 6 tail swipe, 7 ground slam, 9 roar, 10 rocks up (throw), 11 crouched, 13 hit
-    lavaclaw: { src: 'assets/lavaclaw.png', fw: 246, fh: 234, front: [0, 1, 2, 3, 4], side: [0, 1, 2, 3, 4], swim: 'walk',
-      throwFrame: 10, attackFrame: 6, hurtFrame: 13, color: '#ff6a3a', name: 'Lavaclaw', speed: [7.5, 9.5], thrower: true },
-    ember:  { src: 'assets/ember.png',  fw: 244, fh: 260, front: [0, 5, 0, 7],    side: [3, 6, 11, 12], color: '#ff9a6a', name: 'Ember', speed: [6.5, 8], thrower: true },
+    razor:  { src: 'assets/razor.webp',  fw: 248, fh: 238, front: [0, 12, 6, 12], side: [5, 11, 3], color: '#c79bff', name: 'Razor', speed: [6, 7.5], thrower: true },
+    orbita: { src: 'assets/orbita.webp', fw: 235, fh: 263, front: [0, 4, 8, 4],   side: [6, 5, 11], color: '#9fd8ff', name: 'Orbita', speed: [8, 10], swim: 'glide' },
+    vortex: { src: 'assets/vortex.webp', fw: 275, fh: 244, front: [0, 12, 8, 12], side: [5, 14, 9], color: '#ff8ad8', name: 'Vortex', speed: [7, 9], pulse: true, thrower: true },
+    // ---- Planet Prismara (sheets cut from the character sheets, background removed) ----
+    // faceLeft = the turned frames look to the left (mirrored when it moves right)
+    skybloom: { src: 'assets/skybloom.webp', fw: 250, fh: 244, front: [0, 10, 13, 10], side: [2, 12, 3], faceLeft: true,
+      attackFrame: 8, color: '#ff9ae8', name: 'Skybloom', speed: [7.5, 9.5], swim: 'glide', thrower: true },
+    // Slimora slides over the ground, slowly: 9 jumps up in a splash when it reaches you, 7 spits a glowing drop
+    slimora:  { src: 'assets/slimora.webp', fw: 250, fh: 259, front: [0, 14, 0, 13], side: [0, 14, 0, 13], swim: 'walk',
+      throwFrame: 7, attackFrame: 9, color: '#d79bff', name: 'Slimora', speed: [10.5, 12.5] },
+    vaporis:  { src: 'assets/vaporis.webp', fw: 250, fh: 252, front: [0, 14, 0, 7], side: [1, 2, 3], attackFrame: 5,
+      color: '#9fc8ff', name: 'Vaporis', speed: [7, 9], swim: 'glide', thrower: true },
+    // Emberoo swims like a jellyfish: 10 = squeezed (pushing), 0/1 = spread (gliding)
+    emberoo:  { src: 'assets/emberoo.webp', fw: 250, fh: 251, front: [0, 1], push: [10], side: [2, 11, 13], attackFrame: 5,
+      color: '#ffa0c8', name: 'Emberoo', speed: [7.5, 9.5], swim: 'jelly', thrower: true },
+    // Floravex walks on four legs: 14 charges an orb (throw), 5 claws when it reaches you
+    floravex: { src: 'assets/floravex.webp', fw: 250, fh: 206, front: [0, 10, 0, 7], side: [0, 10, 0, 7], swim: 'walk',
+      throwFrame: 14, attackFrame: 5, color: '#8fd8ff', name: 'Floravex', speed: [7, 8.5], thrower: true },
+    orbello:  { src: 'assets/orbello.webp', fw: 250, fh: 234, front: [0, 1, 11, 1], side: [3, 14], attackFrame: 13,
+      color: '#7fd0ff', name: 'Orbello', speed: [8, 10], thrower: true },
+    // Orblet bounces toward you in little hops (pulse)
+    orblet:   { src: 'assets/orblet.webp', fw: 250, fh: 235, front: [0, 10, 13, 10], side: [2, 11, 12], attackFrame: 7,
+      color: '#9ff0c8', name: 'Orblet', speed: [8, 10], pulse: true },
+    ember:  { src: 'assets/ember.webp',  fw: 244, fh: 260, front: [0, 5, 0, 7],    side: [3, 6, 11, 12], color: '#ff9a6a', name: 'Ember', speed: [6.5, 8], thrower: true },
   };
+  // The Void (boss of the ???? world): 0 = still, 1-3 = firing its energy beam
+  SPR.void = { src: 'assets/void_boss.webp', fw: 1102, fh: 620, front: [0], side: [0], color: '#b06cff', name: 'The Void' };
+  // The Void fights in 4 health bars; it can only be hurt while its chest crystal is open
+  const VOID = {
+    bars: 4, barHp: 30,
+    beamEvery: [10, 9, 8, 6.5],      // seconds between beams, per bar (4 bars left ... 1 bar left)
+    charge: [2.3, 2.2, 2.0, 1.6],    // warning time before the beam
+    fire: 1.0, tired: 4, stun: 6, beamDamage: 20, shieldCost: 3,
+    orbEvery: 9, shardEvery: [0, 6, 5, 4], shards: [0, 2, 3, 3],
+    minionEvery: [6, 5, 3.5, 4], minionMax: [3, 3, 5, 4], regenAfter: 5, heal: 25,
+  };
+
   // Gun frames ordered from pointing far left to pointing far right
   const GUN_ORDER = [0, 1, 2, 3, 4, 12, 14, 13, 11, 10];
 
@@ -182,8 +329,9 @@
     images: {},
     load(onProgress) {
       const list = [...Object.entries(LEVELS).map(([id, l]) => ['bg' + id, l.bg]), ...['gun', ...ALL_TYPES].map((k) => [k, SPR[k].src]),
-        ['nebula_king', 'assets/nebula_king.png'], ['nebula_king_fx', 'assets/nebula_king_fx.png'], ['ember_lord', 'assets/ember_lord.png'],
-        ['drone1', 'assets/drone1.png'], ['drone2', 'assets/drone2.png']];
+        ['void', SPR.void.src],
+        ['nebula_king', 'assets/nebula_king.webp'], ['nebula_king_fx', 'assets/nebula_king_fx.webp'], ['ember_lord', 'assets/ember_lord.webp'],
+        ['drone1', 'assets/drone1.webp'], ['drone2', 'assets/drone2.webp']];
       let done = 0;
       return Promise.all(list.map(([key, src]) => new Promise((resolve, reject) => {
         const img = new Image();
@@ -453,12 +601,15 @@
       }
     },
 
-    start({ level = 1, stage = 1, mode, players = 1, save, options, onEnd, onHud, getMenuButtons }) {
+    start({ level = 1, stage = 1, mode, players = 1, save, options, onEnd, onHud, getMenuButtons, tutorial = false }) {
       Object.assign(this, { save, options, onEnd, onHud, getMenuButtons });
       this.perfOptions(options);
       this.levelId = level;
       this.stage = stage;
       this.levelCfg = stageConfig(level, stage);
+      // Training (tutorial): Crystal Shores, no goals, no special rules; the steps run in updateTutorial
+      if (tutorial) this.levelCfg = { ...this.levelCfg, types: ['nebula', 'prism'], goals: { nebula: 0, prism: 0 }, goal: 0, total: 0, boss: null, special: null,
+        video: null, par: 120, ...difficulty(1, 1), armourChance: 0, evade: 0.25, tutorial: true };
       TYPES = this.levelCfg.types;
       GOAL = this.levelCfg.goal;
       GOALMAP = this.levelCfg.goals || {};
@@ -524,7 +675,7 @@
 
       this.health = 100;
       this.caught = Object.fromEntries(TYPES.map((t) => [t, 0]));
-      this.monsters = []; this.particles = []; this.lasers = []; this.rocks = []; this.nets = []; this.flying = [];
+      this.monsters = []; this.particles = []; this.voxels = []; this.lasers = []; this.rocks = []; this.nets = []; this.flying = [];
       this.spawnTimer = 0.8;
       this.time = 0; this.shots = 0; this.hits = 0; this.earned = 0;
       this.medkitUsed = false;
@@ -534,6 +685,11 @@
       this.bubbles = []; this.bubbleT = 0;
       this.slowT = 0; this.waves = [];
       this.promptText = ''; this.promptUntil = 0;
+      this.dizzyT = 0; this.dizzyImmune = 0; this.hitTimes = []; this.setDizzyLook(false);
+      this.cine = false; this.beamFlash = 0;
+      this.loseReason = null;
+      this.initSpecial();
+      this.tut = this.levelCfg.tutorial ? { step: -1, t: 0, idle: 0, hinted: false, rings: null, ring: 0, hold: 0, caught: 0, blocks: 0, spawned: [], finalSpawn: 0 } : null;
 
       this.players = [this.makePlayer(1)];
       if (players > 1 && !this.plat) this.players.push(this.makePlayer(2));
@@ -544,6 +700,8 @@
       this.state = !this.plat && this.players.some((p) => p.input.isCam()) ? 'calibrate' : 'countdown';
       if (this.plat) this.platInit();
       this.endless = !!LEVELS[level].endless; this.wave = 0; this.bgKey = null;
+      this.walkInit();
+      this.bgVideoInit();
       if (!this.plat) this.warmSprites();
       this.superInit();
       if (this.endless) this.nextWave(true);
@@ -615,7 +773,7 @@
       this.hud('players');
     },
 
-    stop() { this.running = false; this.hud('cursor', null); },
+    stop() { if (this.hyperT > 0) this.endHyper(); this.bgVideoEnd(); this.running = false; this.dizzyT = 0; this.setDizzyLook(false); this.walkEnd(); this.hud('cursor', null); },
 
     // Options changed from the in-game menu
     // frame rate cap and reduced effects (used at level start and when options change)
@@ -644,10 +802,14 @@
       this.menuPlayer = byPlayer || null;
       this.players.forEach((p) => { p.tHold = 0; p.tLatch = true; p.menuHold = 0; });
       this.cursor = { target: null, t: 0 };
+      if (this.walk && this.walk.moving) this.walk.v.pause();
+      if (this.bgv) try { this.bgv.v.pause(); } catch (e) {}
       this.hud('pause', reason);
     },
     resume() {
       this.paused = false; this.last = performance.now();
+      if (this.walk && this.walk.moving && !this.walk.manual) this.walk.v.play().catch(() => {});
+      if (this.bgv && !this.bgv.failed) this.bgv.v.play().catch(() => {});
       this.hud('cursor', null);
       this.hud('resume');
     },
@@ -656,6 +818,7 @@
     hud(kind, value) { if (this.onHud) this.onHud(kind, value, this); },
 
     followAim(p, dt) {
+      if (this.dizzyT > 0) { p.smoothAim.x += Math.sin(this.time * 9) * 3; p.smoothAim.y += Math.cos(this.time * 7) * 2; return; }
       const inp = p.input;
       const target = inp.hasAim ? { x: inp.aim.x * W, y: inp.aim.y * H } : { x: this.gunBase(p), y: H / 2 };
       const k = inp.mode === 'mouse' ? 1 : Math.min(1, dt * (inp.isCam() ? 30 : 70));
@@ -666,6 +829,7 @@
     // ---------------- Update ----------------
     update(dt) {
       if (this.plat) return this.platUpdate(dt);
+      if (this.cine) return;                       // the defeat film of The Void is playing
       this.stateT += dt;
       for (const p of this.players) this.followAim(p, dt);
       if (this.state !== 'play') this.players.forEach((p) => p.input.takeEvents());   // ignore presses before and after play
@@ -674,7 +838,7 @@
       if (this.state === 'countdown') {
         const left = 3 - Math.floor(this.stateT);
         this.hud('countdown', left);
-        if (this.stateT >= 3) { this.state = 'play'; this.stateT = 0; this.hud('go'); }
+        if (this.stateT >= 3) { this.state = 'play'; this.stateT = 0; this.hud('go'); this.onPlayStart(); }
         return;
       }
       if (this.state === 'ending') {
@@ -687,7 +851,9 @@
       if (this.state !== 'play') return;
 
       // The world runs in slow motion while a gadget belt is open; your own actions don't.
-      const gdt = dt * (this.players.some((p) => p.belt.open) ? BELT.slowMo : 1) * (this.slowT > 0 ? TIME_FACTOR : 1);
+      const worldSpeed = (this.players.some((p) => p.belt.open) ? BELT.slowMo : 1) * (this.slowT > 0 ? TIME_FACTOR : 1)
+        * (this.boss && this.boss.state === 'enter' && !this.boss.void ? 0.2 : 1);
+      const gdt = dt * worldSpeed;
       if (this.slowT > 0) { this.slowT = Math.max(0, this.slowT - dt); if (this.slowT === 0) this.hud('toast', 'Time is back to normal'); }
 
       this.time += dt;
@@ -704,10 +870,18 @@
         }
       }
 
+      const dizzy = this.updateDizzy(dt);
+      if (this.paused) return;
       this.updateSpawning(gdt);
+      if (this.walk) this.updateWalk(dt, worldSpeed);
+      if (this.bgv) this.updateBgVideo(dt, worldSpeed);
       for (const m of this.monsters) this.updateMonster(m, gdt, false);
       this.monsters = this.monsters.filter((m) => !m.gone);
       this.updateRocks(gdt);
+      this.updateSpecial(dt, gdt);
+      if (this.state !== 'play') return;
+      this.updateHyper(dt);
+      this.updateOrbit(dt);
       this.updateFlying(dt);
       if (this.boss) this.updateBoss(gdt, dt);
       if (this.hazards.length) this.updateHazards(gdt);
@@ -715,7 +889,7 @@
 
       for (const p of this.players) { this.handlePhoneButtons(p); if (this.paused) return; }
       for (const p of this.players) { this.updatePauseGestures(p, dt); if (this.paused) return; }
-      for (const p of this.players) {
+      if (!dizzy) for (const p of this.players) {
         this.updateBelt(p, dt);
         this.updateWeapon(p, dt);
         this.updateReload(p, dt);
@@ -732,20 +906,24 @@
 
       const stale = this.players.find((p) => !p.input.poseFresh());
       if (stale) this.setPrompt(stale.input.isCam() ? 'Step into view of the phone camera' : 'Waiting for your phone…', 0.3, stale);
+      if (this.tut) { this.updateTutorial(dt); return; }
 
       if (this.endless) {
         if (this.bossWave) {
           if (!this.boss && !this.bossDefeated && this.stateT > 1.5) this.spawnBoss();
           if (this.bossDefeated) this.nextWave();
-        } else if (this.waveCaught >= this.waveTarget) this.nextWave();
+        } else if (this.waveCaught >= this.waveTarget && !(this.mini && !this.miniDone)) this.nextWave();
         return;
       }
-      const goalsDone = TYPES.every((t) => this.caught[t] >= goalOf(t));
+      let goalsDone = this.special === 'survive' ? this.surviveT >= SURVIVE_TIME : TYPES.every((t) => this.caught[t] >= goalOf(t));
+      // level 5: the mini-boss must be caught too (it crashes down at the latest when the goals are done)
+      if (this.special === 'mini' && !this.miniDone) { if (goalsDone && !this.mini) this.spawnMini(); goalsDone = false; }
       if (goalsDone && this.levelCfg.boss && !this.boss && !this.bossDefeated) this.spawnBoss();
       if (goalsDone && (!this.levelCfg.boss || this.bossDefeated)) {
         this.state = 'ending'; this.stateT = 0; this.won = true;
         this.players.forEach((p) => { p.belt.open = false; });
-        Sfx.win(); this.hud('toast', 'Level clear!');
+        Sfx.victory(); this.hud('toast', 'Level clear!');
+        this.onWin();
       }
     },
 
@@ -847,23 +1025,176 @@
       }
     },
 
+    // ---------------- Video walk ----------------
+    walkInit() {
+      this.walkEnd();
+      const cfg = !this.endless && !this.plat && (WALKS[this.levelId + '-' + this.stage] || WALKS[this.levelId]);
+      if (!cfg) return;
+      const v = document.createElement('video');
+      v.muted = true; v.defaultMuted = true; v.playsInline = true; v.preload = 'auto';
+      v.setAttribute('muted', ''); v.setAttribute('playsinline', ''); v.setAttribute('webkit-playsinline', '');
+      // kept in the page (some browsers stop decoding videos that are not), but invisible
+      // (a real size and a tiny bit of opacity: some browsers pause videos they think nobody can see)
+      v.style.cssText = 'position:fixed;left:0;top:0;width:160px;height:90px;opacity:0.01;pointer-events:none;z-index:-1';
+      const total = TYPES.reduce((a, t) => a + goalOf(t), 0);
+      const n = Math.max(1, Math.ceil(total / (cfg.round || 5)));
+      const groups = Array.from({ length: n }, (_, i) => Math.floor(total / n) + (i < total % n ? 1 : 0));
+      const w = { v, ready: false, failed: false, times: null, groups, stop: 0, groupEnd: groups[0],
+        moving: false, moveT: 0, pre: 0, wait: 0, walkTime: 0, rate: 1, manual: false, stall: 0, lastCT: 0 };
+      v.addEventListener('loadedmetadata', () => {
+        const d = v.duration;
+        w.times = Array.from({ length: n }, (_, i) => (n === 1 ? 0 : (d * i) / (n - 1)));
+      });
+      v.addEventListener('loadeddata', () => { w.ready = true; this.bgCache = null; });
+      v.addEventListener('error', () => { w.failed = true; this.bgCache = null; });   // falls back to the picture
+      v.src = cfg.src;
+      document.body.appendChild(v);
+      v.load();
+      this.walk = w;
+    },
+    // ---- moving film background (looping), e.g. Glowwood Forest ----
+    bgVideoInit() {
+      this.bgVideoEnd();
+      const cfg = !this.endless && !this.plat && LEVELS[this.levelId] && LEVELS[this.levelId].video;
+      if (!cfg || this.walk) return;
+      const v = document.createElement('video');
+      v.muted = true; v.defaultMuted = true; v.playsInline = true; v.loop = true; v.preload = 'auto';
+      v.setAttribute('muted', ''); v.setAttribute('playsinline', ''); v.setAttribute('webkit-playsinline', ''); v.setAttribute('loop', '');
+      // kept in the page but invisible (some browsers stop decoding videos that are not on the page)
+      v.style.cssText = 'position:fixed;left:0;top:0;width:160px;height:90px;opacity:0.01;pointer-events:none;z-index:-1';
+      const g = { v, ready: false, failed: false, flow: BG_FLOW[cfg.flow] || null, speed: 1, panX: 0, panY: 0, rate: 1, lastT: -1, stall: 0,
+        gentle: !!this.levelCfg.boss };
+      v.addEventListener('loadeddata', () => { g.ready = true; });
+      v.addEventListener('error', () => { g.failed = true; });          // falls back to the picture
+      v.src = cfg.src;
+      document.body.appendChild(v);
+      v.load();
+      // start at the right speed straight away (also during the countdown)
+      g.rate = g.gentle ? 1 : BG_RATE;
+      try { v.defaultPlaybackRate = g.rate; v.playbackRate = g.rate; } catch (e) { /* ignore */ }
+      v.addEventListener('loadedmetadata', () => { try { v.playbackRate = g.rate; } catch (e) { /* ignore */ } });
+      const pr = v.play(); if (pr && pr.catch) pr.catch(() => {});
+      this.bgv = g;
+    },
+    bgVideoEnd() {
+      const g = this.bgv;
+      if (!g) return;
+      try { g.v.pause(); g.v.removeAttribute('src'); g.v.load(); } catch (e) { /* ignore */ }
+      g.v.remove();
+      this.bgv = null; this.bgCache = null;
+    },
+    updateBgVideo(dt, worldSpeed) {
+      const g = this.bgv, v = g.v;
+      if (g.failed) { g.speed = 1; g.panX = g.panY = 0; return; }
+      // the film plays at its original speed; slow motion (gadget belt,
+      // time grenade, boss entrance) slows it down further
+      const base = g.gentle ? 1 : BG_RATE;
+      const rate = clamp(worldSpeed * base, 0.15, 1);
+      if (Math.abs(rate - g.rate) > 0.04) { g.rate = rate; try { v.playbackRate = rate; } catch (e) { /* ignore */ } }
+      if (v.paused && !this.paused) { const pr = v.play(); if (pr && pr.catch) pr.catch(() => {}); }
+      // a film that stops playing (decoder trouble) falls back to the still picture
+      if (g.ready && !v.paused) { if (v.currentTime === g.lastT) g.stall += dt; else g.stall = 0; g.lastT = v.currentTime; if (g.stall > 3) { g.failed = true; return; } }
+      const f = g.flow;
+      if (!f || !g.ready) { g.speed = 1; g.panX = g.panY = 0; return; }
+      const n = f.speed.length, pos = (v.currentTime / (v.duration || 19)) * n, i = Math.floor(pos) % n, j = (i + 1) % n, k = pos - Math.floor(pos);
+      const at = (arr) => arr[i] + (arr[j] - arr[i]) * k;
+      let sp = at(f.speed), px = at(f.panX), py = at(f.panY);
+      // the boss level: the same film, but gentle (smaller speed changes, less sliding)
+      if (g.gentle) { sp = 1 + (sp - 1) * 0.3; px *= 0.35; py *= 0.25; }
+      else { sp = 1 + (sp - 1) * BG_SPEED_EFFECT; px *= BG_RATE; py *= BG_RATE; }   // aliens slide exactly with the scenery
+      // (aliens already move in slow motion during slow motion, so that is not counted twice)
+      g.speed = sp; g.panX = px; g.panY = py;
+    },
+    walkEnd() {
+      const w = this.walk;
+      if (!w) return;
+      try { w.v.pause(); w.v.removeAttribute('src'); w.v.load(); } catch (e) { /* ignore */ }
+      w.v.remove();
+      this.walk = null; this.bgCache = null;
+    },
+    walkRate(r) {
+      const w = this.walk;
+      r = clamp(r, 0.1, 1);
+      if (Math.abs(r - w.rate) > 0.04) { w.rate = r; try { w.v.playbackRate = r; } catch (e) { /* ignore */ } }
+    },
+    // Arrive at the next stop: aliens come again after a short moment
+    walkArrive() {
+      const w = this.walk;
+      w.moving = false; w.stop++; w.groupEnd += w.groups[w.stop]; w.wait = 0.5; w.pre = 0;
+      this.spawnTimer = 0.4; this.bgCache = null;
+    },
+    updateWalk(dt, worldSpeed) {
+      const w = this.walk;
+      if (w.failed) return;
+      const v = w.v;
+      if (w.moving) {
+        w.walkTime += dt; w.moveT += dt;
+        const target = w.times[w.stop + 1];
+        const ct = v.currentTime;
+        const left = target - ct;
+        // Safety net: a walk never takes much longer than planned, whatever the video does
+        const planned = target - w.times[w.stop];
+        if (v.ended || left <= 0.02 || w.moveT > planned * 3 + 3) {
+          v.pause();
+          if (left > 0.02) { try { v.currentTime = target; } catch (e) { /* ignore */ } }
+          this.walkArrive(); return;
+        }
+        // ease in over the first half second, slow down over the last 0.7 seconds
+        const rate = Math.min(1, 0.3 + w.moveT / 0.5) * clamp(left / 0.7, 0.25, 1) * worldSpeed;
+        // Some phones and TVs quietly stop a video that plays in the background of a page.
+        // If the picture stops moving, the game steps through the video itself for the rest of the level.
+        if (ct > w.lastCT + 0.001) { w.lastCT = ct; w.stall = 0; } else w.stall += dt;
+        if (!w.manual && w.stall > 0.6) { w.manual = true; v.pause(); }
+        if (w.manual) {
+          if (!v.paused) v.pause();
+          if (!v.seeking) { try { v.currentTime = Math.min(target, ct + dt * rate); } catch (e) { /* ignore */ } }
+          return;
+        }
+        this.walkRate(rate);
+        if (v.paused) v.play().catch(() => {});         // e.g. after the app was in the background
+        return;
+      }
+      if (w.wait > 0) { w.wait -= dt; return; }
+      if (w.stop >= w.groups.length - 1) return;         // last stop: the level ends when this group is caught
+      if (this.totalCaught() < w.groupEnd || this.monsters.length) { w.pre = 0; return; }
+      w.pre += dt;
+      if (w.pre < 0.7) return;                           // a short breath after the last catch
+      if (!w.ready || !w.times) { this.walkArrive(); w.wait = 0; return; }   // video not there: carry on in place
+      w.moving = true; w.moveT = 0; w.stall = 0; w.lastCT = v.currentTime;
+      if (w.manual) return;                              // stepping through the video ourselves
+      this.walkRate(0.3 * worldSpeed);
+      v.play().catch(() => {
+        // the video refuses to play: jump to the next stop instead
+        if (!w.moving || this.walk !== w) return;
+        try { v.currentTime = w.times[w.stop + 1]; } catch (e) { /* ignore */ }
+        this.walkArrive();
+      });
+    },
+
     // ---------------- Monsters ----------------
     updateSpawning(dt) {
-      if (this.endless && this.bossWave) return;          // the boss brings its own helpers
+      if (this.endless && this.bossWave) return;
+      if (this.tut) return;                                // the training brings its own aliens          // the boss brings its own helpers
+      const walk = this.walk && !this.walk.failed ? this.walk : null;
+      if (walk && (walk.moving || walk.wait > 0)) return;  // no aliens while walking or just arriving
       this.spawnTimer -= dt;
       if (this.spawnTimer > 0) return;
-      const progress = this.endless ? Math.min(1, this.wave / 20) : this.totalCaught() / Math.max(1, TYPES.reduce((a, t) => a + goalOf(t), 0));
+      const progress = this.endless ? Math.min(1, this.wave / 20) : this.special === 'survive' ? Math.min(1, this.surviveT / SURVIVE_TIME)
+        : this.totalCaught() / Math.max(1, TYPES.reduce((a, t) => a + goalOf(t), 0));
       const alive = this.monsters.filter((m) => m.state === 'alive').length;
-      const maxAlive = 4 + Math.floor(progress * 3);
-      if (alive < maxAlive) {
+      // in a walk level the whole round may be out at once
+      const maxAlive = walk ? walk.groups[walk.stop] : 4 + Math.floor(progress * 3) + (this.special === 'survive' ? 2 : 0);
+      const decoys = this.decoys && this.decoys.length ? this.monsters.filter((m) => m.decoy && m.state === 'alive').length : 0;
+      if (this.decoys && this.decoys.length && decoys < 2 && Math.random() < 0.38) this.spawn(this.decoys[Math.floor(Math.random() * this.decoys.length)], { decoy: true });
+      else if (alive - decoys < maxAlive && (!walk || this.totalCaught() + alive < walk.groupEnd)) {
         const type = this.pickType();
         if (type) this.spawn(type);
       }
-      this.spawnTimer = (rand(0.9, 1.7) - progress * 0.35) / (this.levelCfg.speedMul || 1);
+      this.spawnTimer = (rand(0.9, 1.7) - progress * 0.35) / (this.levelCfg.speedMul || 1) * (this.special === 'survive' ? 0.7 : 1);
     },
 
     pickType() {
-      if (this.endless) return TYPES[Math.floor(Math.random() * TYPES.length)];
+      if (this.endless || this.special === 'survive') return TYPES[Math.floor(Math.random() * TYPES.length)];
       // Only spawn types that still need catching, weighted by how many are left
       const weights = TYPES.map((t) => Math.max(0, goalOf(t) - this.caught[t] - this.monsters.filter((m) => m.type === t && m.state === 'alive').length));
       const total = weights.reduce((a, b) => a + b, 0);
@@ -873,24 +1204,29 @@
       return TYPES[TYPES.length - 1];
     },
 
-    spawn(type) {
+    spawn(type, opts) {
       const s = SPR[type];
-      this.monsters.push({
+      const m = {
         type, state: 'alive', t: 0, age: 0, z: 0, gone: false,
         x0: rand(0.14, 0.86), phase: rand(0, Math.PI * 2),
         freq: rand(0.6, 1.2), amp: rand(50, 150),
         dur: rand(s.speed[0], s.speed[1]) / (this.levelCfg.speedMul || 1),
-        throwT: rand(2, 4),
+        throwT: rand(2, 4) / (this.levelCfg.attackMul || 1),
         px: 0, py: 0, size: 0, r: 0, vx: 0, flip: false, frame: s.front[0],
         ...this.rollVariant(),
-      });
+      };
+      if (opts && opts.decoy) { m.decoy = true; m.elite = false; m.hp = m.maxHp = 1; m.shiny = false; m.dur *= 0.8; }
+      // level 3: about half of the aliens go for the bubble with the friendly alien
+      if (!m.decoy && this.friend && this.friend.hp > 0 && Math.random() < 0.5) { m.toFriend = true; m.x0 = clamp(this.friend.x / W + rand(-0.12, 0.12), 0.1, 0.9); }
+      this.monsters.push(m);
+      return m;
     },
 
     // Armoured aliens (from level 3, more often in later worlds) need several hits; shiny golden aliens are rare
     rollVariant() {
-      const chance = this.stage >= 3 ? Math.min(0.35, 0.03 + 0.025 * this.stage + 0.02 * (this.levelId - 1)) : 0;
+      const chance = this.levelCfg.armourChance || 0;
       const elite = !this.boss && Math.random() < chance;
-      const hp = elite ? 2 + Math.min(3, Math.floor((this.levelId + this.stage) / 5)) : 1;
+      const hp = elite ? Math.min(6, this.levelCfg.armourHp || 2) : 1;
       return { elite, hp, maxHp: hp, shiny: Math.random() < (this.shinyChance || 0.015), hitFlash: 0 };
     },
 
@@ -901,9 +1237,23 @@
       if (m.state === 'dying') { m.t += dt; if (m.t > 0.45) m.gone = true; return; }
       if (m.state === 'attacking') {
         m.t += dt;
-        if (m.t > 0.3 && !m.hitDone) { m.hitDone = true; this.playerHit(this.nearestPlayer(m.px)); }
-        if (m.t > 0.45) m.gone = true;
+        if (m.t > 0.3 && !m.hitDone) {
+          m.hitDone = true;
+          if (m.atk === 'friend') this.friendHit(m);
+          else if (this.guard && this.guard.hp > 0) this.guardHit(m);
+          else { this.playerHit(this.nearestPlayer(m.px)); if (m.mini && this.state === 'play') this.playerHit(this.nearestPlayer(m.px)); }
+        }
+        if (m.t > 0.45) {
+          // the mini-boss stomps back and comes again; the others are done
+          if (m.mini) { m.state = 'alive'; m.z = 0.42; m.t = 0; m.hitDone = false; m.atk = null; }
+          else m.gone = true;
+        }
         return;
+      }
+      if (m.crashT > 0) {
+        // the mini-boss falls out of the sky and lands with a crash
+        m.crashT -= dt;
+        if (m.crashT <= 0) { this.shake = 0.9; Sfx.crash(); window.Haptics && Haptics.buzz(160, 1); this.burst(m.px, m.py + m.size * 0.4, '#ff5a3a', 30); this.waves.push({ x: m.px, y: m.py + m.size * 0.4, t: 0, color: '#ff8a6a' }); }
       }
       // Jellyfish swimmers push forward in strokes: a quick squeeze, then a slow glide
       let stroke = 0;
@@ -916,16 +1266,27 @@
       const zRate = s0.pulse ? 0.25 + 2.2 * Math.max(0, Math.sin(m.age * 3 + m.phase))
         : s0.swim === 'jelly' ? 0.35 + 1.4 * stroke : 1;
       this.updateStatus(m, dt);
-      if (!frozen) m.z += (dt / m.dur) * zRate * this.alienSlow(m);
+      if (!frozen) m.z += (dt / m.dur) * zRate * this.alienSlow(m) * (this.bgv && !m.mini ? this.bgv.speed : 1);
+      if (m.tutHold != null) m.z = Math.min(m.z, m.tutHold);
+      // moving film: the alien slides along with the scenery when the camera turns (closer = a bit more),
+      // and drifts slowly back toward the middle so it does not leave the screen
+      if (this.bgv && !frozen) {
+        const k = 0.6 + 0.4 * m.z;
+        m.panX = ((m.panX || 0) + this.bgv.panX * W * k * dt) * Math.exp(-0.35 * dt);
+        m.panY = ((m.panY || 0) + this.bgv.panY * H * 0.45 * k * dt) * Math.exp(-0.5 * dt);
+        m.panX = clamp(m.panX, -W * 0.42, W * 0.42); m.panY = clamp(m.panY, -H * 0.16, H * 0.16);
+      }
       const e = Math.pow(Math.min(m.z, 1), 1.35);
       const wobFreq = s0.swim === 'jelly' ? m.freq * 0.6 : m.freq;
-      const wob = Math.sin(m.phase + m.age * wobFreq) * m.amp * (0.35 + 0.65 * m.z) * (s0.swim === 'walk' ? 0.35 : 1);
-      const px = lerp(m.x0, 0.5, m.z * 0.35) * W + wob;
+      const wob = Math.sin(m.phase + m.age * wobFreq) * m.amp * 0.55 * (0.35 + 0.65 * m.z) * (s0.swim === 'walk' ? 0.35 : 1);
+      if (!frozen && this.alienSlow(m) > 0 && !m.noEvade) this.updateEvasion(m, s0, dt);
+      const px = clamp(lerp(m.x0, 0.5, m.z * 0.35) * W + wob + (m.ex || 0) + (m.panX || 0), 70, W - 70);
       m.vx = dt > 0 ? (px - m.px) / dt : 0;
       m.px = px;
       m.py = lerp(0.4, 0.6, e) * H + Math.sin(m.age * 2.1 + m.phase) * 10 * (0.5 + m.z);
-      m.size = lerp(80, 360, e) * (s0.pulse ? 1 + 0.06 * Math.sin(m.age * 6 + m.phase) : 1);
+      m.size = lerp(80, 360, e) * (s0.pulse ? 1 + 0.06 * Math.sin(m.age * 6 + m.phase) : 1) * (m.mini ? 1.15 : 1);
       m.r = m.size * 0.38;
+      if (m.crashT > 0) m.py -= Math.pow(m.crashT / 0.9, 2) * (m.py + 260);
       if (s0.swim === 'jelly') {
         // squeeze the bell on each stroke and rise a little, tilt toward where it swims
         m.sx = 1 + 0.07 * stroke; m.sy = 1 - 0.1 * stroke;
@@ -943,32 +1304,79 @@
         m.py += Math.sin(m.age * 1.3 + m.phase) * 26 * (0.5 + m.z);
         m.rot = clamp(m.vx * 0.0016, -0.4, 0.4);
       }
+      if (s0.swim !== 'walk') m.py = clamp(m.py + (m.ey || 0) + (m.panY || 0), 90, H * 0.8);
+      else if (m.panY) m.py += m.panY * 0.6;
 
       // Face the player, or turn sideways while drifting quickly
       const s = SPR[m.type];
       const step = Math.floor(m.age * 5 + m.phase);
       if (s.swim === 'jelly') {
         // frames follow the stroke: tentacles pulled in while pushing, spread while gliding
-        if (Math.abs(m.vx) > 150) { m.frame = s.side[Math.floor(m.age * 3 + m.phase) % s.side.length]; m.flip = m.vx < 0; m.rot = 0; }
+        if (Math.abs(m.vx) > 150) { m.frame = s.side[Math.floor(m.age * 3 + m.phase) % s.side.length]; m.flip = (m.vx < 0) !== !!s.faceLeft; m.rot = 0; }
         else { m.frame = stroke > 0.45 ? s.push[step % s.push.length] : s.front[Math.floor(m.age * 1.5 + m.phase) % s.front.length]; m.flip = false; }
       } else if (s.swim === 'walk') {
         // walking frames; rocks raised just before a throw, the crack of a hit on armour
         m.frame = m.throwAnim > 0 ? s.throwFrame : m.hitFlash > 0.05 && s.hurtFrame != null ? s.hurtFrame : s.front[step % s.front.length];
         m.flip = m.vx < -40;
         if (m.throwAnim > 0) m.throwAnim -= dt;
-      } else if (Math.abs(m.vx) > 120) { m.frame = s.side[step % s.side.length]; m.flip = m.vx < 0; if (s.swim) m.rot *= 0.4; }
+      } else if (Math.abs(m.vx) > 120) { m.frame = s.side[step % s.side.length]; m.flip = (m.vx < 0) !== !!s.faceLeft; if (s.swim) m.rot *= 0.4; }
       else { m.frame = s.front[step % s.front.length]; m.flip = false; }
 
       // Some monsters throw rocks from mid-distance
-      if (!frozen && s.thrower && m.z > 0.25 && m.z < 0.9 && this.alienSlow(m) === 1) {
+      if (!frozen && ((s.thrower && !m.noThrow) || m.mini || m.tutThrow) && !m.decoy && !(m.crashT > 0) && m.z > 0.25 && m.z < 0.9 && this.alienSlow(m) === 1) {
         m.throwT -= dt;
-        if (m.throwT <= 0) { this.throwRock(m); m.throwT = rand(3.5, 6.5); m.throwAnim = 0.45; }
+        if (m.throwT <= 0) { this.throwRock(m); m.throwT = (m.mini ? rand(2.2, 3.2) : rand(3.5, 6.5)) / (this.levelCfg.attackMul || 1); m.throwAnim = 0.45; }
       }
 
       if (m.confT > 0) m.px += Math.sin(this.time * 7 + m.phase) * 3;     // confused wobble
       if (m.bubbleRise) m.py -= m.bubbleRise;
       if (this.holeT > 0 || m.pullK) this.holePull(m, dt);
-      if (m.z >= 1 && !frozen && this.alienSlow(m) > 0) { m.state = 'attacking'; m.t = 0; }
+      if (!frozen && this.alienSlow(m) > 0 && !(m.crashT > 0)) {
+        if (m.decoy && m.z >= 0.95) { m.gone = true; this.burst(m.px, m.py, '#ffffff', 8, true); return; }    // decoys just fly past
+        if (m.toFriend && this.friend && this.friend.hp > 0 && m.z >= 0.62) { m.state = 'attacking'; m.atk = 'friend'; m.t = 0; return; }
+        if (m.z >= 1) { m.state = 'attacking'; m.t = 0; }
+      }
+    },
+
+    // Free, unpredictable movement for regular aliens (not bosses):
+    //  - wandering: every now and then it picks a new spot to drift to (no fixed pattern)
+    //  - dodging: when your aiming circle comes close it darts away, sometimes it also flies/swims back
+    // Walkers only move sideways; swimmers and flyers also up and down. Later levels: livelier and quicker.
+    updateEvasion(m, s0, dt) {
+      const lv = this.levelCfg.evade != null ? this.levelCfg.evade : 0.4;
+      const kind = s0.swim === 'walk' ? 0.55 : s0.swim === 'jelly' ? 0.8 : s0.swim === 'glide' ? 1.15 : s0.pulse ? 0.95 : 1;
+      const agile = lv * kind * (m.elite ? 0.8 : 1) * (m.mini ? 0.45 : 1);
+      if (m.ex == null) { m.ex = 0; m.ey = 0; m.evx = 0; m.evy = 0; m.tx = 0; m.ty = 0; m.wT = rand(0.3, 1.2); m.dodgeCd = rand(0.8, 2); }
+      const near = m.z > 0.82;                 // about to attack: it commits and stops dodging
+      m.wT -= dt; m.dodgeCd -= dt;
+      if (m.wT <= 0) {
+        const reach = (0.35 + 0.65 * m.z) * agile;
+        m.tx = rand(-1, 1) * W * 0.16 * reach;
+        m.ty = s0.swim === 'walk' ? 0 : rand(-1, 1) * H * 0.09 * reach;
+        m.wT = rand(0.5, 2.0) / (0.6 + agile);
+      }
+      if (!near && m.dodgeCd <= 0) {
+        // the closest aiming circle
+        let best = null, bd = 1e9;
+        for (const p of this.players) { const a = p.smoothAim; const d = Math.hypot(a.x - m.px, a.y - m.py); if (d < bd) { bd = d; best = a; } }
+        const zone = m.r * 1.6 + 70;
+        if (best && bd < zone && Math.random() < agile * dt * 4) {
+          const dir = Math.abs(m.px - best.x) < 12 ? (Math.random() < 0.5 ? -1 : 1) : Math.sign(m.px - best.x);
+          const power = rand(650, 1050) * (0.5 + agile);
+          m.evx += dir * power;
+          if (s0.swim !== 'walk') m.evy += (Math.sign(m.py - best.y) || (Math.random() < 0.5 ? -1 : 1)) * power * 0.35;
+          m.tx = clamp(m.ex + dir * W * 0.12 * agile, -W * 0.3, W * 0.3);
+          if (Math.random() < 0.3 * lv) m.z = Math.max(0.04, m.z - 0.05 - 0.05 * lv);   // flies / swims away for a moment
+          m.dodgeCd = rand(1.0, 2.4) / (0.5 + lv);
+        }
+      }
+      // springy steering toward the target spot, with drag
+      const k = 5 + 4 * agile, drag = Math.exp(-3.2 * dt);
+      m.evx = (m.evx + (m.tx - m.ex) * k * dt) * drag;
+      m.evy = (m.evy + (m.ty - m.ey) * k * dt) * drag;
+      m.ex = clamp(m.ex + m.evx * dt, -W * 0.34, W * 0.34);
+      m.ey = clamp(m.ey + m.evy * dt, -H * 0.18, H * 0.18);
+      if (near) { m.tx *= 0.9; m.ty *= 0.9; }
     },
 
     // ---------------- Rocks thrown at the players ----------------
@@ -1002,6 +1410,8 @@
     smashRock(r) {
       r.state = 'gone';
       Sfx.pop();
+      window.Haptics && Haptics.buzz(20, 0.3, 50);
+      if (r.kind === 'meteor') { this.addScore(60, r.x, r.y - 30, true); this.burst(r.x, r.y, '#ffb347', 18); }
       if (r.art) this.playFx(r.art, [3, 4], r.x, r.y, r.size * 2.2, 0.35);
       this.burst(r.x, r.y, r.color, 14);
     },
@@ -1025,9 +1435,11 @@
       this.superCleanT = 0;
       p = p && this.players.includes(p) ? p : this.players[0];
       if (p.equipped === 'shield' && p.shieldHP > 0) {
+        if (this.tut) this.tut.blocks++;
         p.shieldHP--;
         p.shieldFlash = 0.35;
         Sfx.block();
+        window.Haptics && Haptics.buzz(35, 0.4);
         const pl = this.modLv('weapon', 'pshield');
         if (pl) {
           const m = this.monsters.filter((q) => q.state === 'alive').sort((a, b) => b.z - a.z)[0];
@@ -1045,13 +1457,17 @@
       this.takeDamage();
     },
 
-    takeDamage() {
+    takeDamage(amount) {
+      if (this.tut && this.tut.step < TUT_FINAL) { Sfx.hurt(); this.shake = 0.15; return; }      // training: an "ouch", but no damage
+      if (this.tut) { this.health = Math.max(25, this.health - 4); this.shake = 0.25; Sfx.hurt(); this.hud('health'); window.Haptics && Haptics.buzz(90, 0.9); return; }
       this.damageTaken = true;
       if (this.combo > 1) this.hud('combo', null);
       this.combo = 0; this.mult = 1;
-      this.health = Math.max(0, this.health - DAMAGE / (this.healthMult || 1));
+      this.health = Math.max(0, this.health - (amount || this.levelCfg.damage || DAMAGE) / (this.healthMult || 1));
+      this.countHitForDizzy();
       this.shake = 0.3;
       Sfx.hurt();
+      window.Haptics && Haptics.buzz(90, 0.9);
       if (this.hasMedkit && !this.medkitUsed && this.health > 0 && this.health <= 30) {
         this.medkitUsed = true;
         this.health = Math.min(100, this.health + 30);
@@ -1064,6 +1480,568 @@
         this.players.forEach((p) => { p.belt.open = false; });
         Sfx.lose();
       }
+    },
+
+    countHitForDizzy() {
+      if (this.dizzyT > 0 || this.dizzyImmune > 0 || this.state !== 'play') return;
+      this.hitTimes = (this.hitTimes || []).filter((t0) => this.time - t0 < DIZZY.window);
+      this.hitTimes.push(this.time);
+      if (this.hitTimes.length >= DIZZY.hits) {
+        this.hitTimes = [];
+        this.dizzyT = DIZZY.time;
+        this.dizzyStars = Array.from({ length: 46 }, () => ({ x: rand(0, 1), y: rand(0, 1), s: rand(10, 26), ph: rand(0, 6.28), sp: rand(-3, 3) }));
+        this.players.forEach((p) => { this.closeBelt(p); p.input.mouseFire = false; p.input.mouseReload = false; });
+        this.setDizzyLook(true);
+        this.hud('toast', 'Dizzy!');
+      }
+    },
+    setDizzyLook(on) {
+      try { this.canvas.style.filter = on ? 'blur(2.2px) saturate(1.25)' : ''; } catch (e) { /* ignore */ }
+    },
+    updateDizzy(dt) {
+      if (this.dizzyImmune > 0) this.dizzyImmune = Math.max(0, this.dizzyImmune - dt);
+      if (!(this.dizzyT > 0)) return false;
+      this.dizzyT -= dt;
+      for (const p of this.players) {
+        // no actions while dizzy: drop everything that was pressed (the menu still works)
+        for (const e of p.input.takeEvents()) if (e === 'menu') { this.pause(null, p); return true; }
+        p.input.mouseFire = false; p.input.mouseReload = false;
+      }
+      if (this.dizzyT <= 0) { this.dizzyT = 0; this.dizzyImmune = DIZZY.immune; this.setDizzyLook(false); }
+      return this.dizzyT > 0;
+    },
+    drawDizzy() {
+      const c = this.ctx, k = Math.min(1, this.dizzyT * 3);
+      c.save();
+      c.globalAlpha = 0.18 * k; c.fillStyle = '#ffe680'; c.fillRect(0, 0, W, H);
+      const star = (x, y, r, rot) => {
+        c.save(); c.translate(x, y); c.rotate(rot); c.beginPath();
+        for (let i = 0; i < 10; i++) { const a = (i * Math.PI) / 5, rr = i % 2 ? r * 0.45 : r; c.lineTo(Math.sin(a) * rr, -Math.cos(a) * rr); }
+        c.closePath(); c.fill(); c.stroke(); c.restore();
+      };
+      c.fillStyle = '#ffd84a'; c.strokeStyle = '#fff6c4'; c.lineWidth = 2;
+      for (const st of this.dizzyStars || []) {
+        c.globalAlpha = k * (0.55 + 0.45 * Math.sin(this.time * 6 + st.ph));
+        star(st.x * W + Math.sin(this.time * 2 + st.ph) * 18, st.y * H + Math.cos(this.time * 2.4 + st.ph) * 14, st.s, this.time * st.sp);
+      }
+      // a ring of stars spinning around the middle of the screen
+      c.globalAlpha = k;
+      for (let i = 0; i < 7; i++) {
+        const a = this.time * 3 + (i * Math.PI * 2) / 7;
+        star(W / 2 + Math.cos(a) * 170, H * 0.42 + Math.sin(a) * 55, 22, a * 2);
+      }
+      c.globalAlpha = k; c.font = `700 64px ${FONT}`; c.textAlign = 'center'; c.lineWidth = 8; c.strokeStyle = '#3a2a00'; c.fillStyle = '#ffe680';
+      c.strokeText('Dizzy!', W / 2, H * 0.42 - 90); c.fillText('Dizzy!', W / 2, H * 0.42 - 90);
+      c.restore();
+    },
+
+    // ================= Training (tutorial) =================
+    // the right name for a button, for the controls the child is using
+    tutKeys() {
+      const T = (s) => (window.t ? t(s) : s);
+      const pad = window.Pad && Pad.inUse, p = this.players[0], mouse = p && p.input.mode === 'mouse';
+      if (pad) return { aim: T('the stick'), fire: 'A', reload: 'B', shield: 'Y', grenade: 'X' };
+      if (mouse) return { aim: T('the mouse'), fire: T('the left mouse button'), reload: 'R', shield: '3', grenade: '2' };
+      if (this.touchMode) return { aim: T('the joystick (bottom left)'), fire: 'FIRE', reload: T('the reload button'), shield: T('the shield button'), grenade: T('the net button') };
+      return { aim: T('your phone'), fire: 'Fire', reload: 'Reload', shield: T('Shield'), grenade: T('Net grenade') };
+    },
+    tutSay(hint) {
+      const tu = this.tut, key = TUT_STEPS[tu.step], lines = TUT_TEXT[key];
+      const text = window.t ? t(lines[hint ? 1 : 0], this.tutKeys()) : lines[hint ? 1 : 0];
+      let progress = '';
+      if (key === 'aim') progress = `${Math.min(3, tu.ring + 1)} / 3`;
+      if (key === 'final') progress = `${Math.min(5, tu.caught - tu.finalStart)} / 5`;
+      this.hud('tut', { text, step: tu.step, steps: TUT_STEPS.length - 1, progress, hint: !!hint, glow: TUT_GLOW[key] });
+    },
+    tutNext() {
+      const tu = this.tut;
+      tu.step++; tu.t = 0; tu.idle = 0; tu.hinted = false;
+      const key = TUT_STEPS[tu.step], p = this.players[0];
+      const add = (type, o) => { const m = this.spawn(type); Object.assign(m, { elite: false, hp: 1, maxHp: 1, shiny: false, noEvade: true, noThrow: true, x0: 0.5, z: 0.15, dur: 6, tutHold: 0.45 }, o || {}); return m; };
+      if (tu.step > 0) { Sfx.win(); this.burst(W / 2, H * 0.3, '#7dffb0', 18, true); }
+      if (key === 'aim') { tu.rings = [{ x: W * 0.3, y: H * 0.4 }, { x: W * 0.7, y: H * 0.32 }, { x: W * 0.5, y: H * 0.55 }]; tu.ring = 0; }
+      if (key === 'fire') tu.want = [add('nebula', { x0: 0.55 })];
+      if (key === 'reload') { p.ammo = 0; p.reloading = 0; this.hud('ammo'); }
+      if (key === 'armour') tu.want = [add('prism', { elite: true, hp: 3, maxHp: 3, x0: 0.42 })];
+      if (key === 'shield') { tu.blocks = 0; tu.want = [add('prism', { x0: 0.6, tutThrow: true, tutImmune: true, throwT: 1.6, tutHold: 0.4 })]; }
+      if (key === 'net') {
+        p.grenades = Math.max(p.grenades, 3); this.hud('gear');
+        tu.want = [-0.06, 0, 0.06].map((dx, i) => add('nebula', { x0: 0.5 + dx, phase: i * 2.1, amp: 20, tutHold: 0.38 }));
+      }
+      if (key === 'final') { tu.finalStart = tu.caught; tu.finalSpawn = 0.3; }
+      if (key === 'done') {
+        this.players.forEach((q) => this.closeBelt(q));
+        this.showBanner(window.t ? t('Training complete!') : 'Training complete!', window.t ? t('You are a Cadet now!') : 'You are a Cadet now!', '#7dffb0', 2.6);
+        Sfx.victory();
+      }
+      this.tutSay(false);
+    },
+    updateTutorial(dt) {
+      const tu = this.tut, p = this.players[0];
+      if (tu.step < 0) { if (this.stateT > 0.6) this.tutNext(); return; }
+      tu.t += dt; tu.idle += dt;
+      const key = TUT_STEPS[tu.step];
+      const allCaught = () => (tu.want || []).every((m) => m.state !== 'alive');
+      // nobody can run out of shots during training (except in the reload step)
+      if (key !== 'reload' && p.ammo <= 2 && !p.reloading) { p.ammo = this.magSize; this.hud('ammo'); }
+      if (key === 'aim') {
+        const r = tu.rings[tu.ring], a = p.reticle || p.smoothAim;
+        if (Math.hypot(a.x - r.x, a.y - r.y) < 80) { tu.hold += dt; if (tu.hold > 0.35) { tu.hold = 0; tu.ring++; tu.idle = 0; Sfx.clink(); this.burst(r.x, r.y, '#7dffb0', 14, true); if (tu.ring >= 3) return this.tutNext(); this.tutSay(false); } }
+        else tu.hold = Math.max(0, tu.hold - dt);
+      }
+      if ((key === 'fire' || key === 'armour' || key === 'net') && allCaught() && tu.t > 0.5) return this.tutNext();
+      if (key === 'reload' && (p.reloading > 0 || p.ammo >= this.magSize)) { if (!tu.reloadT) tu.reloadT = 0.9; }
+      if (tu.reloadT) { tu.reloadT -= dt; if (tu.reloadT <= 0) { tu.reloadT = 0; return this.tutNext(); } }
+      if (key === 'shield' && !tu.blocks && (tu.want || []).every((m) => m.state !== 'alive' || m.gone)) {
+        const m = this.spawn('prism');
+        Object.assign(m, { elite: false, hp: 1, maxHp: 1, shiny: false, noEvade: true, noThrow: true, x0: 0.6, z: 0.15, dur: 6, tutHold: 0.4, tutThrow: true, tutImmune: true, throwT: 1.2 });
+        tu.want = [m];
+      }
+      if (key === 'shield') {
+        if (tu.blocks > 0 && !tu.blockedT) { tu.blockedT = 1.2; this.floater(W / 2, H - 360, window.t ? t('Blocked!') : 'Blocked!', '#7dffb0'); }
+        if (tu.blockedT) {
+          tu.blockedT -= dt;
+          if (tu.blockedT <= 0) {
+            tu.blockedT = 0;
+            this.equip(p, 'gun'); this.hud('gear');                          // back to the blaster
+            (tu.want || []).forEach((m) => { if (m.state === 'alive') { m.gone = true; this.burst(m.px, m.py, '#ffffff', 10, true); } });
+            return this.tutNext();
+          }
+        }
+      }
+      if (key === 'final') {
+        const done = tu.caught - tu.finalStart;
+        if (done !== tu.lastDone) { tu.lastDone = done; tu.idle = 0; this.tutSay(false); }
+        if (done >= 5) return this.tutNext();
+        tu.finalSpawn -= dt;
+        const alive = this.monsters.filter((m) => m.state === 'alive').length;
+        if (tu.finalSpawn <= 0 && alive < 3 && done + alive < 5) { this.spawn(Math.random() < 0.5 ? 'nebula' : 'prism'); tu.finalSpawn = rand(0.8, 1.4); }
+      }
+      if (key === 'done' && tu.t > 2.4 && this.state === 'play') {
+        this.state = 'ending'; this.stateT = 0; this.won = true;
+        this.earned += 0;
+      }
+      // stuck: a simpler tip after a while
+      if (!tu.hinted && tu.idle > (key === 'aim' ? 9 : 12) && TUT_TEXT[key][1]) { tu.hinted = true; this.tutSay(true); }
+    },
+    drawTutorial() {
+      const tu = this.tut, c = this.ctx;
+      if (!tu || tu.step < 0) return;
+      const key = TUT_STEPS[tu.step], p = this.players[0], a = p.reticle || p.smoothAim;
+      const arrowTo = (x, y, r) => {
+        // a bouncing arrow pointing at the spot, coming from the aiming circle's side
+        const ang = Math.atan2(y - a.y, x - a.x), d = Math.hypot(x - a.x, y - a.y);
+        if (d < r + 40) return;
+        const bob = Math.sin(this.time * 7) * 10, ex = x - Math.cos(ang) * (r + 24 + bob), ey = y - Math.sin(ang) * (r + 24 + bob);
+        c.save(); c.translate(ex, ey); c.rotate(ang);
+        c.fillStyle = '#ffd27a'; c.strokeStyle = '#3a2a00'; c.lineWidth = 4;
+        c.beginPath(); c.moveTo(0, 0); c.lineTo(-46, -30); c.lineTo(-46, -12); c.lineTo(-96, -12); c.lineTo(-96, 12); c.lineTo(-46, 12); c.lineTo(-46, 30); c.closePath();
+        c.stroke(); c.fill(); c.restore();
+      };
+      if (key === 'aim' && tu.ring < 3) {
+        const r = tu.rings[tu.ring], pulse = 1 + 0.08 * Math.sin(this.time * 6), R = 70 * pulse;
+        c.save();
+        c.shadowColor = '#7dffb0'; c.shadowBlur = this.glow(24);
+        c.strokeStyle = '#7dffb0'; c.lineWidth = 8; c.beginPath(); c.arc(r.x, r.y, R, 0, Math.PI * 2); c.stroke();
+        c.lineWidth = 3; c.globalAlpha = 0.6; c.beginPath(); c.arc(r.x, r.y, R * 0.55, 0, Math.PI * 2); c.stroke();
+        if (tu.hold > 0) { c.globalAlpha = 1; c.lineWidth = 10; c.strokeStyle = '#ffffff'; c.beginPath(); c.arc(r.x, r.y, R + 14, -Math.PI / 2, -Math.PI / 2 + Math.PI * 2 * Math.min(1, tu.hold / 0.35)); c.stroke(); }
+        c.restore();
+        arrowTo(r.x, r.y, R);
+      }
+      if (key === 'fire' || key === 'armour' || key === 'net') {
+        const m = (tu.want || []).find((q) => q.state === 'alive');
+        if (m) arrowTo(m.px, m.py, m.r + 10);
+      }
+    },
+
+    // ================= Special levels, mini-boss, Hyper mode, banners and Orbit =================
+    initSpecial() {
+      const cfg = this.levelCfg, sp = this.special = cfg.special || null;
+      this.decoys = cfg.decoys || [];
+      this.surviveT = 0;
+      this.mini = null; this.miniDone = false;
+      this.storm = null; this.stormDone = false;
+      this.dark = sp === 'dark';
+      this.hyper = 0; this.hyperT = 0;
+      this.banner = null;
+      this.orbitCd = 6; this.orbitSaid = {}; this.lastOrbitT = 0;
+      this.bossWorldName = cfg.name;
+      this.friend = null; this.guard = null;
+      if (sp === 'rescue') {
+        // a friendly alien (one that does not live in this world) trapped in a bubble
+        const w = LEVELS[this.levelId] || {};
+        const pool = ALL_TYPES.filter((t) => !(w.types || []).includes(t) && SPR[t] && !SPR[t].swim);
+        const type = pool[(this.levelId * 7) % pool.length] || 'nebula';
+        this.friend = { type, x: W / 2, y: H * 0.47, hp: 10, max: 10, hitT: 0, t: 0, popT: 0 };
+      }
+      if (sp === 'crystal') this.guard = { x: W / 2, y: H * 0.5, hp: 12, max: 12, hitT: 0 };
+      this.eventPlan = {};
+      if (window.Music && Music.setRate) Music.setRate(1);
+    },
+    // banner when play starts, plus a tip from Orbit
+    onPlayStart() {
+      const info = this.special && SPECIAL_INFO[this.special];
+      if (info) {
+        const name = this.special === 'only' ? (SPR[TYPES[0]] || {}).name : '';
+        this.showBanner(window.t ? t(info.title, { name: t(name) }) : info.title.replace('{name}', name), window.t ? t(info.sub) : info.sub,
+          this.special === 'mini' ? '#ff5a5a' : '#ffd27a', 3.2);
+        this.orbitSay(this.special, true, 1.2);
+      } else if (!this.endless && Math.random() < 0.6) this.orbitSay('hello', true, 0.8);
+    },
+    onWin() {
+      if (this.hyperT > 0) this.endHyper();
+      if (this.friend && this.friend.hp > 0) {
+        this.friend.popT = 0.001; Sfx.net();
+        this.floater(this.friend.x, this.friend.y - 150, window.t ? t('Thank you!') : 'Thank you!', '#7dffb0');
+        this.addScore(500, this.friend.x, this.friend.y - 90, true); this.earned += 3;
+      }
+      if (this.guard && this.guard.hp > 0) { this.addScore(50 * this.guard.hp, this.guard.x, this.guard.y - 120, true); this.earned += 2; }
+      this.orbitSay('win', true);
+    },
+    lose(msg) {
+      if (this.state !== 'play') return;
+      this.state = 'ending'; this.stateT = 0; this.won = false;
+      this.players.forEach((p) => { p.belt.open = false; });
+      if (this.hyperT > 0) this.endHyper();
+      Sfx.lose();
+      this.loseReason = msg;
+      if (msg) this.hud('toast', msg);
+    },
+    updateSpecial(dt, gdt) {
+      const sp = this.special;
+      if (this.banner) { this.banner.t += dt; if (this.banner.t > this.banner.dur) this.banner = null; }
+      if (sp === 'survive') this.surviveT += dt;
+      const f = this.friend;
+      if (f) { f.t += dt; f.hitT = Math.max(0, f.hitT - dt); if (f.popT > 0) f.popT += dt; }
+      if (this.guard) this.guard.hitT = Math.max(0, this.guard.hitT - dt);
+      // progress of the level (0..1), for the mini-boss and the meteor storm
+      const total = TYPES.reduce((a, t) => a + Math.min(goalOf(t), 9999), 0);
+      const prog = sp === 'survive' ? this.surviveT / SURVIVE_TIME : total ? this.totalCaught() / total : 0;
+      if (sp === 'mini' && !this.mini && !this.miniDone && prog >= 0.4) this.spawnMini();
+      if (sp === 'storm' && !this.storm && !this.stormDone && prog >= 0.45) this.startStorm();
+      if (this.endless && !this.bossWave) {
+        if (this.eventPlan.storm && !this.storm && !this.stormDone && this.stateT > 6) this.startStorm();
+        if (this.eventPlan.mini && !this.mini && !this.miniDone && this.stateT > 9) this.spawnMini();
+      }
+      if (this.storm) {
+        const st = this.storm;
+        st.t += dt; st.spawn -= gdt;
+        if (st.spawn <= 0 && st.t < st.dur) {
+          st.spawn = rand(0.5, 0.9) / Math.max(1, (this.levelCfg.speedMul || 1) * 0.9);
+          const target = this.players[Math.floor(Math.random() * this.players.length)] || this.players[0];
+          const x0 = rand(W * 0.08, W * 0.92);
+          this.rocks.push({ x0, y0: -70, tx: clamp(this.gunBase(target) + rand(-520, 520), 120, W - 120), ty: H * 0.82, t: 0, dur: rand(1.9, 2.5),
+            color: '#ff9a3a', spin: rand(-3, 3), pts: Array.from({ length: 8 }, (_, i) => [Math.cos(i / 8 * Math.PI * 2) * rand(0.72, 1), Math.sin(i / 8 * Math.PI * 2) * rand(0.72, 1)]),
+            x: x0, y: -70, size: 20, r: 10, state: 'fly', rock: true, target: target.id, kind: 'meteor' });
+        }
+        if (st.t > st.dur + 2.5) { this.storm = null; this.stormDone = true; this.hud('toast', 'The meteor storm is over'); }
+      }
+      // the mini-boss's health bar is drawn in the game; losing the bubble or the crystal ends the level
+      if (f && f.hp <= 0 && !f.lost) { f.lost = true; this.lose('The bubble popped!'); }
+      if (this.guard && this.guard.hp <= 0 && !this.guard.lost) { this.guard.lost = true; this.lose('The crystal broke!'); }
+      if (this.health > 0 && this.health <= 30 && !this.orbitSaid.low) this.orbitSay('low', true);
+      if (!this.orbitSaid.armour && this.monsters.some((m) => m.elite && m.state === 'alive' && m.z > 0.15)) this.orbitSay('armour');
+    },
+    startStorm() {
+      this.storm = { t: 0, dur: 14, spawn: 1.2 };
+      Sfx.alarm();
+      this.showBanner(window.t ? t('METEOR STORM!') : 'METEOR STORM!', window.t ? t('Shoot the meteors before they hit you') : 'Shoot the meteors before they hit you', '#ffb347', 2.4);
+      this.orbitSay('stormNow', true);
+    },
+    // ---- mini-boss: one of this level's aliens, 15% bigger, red, with its own health bar ----
+    spawnMini() {
+      const w = LEVELS[this.levelId] || {};
+      const pool = (this.decoys && this.decoys.length ? [...TYPES, ...this.decoys] : TYPES).filter((t) => SPR[t]);
+      const type = pool[Math.floor(Math.random() * pool.length)];
+      const rank = w.rank || this.levelId || 1;
+      const hp = Math.round((9 + rank * 1.3 + (this.endless ? this.wave * 0.6 : 0)) * (this.players.length > 1 ? 1.4 : 1));
+      const m = this.spawn(type);
+      Object.assign(m, { mini: true, toFriend: false, elite: false, shiny: false, hp, maxHp: hp, z: 0.42, x0: 0.5, crashT: 0.9,
+        dur: m.dur * 2.6, throwT: 2.5 });
+      this.mini = m;
+      Sfx.alarm();
+      this.showBanner(window.t ? t('MINI-BOSS!') : 'MINI-BOSS!', (window.t ? t('Giant {name}', { name: t(SPR[type].name) }) : 'Giant ' + SPR[type].name), '#ff5a5a', 2.4);
+      this.orbitSay('miniNow', true);
+    },
+    catchMini(m, netted) {
+      window.Haptics && Haptics.buzz(220, 1);
+      m.state = 'dying'; m.t = 0; m.netted = !!netted;
+      this.dissolveMonster(m, netted);
+      this.miniDone = true;
+      this.shake = 0.5;
+      this.earned += 5 * this.crystalValue();
+      this.addScore(1000, m.px, m.py - m.r, true);
+      Sfx.win(); Sfx.dissolve();
+      this.burst(m.px, m.py, '#ff5a5a', 40, true);
+      this.hud('toast', 'Mini-boss caught! Bonus reward!');
+      this.hud('stat', { ev: 'mini' });
+      const reg = REGION_MAT[this.regionWorld];
+      ['goo', 'dust', 'shard', 'shard', reg].filter(Boolean).forEach((k, i) => setTimeout(() => this.giveDrop(k, m.px + rand(-90, 90), m.py + rand(-60, 60)), 140 * i));
+      this.hyperAdd(0.25);
+      this.hud('catch');
+    },
+    decoyHit(m) {
+      m.state = 'dying'; m.t = 0; m.netted = false;
+      this.burst(m.px, m.py, '#ffffff', 10, true);
+      Sfx.hurt();
+      if (this.combo > 1) this.hud('combo', null);
+      this.combo = 0; this.mult = 1;
+      this.score = Math.max(0, this.score - 100); this.hud('score', this.score);
+      const name = (SPR[TYPES[0]] || {}).name || '';
+      this.floater(m.px, m.py - m.r, window.t ? t('Oops! Only {name}!', { name: t(name) }) : `Oops! Only ${name}!`, '#ff8a8a');
+    },
+    friendHit(m) {
+      const f = this.friend;
+      if (!f || f.hp <= 0 || this.state !== 'play') return;
+      if (this.barrierT > 0) { Sfx.block(); return; }
+      f.hp--; f.hitT = 0.4; Sfx.hurt(); window.Haptics && Haptics.buzz(50, 0.6); this.shake = Math.max(this.shake, 0.15);
+      this.burst(f.x, f.y, '#bff9ff', 12, true);
+      if (f.hp <= 4 && !this.orbitSaid.friendLow) this.orbitSay('friendLow', true);
+    },
+    guardHit(m) {
+      const g = this.guard;
+      if (!g || g.hp <= 0 || this.state !== 'play') return;
+      if (this.barrierT > 0) { Sfx.block(); return; }
+      g.hp -= m.mini ? 2 : 1; g.hitT = 0.4; Sfx.hurt(); window.Haptics && Haptics.buzz(50, 0.6); Sfx.clink(); this.shake = Math.max(this.shake, 0.2);
+      this.burst(g.x, g.y, '#7fe3ff', 14, true);
+      if (g.hp <= 4 && !this.orbitSaid.guardLow) this.orbitSay('guardLow', true);
+    },
+    // ---- Hyper mode: quick catches fill the meter; full = 8 seconds of golden lasers and double points ----
+    hyperAdd(v) {
+      if (this.hyperT > 0 || this.state !== 'play') return;
+      this.hyper = Math.min(1, (this.hyper || 0) + v);
+      if (this.hyper >= 1) this.startHyper();
+    },
+    startHyper() {
+      this.hyperT = 8; this.hyper = 0;
+      Sfx.hyper(); this.shake = Math.max(this.shake, 0.3);
+      if (window.Music && Music.setRate) Music.setRate(1.12);
+      this.showBanner(window.t ? t('HYPER MODE!') : 'HYPER MODE!', window.t ? t('Double points!') : 'Double points!', 'rainbow', 1.6);
+      this.orbitSay('hyper', true);
+      this.hud('stat', { ev: 'hyper' });
+    },
+    endHyper() {
+      this.hyperT = 0;
+      if (window.Music && Music.setRate) Music.setRate(1);
+    },
+    updateHyper(dt) {
+      if (this.hyperT > 0) { this.hyperT -= dt; if (this.hyperT <= 0) { this.endHyper(); this.hud('toast', 'Hyper mode over'); } }
+      else if (this.hyper > 0 && this.time - this.lastCatchT > 3) this.hyper = Math.max(0, this.hyper - 0.07 * dt);
+    },
+    // ---- Orbit's speech bubbles: not too often (about every 20 s), important ones sooner ----
+    orbitSay(kind, important, delay) {
+      if (this.tut) return;
+      const lines = ORBIT_LINES[kind];
+      if (!lines || this.state === 'done') return;
+      if (!important && this.orbitCd > 0) return;
+      if (important && this.time - this.lastOrbitT < 3 && kind !== 'boss' && kind !== 'win') return;
+      this.orbitSaid[kind] = true;
+      this.orbitCd = 20; this.lastOrbitT = this.time;
+      const text = lines[Math.floor(Math.random() * lines.length)];
+      if (delay) setTimeout(() => { if (this.running) this.hud('orbit', text); }, delay * 1000);
+      else this.hud('orbit', text);
+    },
+    updateOrbit(dt) {
+      this.orbitCd -= dt;
+      if (this.dizzyT > 0 && !this.orbitSaid.dizzy) this.orbitSay('dizzy', true);
+      // a joke now and then when it's quiet
+      if (this.time - this.lastOrbitT > 42 && this.orbitCd <= 0 && !this.boss) this.orbitSay('joke');
+    },
+    showBanner(title, sub, color, dur) { this.banner = { title, sub, color, dur: dur || 2.5, t: 0 }; },
+
+    // a red version of an alien's sprite sheet (mini-boss)
+    tintSheet(type) {
+      const key = 'red_' + type;
+      if (!Assets.images[key]) {
+        const img = Assets.images[type];
+        const cv = document.createElement('canvas'); cv.width = img.width; cv.height = img.height;
+        const g = cv.getContext('2d');
+        g.drawImage(img, 0, 0);
+        g.globalCompositeOperation = 'source-atop';
+        g.fillStyle = 'rgba(255, 30, 30, 0.5)'; g.fillRect(0, 0, cv.width, cv.height);
+        Assets.images[key] = cv;
+      }
+      return Assets.images[key];
+    },
+    drawMiniBar(m) {
+      const c = this.ctx, w = Math.max(200, m.size * 0.8), h = 16, x = m.px - w / 2, y = m.py - m.size * 0.62;
+      c.save();
+      c.fillStyle = 'rgba(40, 0, 0, 0.8)'; c.fillRect(x - 3, y - 3, w + 6, h + 6);
+      c.strokeStyle = '#ffb0b0'; c.lineWidth = 2; c.strokeRect(x - 3, y - 3, w + 6, h + 6);
+      const g = c.createLinearGradient(x, 0, x + w, 0); g.addColorStop(0, '#ff3a3a'); g.addColorStop(1, '#ffb347');
+      c.fillStyle = g; c.fillRect(x, y, w * Math.max(0, m.hp / m.maxHp), h);
+      c.font = `700 24px ${FONT}`; c.textAlign = 'center'; c.textBaseline = 'bottom'; c.fillStyle = '#ffd0d0';
+      c.shadowColor = '#000'; c.shadowBlur = this.glow(6);
+      c.fillText(window.t ? t('MINI-BOSS') : 'MINI-BOSS', m.px, y - 6);
+      c.restore();
+    },
+    drawFriend() {
+      const f = this.friend, c = this.ctx;
+      if (!f) return;
+      const pop = f.popT > 0 ? Math.min(1, f.popT / 0.4) : 0;
+      const bob = Math.sin(f.t * 1.6) * 14, x = f.x + (f.hitT > 0 ? rand(-6, 6) : 0), y = f.y + bob - pop * 120;
+      const s = SPR[f.type], R = 118;
+      c.save();
+      c.globalAlpha = f.hp > 0 ? 1 - pop : 0.5;
+      if (s && Assets.images[f.type]) this.drawFrame(Assets.images[f.type], s, s.front[Math.floor(f.t * 3) % s.front.length], x, y + 6, 170, false, 1 - pop * 0.5);
+      if (pop < 1 && f.hp > 0) {
+        // the bubble
+        const g = c.createRadialGradient(x - R * 0.35, y - R * 0.4, R * 0.1, x, y, R);
+        g.addColorStop(0, 'rgba(255,255,255,0.45)'); g.addColorStop(0.6, 'rgba(160,230,255,0.12)'); g.addColorStop(1, f.hitT > 0 ? 'rgba(255,90,90,0.55)' : 'rgba(140,220,255,0.45)');
+        c.fillStyle = g; c.beginPath(); c.arc(x, y, R * (1 + pop * 0.3), 0, Math.PI * 2); c.fill();
+        c.strokeStyle = f.hitT > 0 ? '#ff8a8a' : 'rgba(220,250,255,0.9)'; c.lineWidth = 4; c.stroke();
+        // cracks when damaged
+        const cracks = f.max - f.hp;
+        c.strokeStyle = 'rgba(255,255,255,0.7)'; c.lineWidth = 2;
+        for (let i = 0; i < Math.min(8, cracks); i++) {
+          const a = i * 2.3 + 0.4; c.beginPath(); c.moveTo(x + Math.cos(a) * R, y + Math.sin(a) * R);
+          c.lineTo(x + Math.cos(a + 0.2) * R * 0.75, y + Math.sin(a + 0.2) * R * 0.75); c.lineTo(x + Math.cos(a - 0.1) * R * 0.6, y + Math.sin(a - 0.1) * R * 0.6); c.stroke();
+        }
+      }
+      c.restore();
+      if (pop === 0 && f.hp > 0) this.drawSmallBar(f.x, f.y + R + 26, 220, f.hp / f.max, '#7dffb0', window.t ? t('Friend') : 'Friend');
+    },
+    drawGuard() {
+      const g = this.guard, c = this.ctx;
+      if (!g) return;
+      const x = g.x + (g.hitT > 0 ? rand(-6, 6) : 0), y = g.y + Math.sin(this.time * 1.4) * 8, k = g.hp / g.max;
+      c.save();
+      c.shadowColor = '#62f0ff'; c.shadowBlur = this.glow(40);
+      const gr = c.createLinearGradient(x - 60, y - 120, x + 60, y + 120);
+      gr.addColorStop(0, '#e8fdff'); gr.addColorStop(0.5, g.hitT > 0 ? '#ff9aa8' : '#62d8ff'); gr.addColorStop(1, '#1a5ad8');
+      c.fillStyle = gr; c.strokeStyle = '#ffffff'; c.lineWidth = 4;
+      c.globalAlpha = g.hp > 0 ? 1 : 0.3;
+      c.beginPath(); c.moveTo(x, y - 125); c.lineTo(x + 62, y - 30); c.lineTo(x + 40, y + 95); c.lineTo(x, y + 125); c.lineTo(x - 40, y + 95); c.lineTo(x - 62, y - 30); c.closePath(); c.fill(); c.stroke();
+      c.shadowBlur = 0; c.strokeStyle = 'rgba(255,255,255,0.6)'; c.lineWidth = 2;
+      c.beginPath(); c.moveTo(x, y - 125); c.lineTo(x, y + 125); c.moveTo(x - 62, y - 30); c.lineTo(x + 62, y - 30); c.stroke();
+      // cracks
+      c.strokeStyle = 'rgba(20, 30, 70, 0.8)'; c.lineWidth = 3;
+      for (let i = 0; i < Math.round((1 - k) * 7); i++) { const a = i * 1.7; c.beginPath(); c.moveTo(x + Math.sin(a) * 30, y + Math.cos(a) * 60); c.lineTo(x + Math.sin(a + 1) * 50, y + Math.cos(a + 1) * 20); c.stroke(); }
+      c.restore();
+      this.drawSmallBar(g.x, g.y + 160, 240, k, '#62f0ff', window.t ? t('Crystal') : 'Crystal');
+    },
+    drawSmallBar(cx, y, w, k, color, label) {
+      const c = this.ctx, h = 14, x = cx - w / 2;
+      c.save();
+      c.fillStyle = 'rgba(8, 18, 64, 0.85)'; c.fillRect(x - 3, y - 3, w + 6, h + 6);
+      c.strokeStyle = color; c.lineWidth = 2; c.strokeRect(x - 3, y - 3, w + 6, h + 6);
+      c.fillStyle = k <= 0.35 ? '#ff5a5a' : color; c.fillRect(x, y, w * Math.max(0, k), h);
+      c.font = `700 22px ${FONT}`; c.textAlign = 'center'; c.textBaseline = 'top'; c.fillStyle = '#ffffff'; c.shadowColor = '#000'; c.shadowBlur = this.glow(6);
+      c.fillText(label, cx, y + h + 6);
+      c.restore();
+    },
+    // dark level: only the light of your aim shows the aliens
+    drawFlashlight() {
+      const c = this.ctx, R = 270;
+      c.save();
+      c.fillStyle = 'rgba(2, 4, 20, 0.93)';
+      c.beginPath(); c.rect(0, 0, W, H);
+      const spots = this.players.map((p) => p.reticle || p.smoothAim);
+      for (const a of spots) { c.moveTo(a.x + R, a.y); c.arc(a.x, a.y, R, 0, Math.PI * 2, true); }
+      if (this.drones) for (const d of this.drones) { c.moveTo(d.x + 90, d.y); c.arc(d.x, d.y, 90, 0, Math.PI * 2, true); }
+      c.fill('evenodd');
+      for (const a of spots) {
+        const g = c.createRadialGradient(a.x, a.y, R * 0.55, a.x, a.y, R + 1);
+        g.addColorStop(0, 'rgba(2, 4, 20, 0)'); g.addColorStop(1, 'rgba(2, 4, 20, 0.93)');
+        c.fillStyle = g; c.beginPath(); c.arc(a.x, a.y, R + 1, 0, Math.PI * 2); c.fill();
+        const w = c.createRadialGradient(a.x, a.y, 0, a.x, a.y, R);
+        w.addColorStop(0, 'rgba(255, 250, 220, 0.10)'); w.addColorStop(1, 'rgba(255, 250, 220, 0)');
+        c.fillStyle = w; c.beginPath(); c.arc(a.x, a.y, R, 0, Math.PI * 2); c.fill();
+      }
+      // the eyes of aliens in the dark glow faintly
+      c.fillStyle = 'rgba(255, 240, 160, 0.55)';
+      for (const m of this.monsters) {
+        if (m.state !== 'alive' || spots.some((a) => Math.hypot(a.x - m.px, a.y - m.py) < R)) continue;
+        const e = m.size * 0.06;
+        c.beginPath(); c.arc(m.px - m.size * 0.09, m.py - m.size * 0.05, e, 0, Math.PI * 2); c.arc(m.px + m.size * 0.09, m.py - m.size * 0.05, e, 0, Math.PI * 2); c.fill();
+      }
+      c.restore();
+    },
+    // timers and goals of special levels, under the score
+    drawSpecialHud() {
+      const c = this.ctx;
+      let text = '';
+      if (this.special === 'survive') {
+        const left = Math.max(0, Math.ceil(SURVIVE_TIME - this.surviveT));
+        text = `${window.t ? t('Survive') : 'Survive'} 0:${String(left).padStart(2, '0')}`;
+      } else if (this.special === 'only') text = `${window.t ? t('Only catch') : 'Only catch'}: ${window.t ? t((SPR[TYPES[0]] || {}).name || '') : (SPR[TYPES[0]] || {}).name}`;
+      if (!text) return;
+      c.save();
+      c.font = `700 38px ${FONT}`; c.textAlign = 'center'; c.textBaseline = 'top';
+      c.fillStyle = this.special === 'survive' && this.surviveT > SURVIVE_TIME - 10 ? '#7dffb0' : '#ffd27a';
+      c.shadowColor = '#000'; c.shadowBlur = this.glow(10); c.lineWidth = 6; c.strokeStyle = 'rgba(0,0,0,0.6)';
+      c.strokeText(text, W / 2, 258); c.fillText(text, W / 2, 258);
+      c.restore();
+    },
+    // Hyper meter (under the health bar) and the rainbow edge while Hyper mode is on
+    drawHyper() {
+      const c = this.ctx;
+      const x = 100, y = 108, w = 360, h = 12;
+      c.save();
+      if (this.hyperT > 0) {
+        const pulse = 0.65 + 0.35 * Math.sin(this.time * 10), hue = (this.time * 200) % 360;
+        const g = c.createLinearGradient(0, 0, W, H);
+        for (let i = 0; i <= 6; i++) g.addColorStop(i / 6, `hsl(${(hue + i * 60) % 360}, 100%, 60%)`);
+        c.globalAlpha = pulse; c.strokeStyle = g; c.lineWidth = 26;
+        c.shadowColor = `hsl(${hue}, 100%, 60%)`; c.shadowBlur = this.glow(30);
+        c.strokeRect(13, 13, W - 26, H - 26);
+        c.globalAlpha = 1; c.shadowBlur = 0;
+        c.font = `700 30px ${FONT}`; c.textAlign = 'left'; c.textBaseline = 'middle'; c.fillStyle = `hsl(${hue}, 100%, 70%)`;
+        c.fillText(`HYPER ×2  ${Math.ceil(this.hyperT)}`, x, y + h / 2 + 2);
+      } else if (this.state === 'play' || this.hyper > 0) {
+        c.fillStyle = 'rgba(8, 18, 64, 0.75)'; c.fillRect(x - 2, y - 2, w + 4, h + 4);
+        const g = c.createLinearGradient(x, 0, x + w, 0);
+        g.addColorStop(0, '#ff8ad8'); g.addColorStop(0.5, '#ffd27a'); g.addColorStop(1, '#7dffb0');
+        c.fillStyle = g; c.fillRect(x, y, w * (this.hyper || 0), h);
+        if (this.hyper > 0.85) { c.globalAlpha = 0.5 + 0.5 * Math.sin(this.time * 14); c.strokeStyle = '#fff'; c.lineWidth = 2; c.strokeRect(x - 2, y - 2, w + 4, h + 4); c.globalAlpha = 1; }
+        c.font = `700 18px ${FONT}`; c.textAlign = 'left'; c.textBaseline = 'top'; c.fillStyle = '#bff9ff';
+        c.fillText('HYPER', x, y + h + 4);
+      }
+      c.restore();
+    },
+    drawBanner() {
+      const b = this.banner, c = this.ctx;
+      if (!b) return;
+      const tin = Math.min(1, b.t / 0.25), tout = Math.min(1, (b.dur - b.t) / 0.35), k = Math.max(0, Math.min(tin, tout));
+      c.save();
+      c.globalAlpha = k * 0.6; c.fillStyle = '#000';
+      c.fillRect(0, H * 0.36, W, H * 0.22);
+      c.globalAlpha = k;
+      const sc = 0.85 + 0.15 * tin;
+      c.translate(W / 2, H * 0.45); c.scale(sc, sc);
+      c.font = `800 92px ${FONT}`; c.textAlign = 'center'; c.textBaseline = 'middle';
+      let fill = b.color;
+      if (b.color === 'rainbow') { const g = c.createLinearGradient(-500, 0, 500, 0); for (let i = 0; i <= 6; i++) g.addColorStop(i / 6, `hsl(${(this.time * 220 + i * 60) % 360}, 100%, 62%)`); fill = g; }
+      c.lineWidth = 12; c.strokeStyle = 'rgba(0,0,0,0.75)'; c.strokeText(b.title, 0, 0);
+      c.fillStyle = fill; c.shadowColor = b.color === 'rainbow' ? '#fff' : b.color; c.shadowBlur = this.glow(24); c.fillText(b.title, 0, 0);
+      if (b.sub) { c.shadowBlur = this.glow(6); c.font = `600 40px ${FONT}`; c.fillStyle = '#ffffff'; c.lineWidth = 6; c.strokeText(b.sub, 0, 82); c.fillText(b.sub, 0, 82); }
+      c.restore();
+    },
+    // boss entrance: dark screen, cinema bars, the boss rising, then its name and title
+    drawBossIntro(b) {
+      const c = this.ctx, T = b.introT || 0;
+      const dark = Math.min(1, T / 0.5) * Math.min(1, (BOSS_INTRO - T) / 0.5);
+      c.save();
+      c.globalAlpha = 0.8 * dark; c.fillStyle = '#05030f'; c.fillRect(0, 0, W, H);
+      c.restore();
+      this.drawBoss();
+      c.save();
+      const bar = 120 * dark;
+      c.fillStyle = '#000'; c.fillRect(0, 0, W, bar); c.fillRect(0, H - bar, W, bar);
+      const tk = Math.max(0, Math.min(1, (T - 1.2) / 0.35)) * Math.min(1, (BOSS_INTRO - T) / 0.4);
+      if (tk > 0) {
+        c.globalAlpha = tk; c.textAlign = 'center'; c.textBaseline = 'middle';
+        const name = (window.t ? t(b.name) : b.name).toUpperCase();
+        const sc = 1.25 - 0.25 * Math.min(1, (T - 1.2) / 0.35);
+        c.translate(W / 2, H * 0.8); c.scale(sc, sc);
+        c.font = `800 110px ${FONT}`; c.lineWidth = 14; c.strokeStyle = 'rgba(0,0,0,0.85)'; c.strokeText(name, 0, 0);
+        const g = c.createLinearGradient(0, -55, 0, 55); g.addColorStop(0, '#fff4c9'); g.addColorStop(0.5, '#ffd27a'); g.addColorStop(1, '#ff8a3a');
+        c.fillStyle = g; c.shadowColor = '#ffb347'; c.shadowBlur = this.glow(30); c.fillText(name, 0, 0);
+        c.shadowBlur = this.glow(8); c.font = `600 44px ${FONT}`; c.fillStyle = '#ffffff'; c.lineWidth = 6;
+        const title = window.t ? t('Ruler of {world}', { world: t(this.bossWorldName || '') }) : b.title;
+        c.strokeText(title, 0, 84); c.fillText(title, 0, 84);
+      }
+      c.restore();
     },
 
     totalCaught() { return TYPES.reduce((a, t) => a + this.caught[t], 0); },
@@ -1081,11 +2059,16 @@
       return true;
     },
     crystalValue() { return this.owns('crystalMagnet') ? 2 : 1; },
-    laserColor(p) { return this.owns('rainbowLaser') ? `hsl(${(this.time * 240) % 360}, 100%, 65%)` : p.color; },
+    // looks you own can be switched off in the Equipment screen
+    styleOn(id) { return this.owns(id) && !((this.save && this.save.styleOff) || {})[id]; },
+    // superpower level 1-3 (upgraded in the Equipment screen): lasts 30% / 60% longer
+    superLv(id) { return Math.max(1, Math.min(3, (((this.save && this.save.superLv) || {})[id]) || 1)); },
+    superMul(id) { return [1, 1.3, 1.6][this.superLv(id) - 1]; },
+    laserColor(p) { if (this.hyperT > 0) return '#ffd84a'; return this.styleOn('rainbowLaser') ? `hsl(${(this.time * 240) % 360}, 100%, 65%)` : p.color; },
     // Golden blaster: a gold-tinted copy of the gun sheet, made once
     gunImage() {
       const img = Assets.images.gun;
-      if (!this.owns('goldBlaster')) return img;
+      if (!this.styleOn('goldBlaster')) return img;
       if (!Assets.images.gunGold) {
         const cv = document.createElement('canvas');
         cv.width = img.width; cv.height = img.height;
@@ -1102,7 +2085,11 @@
     // by itself every 10 seconds. It faces you while idle and turns its back to you when it fires.
     // Sheets: 5x5 frames. Row 1 and 5 = face to you, row 2 = turned to the side, row 3 = back, row 4 = other side.
     updateDrone(dt) {
-      const owned = [['helperDrone', 'drone1'], ['droneTwo', 'drone2']].filter(([id]) => this.owns(id));
+      if (this.tut) return;                 // training: no helper bots (they would catch the training aliens)
+      // how many helper bots fly along: chosen in the Equipment screen (0, 1 or 2 of the ones you own)
+      let owned = [['helperDrone', 'drone1'], ['droneTwo', 'drone2']].filter(([id]) => this.owns(id));
+      const want = this.save && this.save.bots != null ? this.save.bots : owned.length;
+      owned = owned.slice(0, Math.max(0, want));
       if (!owned.length) return;
       if (!this.drones) {
         this.drones = owned.map(([, img], i) => {
@@ -1126,7 +2113,7 @@
         d.vx = (d.x - px) / Math.max(dt, 0.001);
         d.cd -= dt;
         if (d.state === 'idle' && d.cd <= 0) {
-          const alive = this.monsters.filter((m) => m.state === 'alive' && !m.droneTarget);
+          const alive = this.monsters.filter((m) => m.state === 'alive' && !m.droneTarget && !m.decoy);
           if (alive.length) {
             d.target = alive.sort((a, b) => b.z - a.z)[0];
             d.target.droneTarget = true;
@@ -1206,6 +2193,7 @@
     // ---------------- Boss ----------------
     spawnBoss() {
       const cfg = this.levelCfg.boss;
+      if (cfg.void) return this.spawnVoid(cfg);
       const hp = Math.round(cfg.hp * (this.players.length > 1 ? 1.5 : 1));
       this.boss = {
         isBoss: true, name: cfg.name, sprite: cfg.sprite, hp, max: hp,
@@ -1218,10 +2206,357 @@
         speed: 1, wallT: 6, beamT: 6, diveT: 6, submerged: 0, reflectT: 0, reflectCd: 6,
         crystals: null, nextN: 1, dark: false, bladeAng: 0, bladeSpeed: 0, pull: false, waveT: 5,
       };
-      this.shake = 0.5;
+      // the entrance: the screen darkens, the world slows down, the boss rises up with a roar and its title appears
+      this.boss.introT = 0; this.boss.roared = false;
+      this.boss.title = cfg.title || ('Ruler of ' + (this.bossWorldName || this.levelCfg.name || ''));
+      this.rocks = [];
+      Sfx.rumble();
+    },
+
+    // ================= The Void (boss of the ???? world) =================
+    // 4 health bars. Its chest crystal is closed (shots are blocked) except:
+    //  - for a few seconds after it fired its energy beam (tired),
+    //  - when the 3 glowing crystals are shot while it charges the beam (stunned, double damage),
+    //  - when its orbiting orbs are popped (from bar 3 on).
+    // The beam: hold up the shield (costs 3 shield hits) or lose 20% health.
+    spawnVoid(cfg) {
+      const mult = this.players.length > 1 ? 1.5 : 1;
+      const barHp = Math.round(VOID.barHp * mult);
+      this.boss = {
+        isBoss: true, void: true, name: cfg.name, sprite: 'void', hp: barHp * VOID.bars, max: barHp * VOID.bars, barHp,
+        x: W / 2, y: H * 0.42, size: 120, r: 40, t: 0, state: 'enter', flash: 0, frame: 0, sx: 1, sy: 1, rot: 0,
+        phase: 1, transT: 0, tele: 0, shield: true, openT: 0, openMax: 1, dmgMul: 1, spots: null, crystals: null,
+        barsLeft: VOID.bars, beamT: 5, charge: 0, chargeMax: 1, fireT: 0, fireHit: false, second: false, vcrystals: null,
+        stunT: 0, orbT: VOID.orbEvery, shardT: 6, minionT: 4, lastHitT: this.time, regenT: 0, heart: null, dark: false,
+        speed: 1, reflectT: 0, bladeSpeed: 0, submerged: 0, pull: false,
+      };
+      this.shake = 0.8;
       Sfx.lose();
-      this.hud('toast', `The ${cfg.name} appears!`);
-      this.setPrompt('Catch the ' + cfg.name + ': hit it with the blaster or net grenades', 3);
+      this.hud('toast', 'The Void appears!');
+      this.setPrompt('Its heart is closed. Wait for its beam, shield up, then hit the glowing heart!', 4);
+    },
+    voidChest(b) { return { x: b.x, y: b.y + b.size * 0.1 }; },
+    voidOpen(b, secs, mul, msg) {
+      b.shield = false; b.openT = secs; b.openMax = secs; b.dmgMul = mul || 1;
+      if (msg) this.hud('toast', msg);
+      Sfx.win();
+    },
+    voidTargets(b) {
+      const out = [];
+      if (b.vcrystals) b.vcrystals.forEach((q, i) => { if (!q.broken) out.push({ px: q.x, py: q.y, r: 52, bossPart: 'vcrystal', idx: i }); });
+      if (b.spots && b.shield) b.spots.forEach((sp, i) => { if (sp.hp > 0) out.push({ px: sp.x, py: sp.y, r: 46, bossPart: 'spot', idx: i }); });
+      if (b.heart) out.push({ px: b.heart.x, py: b.heart.y, r: 56, bossPart: 'heart' });
+      const ch = this.voidChest(b);
+      out.push({ px: ch.x, py: ch.y, r: b.shield ? b.size * 0.3 : b.size * 0.22, bossPart: 'boss' });
+      return out;
+    },
+    // returns true when the hit was handled here
+    voidPartHit(b, tg, dmg, at, say) {
+      if (tg.bossPart === 'vcrystal') {
+        const q = b.vcrystals && b.vcrystals[tg.idx];
+        if (!q || q.broken) return true;
+        q.broken = true;
+        Sfx.clink(); this.burst(q.x, q.y, '#e8d4ff', 16, true);
+        this.addScore(120, q.x, q.y - 40, true);
+        if (b.vcrystals.every((c) => c.broken)) {
+          // the beam fizzles: stunned, open, double damage
+          b.charge = 0; b.vcrystals = null; b.second = false;
+          b.stunT = VOID.stun; b.beamT = VOID.beamEvery[VOID.bars - b.barsLeft];
+          this.voidOpen(b, VOID.stun, 2, 'Beam stopped! The Void is stunned: double damage!');
+          say(b.x, b.y - b.size * 0.35, 'Stunned!', '#ffe680');
+        }
+        return true;
+      }
+      if (tg.bossPart === 'heart') {
+        const h = b.heart; b.heart = null;
+        this.health = Math.min(100, this.health + VOID.heal); this.hud('health');
+        Sfx.win(); this.burst(h.x, h.y, '#ff8ad8', 20, true);
+        say(h.x, h.y - 40, '+' + VOID.heal + '% health', '#7dffb0');
+        return true;
+      }
+      if (tg.bossPart === 'boss' && b.shield) {
+        Sfx.clink(); say(at.x, at.y - 30, 'Blocked!', '#c79bff');
+        return true;
+      }
+      return false;           // orbs ('spot') and the open heart: the normal boss code
+    },
+    voidBeamHit() {
+      this.shake = 0.6; this.beamFlash = 1;
+      for (const p of this.players) {
+        if (this.barrierT > 0) { Sfx.block(); this.floater(W / 2, H - 320, window.t ? t('Blocked!') : 'Blocked!', '#bff9ff'); continue; }
+        if (p.equipped === 'shield' && p.shieldHP > 0) {
+          for (let i = 0; i < VOID.shieldCost && p.equipped === 'shield' && p.shieldHP > 0; i++) this.playerHit(p);
+          this.floater(this.gunBase(p), H - 360, window.t ? t('Beam blocked!') : 'Beam blocked!', '#bff9ff');
+        } else this.takeDamage(VOID.beamDamage);
+      }
+    },
+    updateVoid(b, gdt, dt) {
+      b.t += gdt;
+      b.flash = Math.max(0, b.flash - dt);
+      if (this.beamFlash > 0) this.beamFlash = Math.max(0, this.beamFlash - dt * 2.5);
+      if (b.state === 'enter') {
+        const k = Math.min(1, b.t / 2.5), e = 1 - Math.pow(1 - k, 3);
+        b.size = lerp(120, 600, e);
+        b.y = lerp(H * 0.3, H * 0.42, e);
+        if (k >= 1) { b.state = 'fight'; b.t = 0; }
+        b.r = b.size * 0.25;
+        return;
+      }
+      if (b.state === 'defeat') {
+        this.shake = Math.max(this.shake, 0.4);
+        b.flash = 0.3;
+        if (b.t > 1.4 && !b.cineAsked) { b.cineAsked = true; this.cine = true; this.hud('voidOutro'); }
+        return;
+      }
+      if (b.state !== 'fight') return;
+      // slow drifting and breathing, so the still picture feels alive
+      b.x = W / 2 + Math.sin(b.t * 0.25) * W * 0.06;
+      b.y = H * 0.42 + Math.sin(b.t * 0.8) * 18;
+      const br = Math.sin(b.t * 1.6);
+      b.sx = 1 + 0.015 * br; b.sy = 1 - 0.015 * br;
+      b.r = b.size * 0.25;
+      if (b.heart) { b.heart.t += gdt; b.heart.y += 30 * gdt; if (b.heart.t > 8) b.heart = null; }
+
+      // a health bar broken: roar, a short pause, harder attacks, and a heart to collect
+      const left = Math.max(1, Math.ceil(b.hp / b.barHp - 1e-6));
+      if (left < b.barsLeft) {
+        b.barsLeft = left;
+        b.transT = 2; b.flash = 0.6; this.shake = 0.7; Sfx.lose();
+        b.charge = 0; b.fireT = 0; b.vcrystals = null; b.second = false; b.spots = null;
+        b.shield = true; b.openT = 0; b.dmgMul = 1; b.stunT = 0;
+        b.beamT = 3; b.orbT = 4; b.shardT = 3;
+        b.dark = left === 2;
+        b.heart = { x: clamp(b.x + rand(-420, 420), 220, W - 220), y: H * 0.22, t: 0 };
+        const msg = { 3: 'The Void throws crystals! Pop its orbs to open its heart!', 2: 'Darkness! Follow its glowing eyes.', 1: 'The Void is furious! Two beams in a row!' }[left];
+        if (msg) this.hud('toast', msg);
+        this.setPrompt('Shoot the heart to get health back!', 2.5);
+      }
+      if (b.transT > 0) { b.transT -= dt; return; }
+      const bi = VOID.bars - b.barsLeft;          // 0 (4 bars left) ... 3 (last bar)
+      if (b.stunT > 0) b.stunT -= gdt;
+      if (b.openT > 0) {
+        b.openT -= gdt;
+        if (b.openT <= 0) { b.openT = 0; b.shield = true; b.dmgMul = 1; if (b.spots && b.spots.every((q) => q.hp <= 0)) { b.spots = null; b.orbT = VOID.orbEvery; } }
+      }
+
+      // the energy beam: charge (shoot the 3 crystals to stop it) -> fire -> tired (open)
+      if (b.charge > 0) {
+        b.charge -= gdt;
+        this.orbitVoidCrystals(b);
+        if (b.charge <= 0) { b.charge = 0; b.vcrystals = null; b.fireT = VOID.fire; b.fireHit = false; }
+      } else if (b.fireT > 0) {
+        b.fireT -= gdt;
+        if (!b.fireHit && b.fireT < VOID.fire - 0.3) { b.fireHit = true; this.voidBeamHit(); }
+        if (b.fireT <= 0) {
+          b.fireT = 0;
+          if (b.barsLeft === 1 && !b.second) { b.second = true; this.startVoidCharge(b, 1.3); }
+          else {
+            b.second = false; b.beamT = VOID.beamEvery[bi];
+            this.voidOpen(b, VOID.tired, 1, null);
+            this.setPrompt('It is tired: hit the glowing heart now!', 2);
+          }
+        }
+      } else if (b.openT <= 0 && b.stunT <= 0) {
+        b.beamT -= gdt;
+        if (b.beamT <= 0) this.startVoidCharge(b, VOID.charge[bi]);
+      }
+
+      // orbs (from bar 3): pop all three to open the heart
+      if (bi >= 1 && !b.spots && b.shield && b.charge <= 0 && b.fireT <= 0) {
+        b.orbT -= gdt;
+        if (b.orbT <= 0) { b.spots = this.makeSpots(); this.setPrompt('Pop the 3 orbs to open its heart!', 2); }
+      }
+      if (b.spots && b.shield) { this.lastDt = gdt; this.orbitParts(b, b.spots, 0.8, 0.5); }
+      if (b.spots && !b.shield && b.openT <= 0) { b.spots = null; b.orbT = VOID.orbEvery; }
+
+      // crystal shards (from bar 3)
+      if (VOID.shards[bi] && b.charge <= 0 && b.fireT <= 0) {
+        b.shardT -= gdt;
+        if (b.shardT <= 0) {
+          const from = { px: b.x, py: b.y + b.size * 0.05, type: 'void' };
+          for (let i = 0; i < VOID.shards[bi]; i++) setTimeout(() => { if (this.boss === b && b.state === 'fight') this.throwRock(from); }, i * 260);
+          b.shardT = VOID.shardEvery[bi];
+        }
+      }
+      // helpers
+      b.minionT -= gdt;
+      if (b.minionT <= 0) {
+        if (this.monsters.filter((m) => m.state === 'alive').length < VOID.minionMax[bi]) this.spawn(TYPES[Math.floor(Math.random() * TYPES.length)]);
+        b.minionT = VOID.minionEvery[bi];
+      }
+      // last bar: heals itself when you stop hitting it
+      if (b.barsLeft === 1 && this.time - b.lastHitT > VOID.regenAfter && b.hp < b.barHp) {
+        b.regenT += gdt;
+        if (b.regenT >= 0.5) { b.regenT = 0; b.hp = Math.min(b.barHp, b.hp + 1); }
+      } else b.regenT = 0;
+      // picture: 0 still, 1-3 while firing
+      const e = VOID.fire - b.fireT;
+      b.frame = b.fireT > 0 ? (e < 0.25 ? 1 : e < 0.5 ? 2 : 3) : 0;
+    },
+    startVoidCharge(b, secs) {
+      b.charge = secs; b.chargeMax = secs;
+      b.vcrystals = [0, 1, 2].map((i) => ({ i, broken: false, x: b.x, y: b.y }));
+      this.orbitVoidCrystals(b);
+      this.setPrompt('Beam! Shoot the 3 crystals or raise your shield!', secs);
+      Sfx.lock();
+    },
+    orbitVoidCrystals(b) {
+      if (!b.vcrystals) return;
+      const slow = this.padPlay() ? 0.5 : 1;
+      b.vcrystals.forEach((q, i) => {
+        const a = b.t * 0.9 * slow + i * (Math.PI * 2 / 3) - Math.PI / 2;
+        q.x = b.x + Math.cos(a) * b.size * 0.62;
+        q.y = b.y - b.size * 0.05 + Math.sin(a) * b.size * 0.34;
+      });
+    },
+
+    drawVoid(b) {
+      const c = this.ctx, img = Assets.images.void;
+      const alpha = b.state === 'enter' ? Math.min(1, b.t / 0.8) : 1;
+      const ch = this.voidChest(b);
+      // charging: a growing glow on the chest and purple screen edges
+      if (b.charge > 0) {
+        const k = 1 - b.charge / b.chargeMax;
+        c.save(); c.globalCompositeOperation = 'lighter';
+        const g = c.createRadialGradient(ch.x, ch.y, 4, ch.x, ch.y, 60 + 160 * k);
+        g.addColorStop(0, 'rgba(255, 255, 255, ' + (0.5 + 0.5 * k) + ')'); g.addColorStop(0.4, 'rgba(200, 120, 255, 0.6)'); g.addColorStop(1, 'rgba(120, 40, 255, 0)');
+        c.fillStyle = g; c.beginPath(); c.arc(ch.x, ch.y, 60 + 160 * k, 0, Math.PI * 2); c.fill();
+        c.restore();
+      }
+      // a dark shadow behind it, so it stands out from the purple background
+      c.save(); c.globalAlpha = alpha * 0.75;
+      const sh = c.createRadialGradient(b.x, b.y, b.size * 0.1, b.x, b.y, b.size * 0.95);
+      sh.addColorStop(0, 'rgba(4, 0, 12, 0.85)'); sh.addColorStop(0.6, 'rgba(4, 0, 12, 0.5)'); sh.addColorStop(1, 'rgba(4, 0, 12, 0)');
+      c.fillStyle = sh; c.beginPath(); c.ellipse(b.x, b.y, b.size * 1.0, b.size * 0.62, 0, 0, Math.PI * 2); c.fill(); c.restore();
+      if (img) {
+        this.drawFrame(img, SPR.void, b.frame, b.x, b.y, b.size, false, alpha, 0, b.sx, b.sy);
+        if (b.flash > 0) {
+          c.save(); c.globalCompositeOperation = 'lighter';
+          this.drawFrame(img, SPR.void, b.frame, b.x, b.y, b.size, false, Math.min(1, b.flash * 2.5), 0, b.sx, b.sy);
+          c.restore();
+        }
+      }
+      if (b.state !== 'fight') return;
+      // open heart: bright pulsing crystal and a ring that shows how long it stays open
+      if (!b.shield) {
+        const pulse = 0.6 + 0.4 * Math.sin(this.time * 10);
+        c.save(); c.globalCompositeOperation = 'lighter';
+        const g = c.createRadialGradient(ch.x, ch.y, 4, ch.x, ch.y, 120);
+        g.addColorStop(0, 'rgba(255, 255, 255, ' + pulse + ')'); g.addColorStop(0.35, b.dmgMul > 1 ? 'rgba(255, 230, 120, 0.8)' : 'rgba(125, 255, 176, 0.7)'); g.addColorStop(1, 'rgba(125, 255, 176, 0)');
+        c.fillStyle = g; c.beginPath(); c.arc(ch.x, ch.y, 120, 0, Math.PI * 2); c.fill();
+        c.restore();
+        this.ring(ch.x, ch.y, 96, b.openT / b.openMax, b.dmgMul > 1 ? '#ffe680' : '#7dffb0', 9);
+      }
+      // stunned: little stars turning around its head
+      if (b.stunT > 0) {
+        c.save(); c.fillStyle = '#ffe680';
+        for (let i = 0; i < 6; i++) {
+          const a = this.time * 3 + i * Math.PI / 3;
+          const x = b.x + Math.cos(a) * 150, y = b.y - b.size * 0.36 + Math.sin(a) * 34;
+          c.beginPath();
+          for (let k = 0; k < 10; k++) { const aa = k * Math.PI / 5, rr = k % 2 ? 7 : 17; c.lineTo(x + Math.sin(aa) * rr, y - Math.cos(aa) * rr); }
+          c.closePath(); c.fill();
+        }
+        c.restore();
+      }
+    },
+    // drawn on top of the darkness, so they stay visible: eyes, crystals, orbs, the heart pick-up, the beam flash
+    drawVoidParts(b) {
+      const c = this.ctx;
+      if (b.state === 'fight' && b.dark) {
+        c.save(); c.globalCompositeOperation = 'lighter';
+        for (const dx of [-34, 34]) {
+          const x = b.x + dx, y = b.y - b.size * 0.215;
+          const g = c.createRadialGradient(x, y, 2, x, y, 46);
+          g.addColorStop(0, 'rgba(255, 255, 255, 0.95)'); g.addColorStop(0.4, 'rgba(190, 120, 255, 0.7)'); g.addColorStop(1, 'rgba(120, 40, 255, 0)');
+          c.fillStyle = g; c.beginPath(); c.arc(x, y, 46, 0, Math.PI * 2); c.fill();
+        }
+        if (!b.shield) { const ch = this.voidChest(b); this.ring(ch.x, ch.y, 96, b.openT / b.openMax, '#7dffb0', 9); }
+        c.restore();
+      }
+      if (b.vcrystals) for (const q of b.vcrystals) {
+        if (q.broken) continue;
+        const pulse = 0.75 + 0.25 * Math.sin(this.time * 12 + q.i);
+        c.save(); c.translate(q.x, q.y);
+        c.shadowColor = '#d9a6ff'; c.shadowBlur = this.glow(26);
+        c.fillStyle = `rgba(232, 212, 255, ${pulse})`; c.strokeStyle = '#ffffff'; c.lineWidth = 4;
+        c.beginPath(); c.moveTo(0, -50); c.lineTo(28, 0); c.lineTo(0, 50); c.lineTo(-28, 0); c.closePath(); c.fill(); c.stroke();
+        c.restore();
+      }
+      if (b.spots && b.shield) for (const sp of b.spots) {
+        if (sp.hp <= 0) continue;
+        c.save();
+        const r = 26 + 5 * Math.sin(this.time * 6 + sp.x);
+        const g = c.createRadialGradient(sp.x, sp.y, 2, sp.x, sp.y, r * 1.8);
+        g.addColorStop(0, '#ffffff'); g.addColorStop(0.35, '#ffd27a'); g.addColorStop(1, 'rgba(255, 138, 216, 0)');
+        c.fillStyle = g; c.beginPath(); c.arc(sp.x, sp.y, r * 1.8, 0, Math.PI * 2); c.fill();
+        c.fillStyle = '#ffffff';
+        for (let i = 0; i < sp.hp; i++) c.fillRect(sp.x - 12 + i * 14, sp.y + r + 8, 10, 6);
+        c.restore();
+      }
+      if (b.heart) {
+        const h = b.heart, s = 1 + 0.12 * Math.sin(this.time * 8);
+        c.save(); c.translate(h.x, h.y); c.scale(s, s);
+        c.shadowColor = '#ff8ad8'; c.shadowBlur = this.glow(26); c.globalAlpha = h.t > 6.5 ? 0.5 + 0.5 * Math.sin(this.time * 20) : 1;
+        c.fillStyle = '#ff5a9e'; c.strokeStyle = '#ffffff'; c.lineWidth = 4;
+        c.beginPath(); c.moveTo(0, 30); c.bezierCurveTo(-60, -10, -30, -55, 0, -24); c.bezierCurveTo(30, -55, 60, -10, 0, 30); c.closePath(); c.fill(); c.stroke();
+        c.shadowBlur = 0; c.fillStyle = '#fff'; c.font = `700 24px ${FONT}`; c.textAlign = 'center'; c.fillText('+' + VOID.heal, 0, -2);
+        c.restore();
+      }
+      if (b.charge > 0) {
+        // purple screen edges and a warning while it charges
+        const k = 1 - b.charge / b.chargeMax;
+        c.save();
+        const g = c.createRadialGradient(W / 2, H / 2, H * 0.3, W / 2, H / 2, W * 0.75);
+        g.addColorStop(0, 'rgba(120, 40, 255, 0)'); g.addColorStop(1, `rgba(150, 60, 255, ${0.25 + 0.35 * k * (0.6 + 0.4 * Math.sin(this.time * 14))})`);
+        c.fillStyle = g; c.fillRect(0, 0, W, H);
+        c.font = `700 56px ${FONT}`; c.textAlign = 'center'; c.lineWidth = 8; c.strokeStyle = '#12001f'; c.fillStyle = '#e8d4ff';
+        const txt = window.t ? t('SHIELD UP!') : 'SHIELD UP!';
+        c.strokeText(txt, W / 2, H * 0.66); c.fillText(txt, W / 2, H * 0.66);
+        c.restore();
+      }
+      if (this.beamFlash > 0) {
+        c.save(); c.globalCompositeOperation = 'lighter'; c.globalAlpha = this.beamFlash * 0.45;
+        c.fillStyle = '#c08cff'; c.fillRect(0, 0, W, H); c.restore();
+      }
+    },
+    // two bars: on top one block per full health bar left (max 4), below it the bar being emptied now
+    drawVoidBar(b) {
+      const c = this.ctx;
+      const w = 680, x = (W - w) / 2, y = 196;
+      c.save();
+      c.font = `700 30px ${FONT}`; c.textAlign = 'center'; c.textBaseline = 'bottom';
+      c.fillStyle = '#e8d4ff'; c.shadowColor = '#000'; c.shadowBlur = this.glow(8);
+      c.fillText(b.name, W / 2, y - 8);
+      c.shadowBlur = 0;
+      const left = b.state === 'fight' || b.state === 'enter' ? b.barsLeft : 0;
+      const bw = (w - 3 * 12) / 4;
+      for (let i = 0; i < VOID.bars; i++) {
+        const bx = x + i * (bw + 12);
+        c.fillStyle = 'rgba(18, 4, 34, 0.9)'; c.fillRect(bx - 2, y - 2, bw + 4, 18);
+        if (i < left) {
+          const g = c.createLinearGradient(bx, 0, bx + bw, 0); g.addColorStop(0, '#7a2ad6'); g.addColorStop(1, '#d9a6ff');
+          c.fillStyle = g; c.fillRect(bx, y, bw, 14);
+        }
+        c.strokeStyle = '#c08cff'; c.lineWidth = 2; c.strokeRect(bx - 2, y - 2, bw + 4, 18);
+      }
+      const y2 = y + 30, h2 = 26;
+      const cur = b.state === 'defeat' ? 0 : Math.max(0, b.hp - (b.barsLeft - 1) * b.barHp);
+      c.fillStyle = 'rgba(18, 4, 34, 0.92)'; c.fillRect(x - 4, y2 - 4, w + 8, h2 + 8);
+      const g2 = c.createLinearGradient(x, 0, x + w, 0); g2.addColorStop(0, '#ff8ad8'); g2.addColorStop(1, '#b06cff');
+      c.fillStyle = g2; c.fillRect(x, y2, w * (cur / b.barHp), h2);
+      c.strokeStyle = b.shield ? '#6a5a8a' : (b.dmgMul > 1 ? '#ffe680' : '#7dffb0'); c.lineWidth = b.shield ? 2 : 5;
+      c.strokeRect(x - 4, y2 - 4, w + 8, h2 + 8);
+      c.font = `700 20px ${FONT}`; c.textBaseline = 'top'; c.fillStyle = b.shield ? '#b9a6d8' : (b.dmgMul > 1 ? '#ffe680' : '#7dffb0');
+      c.fillText(b.state !== 'fight' ? '' : b.shield ? (window.t ? t('Guarded') : 'Guarded') : (b.dmgMul > 1 ? (window.t ? t('OPEN! Double damage') : 'OPEN! Double damage') : (window.t ? t('OPEN!') : 'OPEN!')), W / 2, y2 + h2 + 8);
+      c.restore();
+    },
+    // called by the app when the defeat film has finished (or was skipped)
+    endCine() {
+      if (!this.cine) return;
+      this.cine = false;
+      this.boss = null; this.bossDefeated = true;
+      this.last = performance.now();
     },
 
     // Things you can aim at on the boss: the boss itself and, depending on the boss and phase,
@@ -1229,6 +2564,7 @@
     bossTargets() {
       const b = this.boss;
       if (!b || b.state !== 'fight' || b.transT > 0) return [];
+      if (b.void) return this.voidTargets(b);
       const out = [];
       if (b.sprite === 'nebula' && b.phase === 2 && b.copies) {
         b.copies.forEach((c, i) => { if (!c.gone && c.alpha > 0.6) out.push({ px: c.x, py: c.y, r: b.r, bossPart: i === b.realIdx ? 'boss' : 'decoy', idx: i }); });
@@ -1246,6 +2582,7 @@
       const b = this.boss;
       if (!b || b.state !== 'fight') return;
       const say = (x, y, text, col) => this.floater(x, y, window.t ? t(text) : text, col);
+      if (b.void && this.voidPartHit(b, tg, dmg, at, say)) return;
       if (tg.bossPart === 'decoy') {
         const c = b.copies[tg.idx];
         c.gone = true;
@@ -1324,6 +2661,7 @@
     },
 
     updateBoss(gdt, dt) {
+      if (this.boss.void) return this.updateVoid(this.boss, gdt, dt);
       const b = this.boss, s = SPR[b.sprite];
       if (this.frostT > 0) gdt *= 0.3;             // Frost Nova slows a boss down (it doesn't freeze it)
       b.t += gdt;
@@ -1336,10 +2674,19 @@
         : b.sprite === 'ember' ? 0.25 + 0.2 * Math.sin(b.t * 9) * Math.sin(b.t * 3.7)
         : 0.3 * (0.5 + 0.5 * Math.sin(b.t * 2.2));
       if (b.state === 'enter') {
-        const k = Math.min(1, b.t / 2.5), e = 1 - Math.pow(1 - k, 3);
-        b.size = lerp(120, 520, e);
-        b.y = lerp(H * 0.3, H * 0.43, e);
-        if (k >= 1) { b.state = 'fight'; b.t = 0; }
+        // rises up from below the screen (in real time: the rest of the world is in slow motion)
+        b.introT += dt; b.t = b.introT;
+        const k = Math.min(1, b.introT / BOSS_INTRO), e = 1 - Math.pow(1 - Math.min(1, k * 1.5), 3);
+        b.size = lerp(380, 520, e);
+        b.y = lerp(H * 1.2, H * 0.43, e);
+        b.x = W / 2;
+        if (!b.roared && b.introT > 1.15) { b.roared = true; this.shake = 0.9; Sfx.roar(); window.Haptics && Haptics.buzz(320, 0.8); }
+        if (k >= 1) {
+          b.state = 'fight'; b.t = 0;
+          this.hud('toast', `The ${b.name} appears!`);
+          this.setPrompt('Catch the ' + b.name + ': hit it with the blaster or net grenades', 3);
+          this.orbitSay('boss', true);
+        }
       } else if (b.state === 'fight') {
         if (b.phased) this.updateBossPhases(b, gdt, dt);
         if (!(b.sprite === 'nebula' && b.phase === 2)) {
@@ -1350,6 +2697,10 @@
           b.x = nx;
           b.y = (BOSS_ART[b.sprite] && BOSS_ART[b.sprite].ground) ? H * 0.5 - Math.abs(Math.sin(b.t * 2.4)) * 10   // walks on the ground
             : H * 0.43 + Math.sin(b.t * 0.7) * 30 - stroke * 24;
+          if (this.bgv) {
+            b.panX = clamp(((b.panX || 0) + this.bgv.panX * W * 0.5 * gdt) * Math.exp(-0.6 * gdt), -W * 0.12, W * 0.12);
+            b.x = clamp(b.x + b.panX, b.size * 0.4, W - b.size * 0.4);
+          }
         }
         // Rock attacks, with a warning glow before each throw
         if (b.transT <= 0) {
@@ -1371,8 +2722,15 @@
           b.minionT = rand(3.5, 5.5);
         }
       } else if (b.state === 'caught') {
-        b.size *= Math.pow(0.35, dt);
-        if (b.t > 1.6) { this.boss = null; this.bossDefeated = true; return; }
+        if (!b.vox && b.t > 0.4) {
+          b.vox = this.voxelize(() => this.drawBossBody(b, b.x, b.y, 1, true), b.x, b.y, b.size * 1.45, this.voxCols(true), 'rise', { spread: 1.3 }) || 'none';
+          Sfx.dissolve(true);
+          window.Haptics && Haptics.buzz(180, 0.8);
+          this.shake = Math.max(this.shake || 0, 0.35);
+          this.burst(b.x, b.y, '#bff9ff', 40, true);
+        }
+        if (b.vox === 'none') b.size *= Math.pow(0.35, dt);        // fallback: the old shrink and fade
+        if (b.t > (b.vox === 'none' ? 1.6 : 3.0)) { this.boss = null; this.bossDefeated = true; return; }
       }
       b.r = b.size * 0.3;
       b.sx = 1 + 0.07 * stroke; b.sy = 1 - 0.1 * stroke;
@@ -1392,7 +2750,7 @@
         this.enterPhase(b, want);
       }
       b.transT = Math.max(0, b.transT - dt);
-      const fn = { nebula: 'phNebula', ember: 'phEmber', lavaclaw: 'phEmber', splash: 'phTide', prism: 'phPrism', echo: 'phEcho', vortex: 'phVortex' }[b.sprite];
+      const fn = { nebula: 'phNebula', ember: 'phEmber', splash: 'phTide', prism: 'phPrism', echo: 'phEcho', vortex: 'phVortex' }[b.sprite];
       if (fn && b.transT <= 0) this[fn](b, gdt, dt);
       // shields that open for 5 seconds (weak spots / crystals)
       if (!b.shield && b.openT > 0) {
@@ -1411,7 +2769,7 @@
         if (ph === 2) { b.copies = null; b.shuffleT = 0; }
         if (ph === 3) { b.copies = null; b.shield = true; b.spots = this.makeSpots(); }
       }
-      if ((b.sprite === 'ember' || b.sprite === 'lavaclaw') && ph === 3) b.speed = 1.7;
+      if (b.sprite === 'ember' && ph === 3) b.speed = 1.7;
       if (b.sprite === 'prism' && ph >= 2) { b.shield = true; b.crystals = this.makeCrystals(); b.nextN = 1; }
       if (b.sprite === 'echo' && ph >= 2) b.dark = true;
       if (b.sprite === 'vortex') { b.bladeSpeed = ph === 2 ? 1.6 : ph === 3 ? 2.4 : 0; b.pull = ph === 3; }
@@ -1530,15 +2888,18 @@
     bossHit(dmg, x, y) {
       const b = this.boss;
       if (!b || b.state !== 'fight') return;
+      if (b.void) { dmg *= b.dmgMul || 1; b.lastHitT = this.time; }
       b.hp = Math.max(0, b.hp - dmg);
       b.flash = 0.25;
+      window.Haptics && Haptics.buzz(b.hp <= 0 ? 260 : 30, b.hp <= 0 ? 1 : 0.6, b.hp <= 0 ? 0 : 60);
       Sfx.pop();
       this.burst(x, y, SPR[b.sprite].color, 10 + dmg * 3);
       this.addScore(50 * dmg, x, y - 40, true);
       if (b.hp <= 0) {
-        b.state = 'caught'; b.t = 0;
+        b.state = b.void ? 'defeat' : 'caught'; b.t = 0;
         this.hazards = []; b.dark = false; b.shield = false; b.bladeSpeed = 0; b.pull = false; b.reflectT = 0;
-        this.nets.push({ x: b.x, y: b.y, t: 0, big: true });
+        if (b.void) { b.spots = null; b.vcrystals = null; b.charge = 0; b.fireT = 0; b.heart = null; this.monsters.forEach((m) => { if (m.state === 'alive') this.catchMonster(m); }); }
+        else this.nets.push({ x: b.x, y: b.y, t: 0, big: true });
         this.earned += 10;
         this.shake = 0.4;
         Sfx.win();
@@ -1767,7 +3128,7 @@
       }
     },
     activateSuper(slot = 0) {
-      if (this.state !== 'play' || this.plat || !this.superReady) return;
+      if (this.state !== 'play' || this.plat || !this.superReady || this.dizzyT > 0) return;
       // the chosen hand; if that hand is empty, the other one
       const id = this.superIds[slot] || this.superIds[1 - slot];
       if (!id) return;
@@ -1777,9 +3138,11 @@
       this.flash = 0.5; this.shake = 0.3;
       Sfx.win();
       this.hud('toast', (SUPERS[id] || {}).name || 'Superpower');
+      const lv = this.superLv(id), mul = this.superMul(id);
       if (id === 'shockwave') {
-        // a huge ring blasts every alien far back and smashes every rock in the air
-        this.monsters.forEach((m) => { if (m.state === 'alive') { m.z = Math.max(0, m.z - 0.45); m.stunT = Math.max(m.stunT || 0, 1); } });
+        // a huge ring blasts every alien far back and smashes every rock in the air (level 2-3: further back, stunned longer)
+        const push = [0.45, 0.55, 0.65][lv - 1], stun = [1, 2, 3][lv - 1];
+        this.monsters.forEach((m) => { if (m.state === 'alive') { m.z = Math.max(0, m.z - push); m.stunT = Math.max(m.stunT || 0, stun); } });
         if (this.monsters.some((m) => m.state === 'attacking')) this.monsters.forEach((m) => { if (m.state === 'attacking') { m.state = 'alive'; m.z = 0.4; } });
         this.rocks.forEach((r) => { if (r.state === 'fly') this.smashRock(r); });
         this.hazards.forEach((hz) => { if (hz.t < hz.warn) hz.dead = true; });
@@ -1788,10 +3151,10 @@
       }
       if (id === 'barrier') {
         // nothing gets through for 8 seconds: rocks, fire walls, beams, reflected shots
-        this.barrierT = 8;
+        this.barrierT = 8 * mul;
       }
       if (id === 'mindswirl') {
-        this.swirlT = 8; this.swirlZapT = 0.4;
+        this.swirlT = 8 * mul; this.swirlZapT = 0.4;
       }
       this.superStart2(id);
       this.superHud();
@@ -1816,23 +3179,25 @@
 
     // ---- the other five superpowers ----
     superStart2(id) {
+      const mul = this.superMul(id), lv = this.superLv(id);
       if (id === 'blackhole') {
         // a black hole in the middle pulls all aliens in; hitting the bunch (or the hole) catches them all
-        this.holeT = 6; this.hole = { x: W / 2, y: H * 0.42 };
+        this.holeT = 6 * mul; this.hole = { x: W / 2, y: H * 0.42 };
         Sfx.slow();
       }
       if (id === 'frost') {
-        this.frostT = 5;
-        this.monsters.forEach((m) => { if (m.state === 'alive' || m.state === 'attacking') { m.state = 'alive'; m.frozenT = 5; m.z = Math.min(m.z, 0.9); } });
+        this.frostT = 5 * mul;
+        this.monsters.forEach((m) => { if (m.state === 'alive' || m.state === 'attacking') { m.state = 'alive'; m.frozenT = 5 * mul; m.z = Math.min(m.z, 0.9); } });
         this.rocks.forEach((r) => { if (r.state === 'fly') this.smashRock(r); });
         Sfx.clink();
       }
-      if (id === 'overdrive') { this.overdriveT = 6; this.players.forEach((p) => { p.reloading = false; p.odCd = 0; }); }
-      if (id === 'meteor') { this.meteorT = 5; this.meteorSpawn = 0; }
+      if (id === 'overdrive') { this.overdriveT = 6 * mul; this.players.forEach((p) => { p.reloading = false; p.odCd = 0; }); }
+      if (id === 'meteor') { this.meteorT = 5 * mul; this.meteorSpawn = 0; }
       if (id === 'aurora') {
-        this.health = Math.min(100, this.health + 40); this.hud('health');
-        this.auroraT = 10; this.auroraTick = 0;
-        this.floater(W / 2, H * 0.5, '+40', '#7dffb0');
+        const heal = [40, 50, 60][lv - 1];
+        this.health = Math.min(100, this.health + heal); this.hud('health');
+        this.auroraT = 10 * mul; this.auroraTick = 0;
+        this.floater(W / 2, H * 0.5, '+' + heal, '#7dffb0');
       }
     },
     updateSuper2(dt) {
@@ -1960,11 +3325,16 @@
       TYPES.forEach((t) => { if (this.caught[t] == null) this.caught[t] = 0; });
       this.bgKey = 'bg' + world;
       this.regionWorld = world;
-      this.levelCfg = { ...this.levelCfg, underwater: !!cfg.underwater, speedMul: 1 + 0.04 * (this.wave - 1), boss: null };
+      this.levelCfg = { ...this.levelCfg, underwater: !!cfg.underwater, ...difficulty(Math.min(10, 1 + Math.floor((this.wave - 1) / 2)), 1 + Math.floor((this.wave - 1) / 5)), boss: null };
       this.waveCaught = 0;
       this.waveTarget = 10 + 2 * this.wave;
       this.bossWave = this.wave % 5 === 0;
       this.bossDefeated = false;
+      this.bossWorldName = cfg.name;
+      // random events: a meteor storm every third wave, a mini-boss now and then
+      this.eventPlan = this.bossWave ? {} : { storm: this.wave % 3 === 2, mini: this.wave % 4 === 3 };
+      this.storm = null; this.stormDone = false;
+      if (this.mini && this.miniDone) { this.mini = null; this.miniDone = false; }
       if (this.bossWave) this.levelCfg.boss = { ...cfg.boss, hp: Math.round(cfg.boss.hp * (1 + this.wave / 15)) };
       this.stateT = 0;
       if (!first) { this.health = Math.min(100, this.health + 10); this.hud('health'); Sfx.win(); }
@@ -1991,10 +3361,11 @@
         this.mult = Math.min(5, 1 + Math.floor((this.combo - 1) / 3));
         if (this.combo >= 2) this.hud('combo', { combo: this.combo, mult: this.mult });
         if (this.combo >= 5) this.hud('stat', { ev: 'combo', n: this.combo });
+        if (this.combo === 5 || this.combo === 10) this.orbitSay('combo');
       }
-      const got = Math.round(pts * (noCombo ? 1 : this.mult));
+      const got = Math.round(pts * (noCombo ? 1 : this.mult) * (this.hyperT > 0 ? 2 : 1));
       this.score += got;
-      this.floater(x, y, '+' + got, this.mult > 1 && !noCombo ? '#ffd27a' : '#ffffff');
+      this.floater(x, y, '+' + got, this.hyperT > 0 ? '#ffe680' : this.mult > 1 && !noCombo ? '#ffd27a' : '#ffffff');
       this.hud('score', this.score);
     },
     floater(x, y, text, color) {
@@ -2163,7 +3534,7 @@
     closeBelt(p) { Object.assign(p.belt, { open: false, hover: 0, sel: null, selT: 0, away: 0 }); },
     toggleBelt() {
       const p = this.players[0];
-      if (this.state !== 'play' || this.paused || !p) return;
+      if (this.state !== 'play' || this.paused || !p || this.dizzyT > 0) return;
       if (p.belt.open) this.closeBelt(p); else this.openBelt(p);
     },
 
@@ -2185,6 +3556,7 @@
     },
     keyEquipIndex(i) { const g = this.gearList()[i]; if (g) this.keyEquip(g.id); },
     keyEquip(id) {
+      if (this.dizzyT > 0) return;
       const p = this.players[0];
       if (this.state === 'play' && !this.paused && p) { this.equip(p, id); this.closeBelt(p); }
     },
@@ -2231,6 +3603,7 @@
         const assist = magnet ? Math.max(this.assist, 0.6) : this.assist;
         let best = null, bestD = Infinity, bestR = 0;
         for (const m of targets) {
+          if (m.decoy) continue;
           const reach = m.r * (magnet ? 2.6 + assist * 1.4 : 1.6 + assist * 1.6) * (m.ref === p.lockOn || m === p.lockOn ? 1.35 : 1);
           const d = Math.hypot(m.px - raw.x, m.py - raw.y);
           if (d < reach && d < bestD) { best = m; bestD = d; bestR = reach; }
@@ -2248,6 +3621,7 @@
       let target = null, td = Infinity;
       if (!blocked) {
         for (const m of targets) {
+          if (m.decoy && inp.usesDwell()) continue;
           const d = Math.hypot(m.px - pos.x, m.py - pos.y);
           if (d < m.r * (1 + (pullAim ? 0.3 : magnet ? 1.1 : 0.7) * Math.max(this.assist, magnet ? 0.6 : 0)) * (1 + (this.homing || 0) + (this.steadyHit || 0)) && d < td) { target = m.ref || m; td = d; }
         }
@@ -2287,6 +3661,7 @@
       const end = target ? (target.px != null ? { x: target.px, y: target.py } : { x: target.x, y: target.y }) : p.reticle;
       this.lasers.push({ x1: muzzle.x, y1: muzzle.y, x2: end.x, y2: end.y, t: 0.16, color: this.laserColor(p) });
       Sfx.laser();
+      this._shotNow = true;
       if (target && target.rock) { this.hits++; this.smashRock(target); }
       else if (target && target.bossPart) { this.hits++; this.bossPartHit(target, this.blasterDmg * (od ? 2 : 1), end, p); }
       else if (this.holeT > 0 && (!target || (target.pullK || 0) > 0.6) && Math.hypot(end.x - this.hole.x, end.y - this.hole.y) < 200 && this.holeCollapse()) { this.hits++; }
@@ -2298,6 +3673,7 @@
         if (!caught && this.wAb && this.wAb.id === 'bubble') target.bubbleT = [2, 3, 4][wl - 1];
         if (!caught && this.wAb && this.wAb.id === 'ember' && !(target.burnT > 0)) target.burnT = [2, 1.5, 1][wl - 1];
       }
+      this._shotNow = false;
       if (p.ammo === 0) this.setPrompt(this.reloadHint(p), 2, p);
       this.hud('ammo');
     },
@@ -2327,9 +3703,11 @@
       if (this.wAb && this.wAb.id === 'whirl') this.whirls.push({ x, y, t: 0, tick: 0.5, dur: [2, 3, 4][this.wAb.lv - 1] });
       Sfx.net();
       let n = 0;
+      this._shotNow = true;
       for (const m of this.monsters) {
         if (m.state === 'alive' && Math.hypot(m.px - x, m.py - y) < NET_R + m.r * 0.4) { if (this.damageMonster(m, this.netDmg, true)) n++; }
       }
+      this._shotNow = false;
       for (const r of this.rocks) if (Math.hypot(r.x - x, r.y - y) < NET_R) this.smashRock(r);
       if (this.bossNet(x, y)) return;
       this.hud('toast', n > 1 ? `Net caught ${n} monsters!` : n === 1 ? 'Net caught 1 monster' : 'The net missed');
@@ -2338,18 +3716,129 @@
 
     // A hit: armoured aliens lose a hit point (and flash); at 0 they are caught
     damageMonster(m, dmg, netted) {
-      if (m.frozenT > 0) dmg = Math.max(dmg, m.hp || 1);
+      if (m.decoy) { if (m.state === 'alive' && this._shotNow) this.decoyHit(m); return false; }   // only your own shots scare decoys
+      if (m.tutImmune) {
+        if (m.state === 'alive' && this.time - (m.tutSaid || -9) > 1.2) { m.tutSaid = this.time; Sfx.clink(); m.hitFlash = 0.22; this.floater(m.px, m.py - m.r, window.t ? t('Use your shield!') : 'Use your shield!', '#ffd27a'); }
+        return false;
+      }
+      if (m.mini && m.frozenT > 0) dmg = Math.min(dmg + 1, 3);
+      else if (m.frozenT > 0) dmg = Math.max(dmg, m.hp || 1);
       if (m.state !== 'alive') return false;
       m.hp = (m.hp || 1) - dmg;
       if (m.hp <= 0) { this.catchMonster(m, netted); return true; }
       m.hitFlash = 0.22;
       Sfx.clink();
-      this.burst(m.px, m.py, '#cfe8ff', 6, true);
+      window.Haptics && Haptics.buzz(18, 0.3, 50);
+      this.burst(m.px, m.py, m.mini ? '#ff8a6a' : '#cfe8ff', 6, true);
       return false;
     },
 
+    // ---- Voxel dissolve: a caught alien (or a beaten boss) breaks into little glowing cubes ----
+    // The alien is drawn once on a hidden canvas, shrunk to a small grid, and every coloured grid cell becomes a cube.
+    voxelize(drawFn, cx, cy, box, cols, mode, opt = {}) {
+      if (!this.voxels) this.voxels = [];
+      if (this.voxels.length > 1600) return false;
+      let d;
+      const S = Math.max(8, Math.ceil(box));
+      try {
+        const off = this._voxOff || (this._voxOff = document.createElement('canvas'));
+        off.width = S; off.height = S;
+        const oc = off.getContext('2d');
+        const keep = this.ctx;
+        this.ctx = oc;
+        try { oc.save(); oc.translate(S / 2 - cx, S / 2 - cy); drawFn(); oc.restore(); } finally { this.ctx = keep; }
+        const g = this._voxGrid || (this._voxGrid = document.createElement('canvas'));
+        g.width = cols; g.height = cols;
+        const gc = this._voxGc && this._voxGc.canvas === g ? this._voxGc : (this._voxGc = g.getContext('2d', { willReadFrequently: true }));
+        gc.clearRect(0, 0, cols, cols);
+        gc.drawImage(off, 0, 0, cols, cols);
+        d = gc.getImageData(0, 0, cols, cols).data;
+      } catch (e) { return false; }
+      const cell = S / cols, x0 = cx - S / 2, y0 = cy - S / 2;
+      let n = 0;
+      for (let gy = 0; gy < cols; gy++) for (let gx = 0; gx < cols; gx++) {
+        const i = (gy * cols + gx) * 4;
+        if (d[i + 3] < 110) continue;
+        const x = x0 + (gx + 0.5) * cell, y = y0 + (gy + 0.5) * cell;
+        const v = { x, y, s: cell * 0.94, col: `rgb(${d[i]},${d[i + 1]},${d[i + 2]})`, t: 0, rot: 0, vr: rand(-6, 6), mode, cx, cy };
+        if (mode === 'net') {                 // pulled into the net and gone
+          v.delay = 0.1 + rand(0, 0.2); v.life = rand(0.4, 0.6);
+        } else if (mode === 'rise') {         // a beaten boss: crumbles from the bottom up and floats away
+          v.delay = (1 - gy / cols) * (opt.spread || 1.3) + rand(0, 0.18);
+          v.life = rand(0.8, 1.2); v.vx = rand(-90, 90) + (x - cx) * 0.4; v.vy = -rand(160, 360); v.vr = rand(-4, 4);
+        } else {                              // shot: bursts outward
+          const dx = x - cx, dy = y - cy, dist = Math.hypot(dx, dy) || 1;
+          v.delay = 0.08 + rand(0, 0.08) + dist / S * 0.25; v.life = rand(0.5, 0.8);
+          const sp = rand(160, 420);
+          v.vx = dx / dist * sp + rand(-40, 40); v.vy = dy / dist * sp - rand(60, 180);
+        }
+        this.voxels.push(v); n++;
+      }
+      return n > 0;
+    },
+    updateVoxels(dt) {
+      if (!this.voxels || !this.voxels.length) return;
+      for (const v of this.voxels) {
+        if (v.delay > 0) { v.delay -= dt; continue; }
+        v.t += dt;
+        v.rot += v.vr * dt;
+        if (v.mode === 'net') {
+          const k = Math.min(1, dt * 7);
+          v.x += (v.cx - v.x) * k; v.y += (v.cy - v.y) * k;
+        } else {
+          v.x += v.vx * dt; v.y += v.vy * dt;
+          v.vx *= 0.96; v.vy = v.vy * 0.96 - (v.mode === 'rise' ? 40 : 120) * dt;   // they float up a little
+        }
+      }
+      this.voxels = this.voxels.filter((v) => v.t < v.life);
+    },
+    drawVoxels() {
+      if (!this.voxels || !this.voxels.length) return;
+      const c = this.ctx;
+      c.save();
+      const base = c.getTransform();
+      for (const v of this.voxels) {
+        const k = v.delay > 0 ? 0 : v.t / v.life;
+        const a = 1 - k * k;
+        const sz = v.s * (v.mode === 'net' ? 1 - k * 0.9 : 1 - k * 0.55);
+        if (sz < 0.5 || a <= 0) continue;
+        c.setTransform(base);
+        c.translate(v.x, v.y); if (v.rot) c.rotate(v.rot);
+        const h = sz / 2, e = Math.max(1, sz * 0.22);
+        c.globalAlpha = a;
+        c.fillStyle = v.col; c.fillRect(-h, -h, sz, sz);
+        c.fillStyle = 'rgba(255,255,255,0.38)'; c.fillRect(-h, -h, sz, e);          // light top face
+        c.fillStyle = 'rgba(0,0,0,0.28)'; c.fillRect(h - e, -h + e, e, sz - e);    // dark side face
+        if (k > 0) {                                                                 // glowing cyan edge once it breaks loose
+          c.globalAlpha = a * 0.7; c.strokeStyle = '#9ff8ff'; c.lineWidth = Math.max(1, sz * 0.1);
+          c.strokeRect(-h, -h, sz, sz);
+        }
+      }
+      c.restore();
+    },
+    voxCols(big) {
+      if (this.fxReduced) return big ? 20 : 12;
+      if (this.lowFx) return big ? 28 : 18;
+      return big ? 34 : 22;
+    },
+    // turn a caught alien into cubes (instead of the old fade); returns false if that was not possible
+    dissolveMonster(m, netted) {
+      const s = SPR[m.type];
+      const sheet = m.mini ? this.tintSheet(m.type) : m.shiny ? this.shinySheet(m.type) : Assets.images[m.type];
+      if (!sheet || !s) return false;
+      const ok = this.voxelize(() => this.drawFrame(sheet, s, m.frame, m.px, m.py, m.size, m.flip, 1, m.rot || 0, m.sx || 1, m.sy || 1),
+        m.px, m.py, m.size * 1.6, this.voxCols(m.mini), netted ? 'net' : 'burst');
+      m.vox = ok;
+      return ok;
+    },
+
     catchMonster(m, netted) {
+      if (m.decoy) { m.state = 'dying'; m.t = 0; return; }
+      if (m.mini) return this.catchMini(m, netted);
+      if (this.tut) this.tut.caught++;
+      window.Haptics && Haptics.buzz(30, 0.5, 40);
       m.state = 'dying'; m.t = 0; m.netted = !!netted;
+      this.hyperAdd(this.time - this.lastCatchT < 2.5 ? 0.13 : 0.05);
       this.earned += this.crystalValue() * (m.shiny ? 5 : 1);
       this.addScore((m.elite ? 250 : 100) * (m.shiny ? 5 : 1), m.px, m.py - m.r);
       this.rollDrop(m);
@@ -2359,7 +3848,8 @@
       this.hud('stat', { ev: 'catch', type: m.type, elite: !!m.elite, shiny: !!m.shiny, netted: !!netted });
       if (this.caught[m.type] < goalOf(m.type)) this.caught[m.type]++;
       this.hud('caught', m.type);
-      Sfx.digitize();
+      this.dissolveMonster(m, netted);
+      Sfx.dissolve();
       this.burst(m.px, m.py, SPR[m.type].color, 22, true);
       if (this.caught[m.type] === goalOf(m.type) && !this['done_' + m.type]) { this['done_' + m.type] = true; this.hud('toast', SPR[m.type].name + ' complete!'); }
       this.hud('catch');
@@ -2402,7 +3892,7 @@
       return 'Right-click or press R to reload';
     },
 
-    keyReload() { const p = this.players[0]; if (this.state === 'play' && !this.paused && p) p.input.mouseReload = true; },
+    keyReload() { const p = this.players[0]; if (this.state === 'play' && !this.paused && p && !(this.dizzyT > 0)) p.input.mouseReload = true; },
 
     setPrompt(text, seconds, p) {
       this.promptText = text ? this.tag(p) + text : '';
@@ -2410,6 +3900,7 @@
     },
 
     updateEffects(dt) {
+      this.updateVoxels(dt);
       for (const p of this.particles) { p.life -= dt; p.x += p.vx * dt; p.y += p.vy * dt; p.vx *= 0.94; p.vy = p.vy * 0.94 + 300 * dt; }
       this.particles = this.particles.filter((p) => p.life > 0);
       for (const l of this.lasers) l.t -= dt;
@@ -2425,24 +3916,28 @@
 
     finish() {
       this.state = 'done';
+      if (this.hyperT > 0) this.endHyper();
+      this.dizzyT = 0; this.setDizzyLook(false);
       // end-of-level bonuses for the score
       const acc = this.shots ? Math.round((this.hits / this.shots) * 100) : 0;
       const par = this.levelCfg.par || 60;
+      const time = this.time - (this.walk ? this.walk.walkTime : 0);     // walking between stops does not count
       this.bonus = this.won ? {
         noDamage: this.damageTaken ? 0 : 1000,
         accuracy: acc * 10,
-        time: Math.max(0, Math.round((par - this.time) * 20)),
+        time: Math.max(0, Math.round((par - time) * 20)),
       } : { noDamage: 0, accuracy: 0, time: 0 };
       this.score += this.bonus.noDamage + this.bonus.accuracy + this.bonus.time;
       this.players.forEach((p) => { p.belt.open = false; });
       if (this.onEnd) this.onEnd({
-        won: this.won, time: this.time,
+        won: this.won, time,
         accuracy: this.shots ? Math.round((this.hits / this.shots) * 100) : 0,
         earned: this.earned, caught: { ...this.caught }, health: this.health,
         boss: this.levelCfg.boss ? { name: this.levelCfg.boss.name, caught: this.bossDefeated } : null,
         world: this.levelId, stage: this.stage, par: this.levelCfg.par,
         score: this.score, bonus: this.bonus, bestCombo: this.bestCombo, drops: { ...this.levelDrops },
-        endless: !!this.endless, wave: this.wave,
+        endless: !!this.endless, wave: this.wave, tutorial: !!this.tut,
+        special: this.special, reason: this.won ? null : this.loseReason || null, survived: this.surviveT,
       });
     },
 
@@ -2537,29 +4032,45 @@
       const n = this.players.length || 1;
       const ax = this.players.reduce((a, p) => a + p.smoothAim.x, 0) / n || W / 2;
       const ay = this.players.reduce((a, p) => a + p.smoothAim.y, 0) / n || H / 2;
-      const px = (ax / W - 0.5) * -36, py = (ay / H - 0.5) * -20;
-      const src = img[this.bgKey || 'bg' + this.levelId];
+      const bgv = this.bgv && !this.bgv.failed && this.bgv.ready && this.bgv.v.videoWidth ? this.bgv : null;
+      const px = (ax / W - 0.5) * (bgv ? -14 : -36), py = (ay / H - 0.5) * (bgv ? -8 : -20);
+      // A walk level shows its video; the picture is the fallback while it loads or if it fails
+      const wk = this.walk && !this.walk.failed && this.walk.ready && this.walk.v.videoWidth ? this.walk : null;
+      const src = wk ? { width: wk.v.videoWidth, height: wk.v.videoHeight } : img[this.bgKey || 'bg' + this.levelId];
       const cover = src && src.width ? Math.max((W * 1.06) / src.width, (H * 1.06) / src.height) : 1;
       const bw = src && src.width ? src.width * cover : W * 1.06, bh = src && src.width ? src.height * cover : H * 1.06;
       // The background is scaled once to the canvas size, so each frame is a cheap 1:1 copy
-      const bgKey = this.bgKey || 'bg' + this.levelId;
-      if (!this.bgCache || this.bgCacheKey !== bgKey + '/' + this.scale + '/' + W) {
-        const bc = document.createElement('canvas');
-        bc.width = Math.round(bw * this.scale); bc.height = Math.round(bh * this.scale);
-        bc.getContext('2d').drawImage(img[bgKey], 0, 0, bc.width, bc.height);
-        this.bgCache = bc; this.bgCacheKey = bgKey + '/' + this.scale + '/' + W;
+      // (while walking the video is drawn directly; while standing still its frame is cached the same way)
+      const bgKey = wk ? 'walk' + wk.stop : this.bgKey || 'bg' + this.levelId;
+      if (bgv) {
+        const vv = bgv.v, cv = Math.max((W * 1.03) / vv.videoWidth, (H * 1.03) / vv.videoHeight);
+        const vw = vv.videoWidth * cv, vh = vv.videoHeight * cv;
+        c.drawImage(vv, (W - vw) / 2 + px, (H - vh) / 2 + py, vw, vh);
+      } else if (wk && wk.moving) c.drawImage(wk.v, (W - bw) / 2 + px, (H - bh) / 2 + py, bw, bh);
+      else {
+        if (!this.bgCache || this.bgCacheKey !== bgKey + '/' + this.scale + '/' + W) {
+          const bc = document.createElement('canvas');
+          bc.width = Math.round(bw * this.scale); bc.height = Math.round(bh * this.scale);
+          bc.getContext('2d').drawImage(wk ? wk.v : img[bgKey], 0, 0, bc.width, bc.height);
+          this.bgCache = bc; this.bgCacheKey = bgKey + '/' + this.scale + '/' + W;
+        }
+        c.drawImage(this.bgCache, (W - bw) / 2 + px, (H - bh) / 2 + py, bw, bh);
       }
-      c.drawImage(this.bgCache, (W - bw) / 2 + px, (H - bh) / 2 + py, bw, bh);
 
       if (this.levelCfg.underwater && !this.fxReduced) this.drawBubbles();
-      if (this.boss) this.drawBoss();
+      const intro = this.boss && this.boss.state === 'enter' && !this.boss.void;
+      if (this.boss && !intro) this.drawBoss();
+      if (this.friend) this.drawFriend();
+      if (this.guard) this.drawGuard();
 
       // Monsters, far ones first
       if (this.holeT > 0) this.drawHole();
       const sorted = [...this.monsters].sort((a, b) => a.z - b.z);
       for (const m of sorted) {
         const s = SPR[m.type];
-        if (m.state === 'dying') {
+        if (m.state === 'dying' && m.vox) {
+          continue;
+        } else if (m.state === 'dying') {
           const q = m.t / 0.45;
           const grow = m.netted ? 1 - q * 0.6 : 1 + q * 0.5;    // netted monsters shrink into the net
           this.drawFrame(img[m.type], s, m.frame, m.px, m.py, m.size * grow, m.flip, 1 - q, m.rot || 0);
@@ -2577,8 +4088,14 @@
             c.save(); c.globalAlpha = (m.z - 0.7) / 0.3 * 0.5; c.fillStyle = '#ff5a7e';
             c.beginPath(); c.ellipse(m.px, m.py + m.size * 0.45, m.size * 0.4, m.size * 0.08, 0, 0, Math.PI * 2); c.fill(); c.restore();
           }
-          const sheet = m.shiny ? this.shinySheet(m.type) : img[m.type];
-          this.drawFrame(sheet, s, m.frame, m.px, m.py, m.size, m.flip, Math.min(1, m.age * 3), m.rot || 0, m.sx || 1, m.sy || 1);
+          const sheet = m.mini ? this.tintSheet(m.type) : m.shiny ? this.shinySheet(m.type) : img[m.type];
+          if (m.mini) {
+            c.save(); c.globalAlpha = 0.45 + 0.15 * Math.sin(this.time * 6);
+            const rg = c.createRadialGradient(m.px, m.py, m.size * 0.1, m.px, m.py, m.size * 0.75);
+            rg.addColorStop(0, 'rgba(255, 60, 40, 0.7)'); rg.addColorStop(1, 'rgba(255, 60, 40, 0)');
+            c.fillStyle = rg; c.beginPath(); c.arc(m.px, m.py, m.size * 0.75, 0, Math.PI * 2); c.fill(); c.restore();
+          }
+          this.drawFrame(sheet, s, m.frame, m.px, m.py, m.size, m.flip, m.mini ? 1 : Math.min(1, m.age * 3), m.rot || 0, m.sx || 1, m.sy || 1);
           if (m.hitFlash > 0) {
             c.save(); c.globalCompositeOperation = 'lighter';
             this.drawFrame(sheet, s, m.frame, m.px, m.py, m.size, m.flip, m.hitFlash * 4, m.rot || 0, m.sx || 1, m.sy || 1);
@@ -2586,11 +4103,20 @@
           }
           if (m.elite) this.drawArmor(m);
           this.drawStatus(m);
+          if (m.mini) this.drawMiniBar(m);
+          if (m.toFriend && this.friend && this.friend.hp > 0) {
+            // a red "!" above aliens that go for the bubble
+            c.save(); c.font = `800 ${Math.round(30 + m.size * 0.1)}px ${FONT}`; c.textAlign = 'center'; c.textBaseline = 'bottom';
+            c.fillStyle = '#ff4a5a'; c.strokeStyle = '#fff'; c.lineWidth = 4; const yy = m.py - m.size * 0.45 + Math.sin(this.time * 8) * 4;
+            c.strokeText('!', m.px, yy); c.fillText('!', m.px, yy); c.restore();
+          }
           if (m.shiny && Math.random() < 0.15) this.burst(m.px + rand(-1, 1) * m.r, m.py + rand(-1, 1) * m.r, '#ffd27a', 1, true);
         }
       }
 
       if (this.boss && this.boss.dark && this.boss.state === 'fight') this.drawDarkness();
+      if (this.dark && this.state !== 'countdown') this.drawFlashlight();
+      if (this.boss && this.boss.void) this.drawVoidParts(this.boss);
       this.drawRocks();
       if (this.hazards.length) this.drawHazards();
       if (this.whirls.length) this.drawWhirls();
@@ -2605,6 +4131,7 @@
         c.save(); c.globalAlpha = Math.min(1, this.slowT) * 0.14; c.fillStyle = '#9fd8ff'; c.fillRect(0, 0, W, H); c.restore();
       }
 
+      this.drawVoxels();
       // Particles and laser shots (each player's laser in their own colour)
       c.save();
       c.globalCompositeOperation = 'lighter';
@@ -2641,8 +4168,13 @@
         if (p.equipped === 'shield' || p.shieldFlash > 0) this.drawShield(p);
       }
 
-      if (this.boss && this.boss.state !== 'caught') this.drawBossBar();
+      if (this.boss && this.boss.state !== 'caught' && !intro) this.drawBossBar();
       if (this.endless && !this.boss) this.drawWaveLabel();
+      if (this.special) this.drawSpecialHud();
+      if (this.tut && this.state === 'play') this.drawTutorial();
+      this.drawHyper();
+      if (intro) this.drawBossIntro(this.boss);
+      this.drawBanner();
       if (this.state === 'play') {
         if (this.players.some((p) => p.belt.open)) this.drawSlowMo();
         for (const p of this.players) { if (!this.touchMode) this.drawBelt(p); if (this.players.length > 1) this.drawPlayerHud(p); }
@@ -2651,6 +4183,7 @@
       if (this.state === 'play' || this.state === 'countdown' || this.state === 'calibrate') {
         for (const p of this.players) this.drawReticle(p);
       }
+      if (this.dizzyT > 0) this.drawDizzy();
     },
 
     drawRocks() {
@@ -2659,6 +4192,21 @@
         if (r.art && Assets.images[r.art.fx]) {
           const img = Assets.images[r.art.fx], m = r.art.fxMeta;
           this.drawFrame(img, m, r.variant, r.x, r.y, r.size * 1.9, false, 1, r.t * 3);
+          continue;
+        }
+        if (r.kind === 'meteor') {
+          const s = r.size * 0.5, dx = r.x - r.x0, dy = r.y - r.y0, len = Math.hypot(dx, dy) || 1;
+          c.save(); c.globalCompositeOperation = 'lighter';
+          const tx = r.x - dx / len * s * 4, ty = r.y - dy / len * s * 4;
+          const tg = c.createLinearGradient(r.x, r.y, tx, ty); tg.addColorStop(0, 'rgba(255, 200, 80, 0.9)'); tg.addColorStop(1, 'rgba(255, 60, 20, 0)');
+          c.strokeStyle = tg; c.lineWidth = s * 1.3; c.lineCap = 'round'; c.beginPath(); c.moveTo(r.x, r.y); c.lineTo(tx, ty); c.stroke();
+          c.restore();
+          c.save(); c.translate(r.x, r.y); c.rotate(r.t * r.spin);
+          c.shadowColor = '#ff7a2a'; c.shadowBlur = this.glow(30);
+          c.fillStyle = '#4a2a1a'; c.strokeStyle = '#ffb347'; c.lineWidth = Math.max(3, s * 0.12);
+          c.beginPath(); r.pts.forEach(([x, y], i) => (i ? c.lineTo(x * s, y * s) : c.moveTo(x * s, y * s))); c.closePath(); c.fill(); c.stroke();
+          c.shadowBlur = 0; c.fillStyle = 'rgba(255, 150, 60, 0.75)'; c.beginPath(); c.arc(-s * 0.2, -s * 0.15, s * 0.3, 0, Math.PI * 2); c.fill();
+          c.restore();
           continue;
         }
         if (r.kind === 'ring') {
@@ -2766,7 +4314,9 @@
 
     drawBoss() {
       const b = this.boss;
-      let alpha = b.state === 'caught' ? Math.max(0, 1 - b.t / 1.6) : Math.min(1, b.t / 0.6 + (b.state === 'fight' ? 1 : 0));
+      if (b.void) return this.drawVoid(b);
+      if (b.state === 'caught' && b.vox && b.vox !== 'none') return;         // it is cubes now
+      let alpha = b.state === 'caught' ? (b.vox === 'none' ? Math.max(0, 1 - b.t / 1.6) : 1) : Math.min(1, b.t / 0.6 + (b.state === 'fight' ? 1 : 0));
       if (b.submerged > 0) alpha *= b.submerged > 1.7 ? (b.submerged - 1.7) / 0.3 : b.submerged < 0.3 ? 1 - b.submerged / 0.3 : 0.12;
       if (b.phased && b.phase === 2 && b.copies && b.state === 'fight') {
         // three identical copies; only the real one has a tiny sparkle on its crown
@@ -3007,6 +4557,7 @@
 
     drawBossBar() {
       const c = this.ctx, b = this.boss;
+      if (b.void) return this.drawVoidBar(b);
       const w = 640, h = 24, x = (W - w) / 2, y = 218;
       c.save();
       c.font = `700 28px ${FONT}`; c.textAlign = 'center'; c.textBaseline = 'bottom';
@@ -3276,5 +4827,5 @@
     },
   };
 
-  window.SV = { SUPERS, viewW: () => W, REGION_MAT, Assets, Input, inputs, Level, SPR, LEVELS, STAGES, stageConfig, starRating, ALL_TYPES, GEAR, TIME_GEAR, SHIELD_MAX, TROPHIES, shieldMax: () => SHIELD_MAX, get TYPES() { return TYPES; }, get GOAL() { return GOAL; }, goalOf };
+  window.SV = { SPECIALS, SPECIAL_INFO, specialOf, SUPERS, viewW: () => W, REGION_MAT, Assets, Input, inputs, Level, SPR, LEVELS, STAGES, stageConfig, starRating, ALL_TYPES, GEAR, TIME_GEAR, SHIELD_MAX, TROPHIES, shieldMax: () => SHIELD_MAX, get TYPES() { return TYPES; }, get GOAL() { return GOAL; }, goalOf };
 })();
