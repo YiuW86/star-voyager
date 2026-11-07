@@ -119,8 +119,22 @@ window.Sfx = {
     const now = this.ctx ? this.ctx.currentTime : 0;
     if (!big && now - (this._dissT || -1) < 0.07) return;
     this._dissT = now;
-    if (this.sample('dissolve', big ? 1 : 0.8, big ? 0.72 : 0.93 + Math.random() * 0.16)) return;
+    if (this.sample('dissolve', big ? 0.4 : 0.26, big ? 0.72 : 0.93 + Math.random() * 0.16)) return;   // softer than the music
     this.digitize();
+  },
+  // a tiny alien voice: soft, short, and never two at once
+  chirp(v, mood) {
+    if (!this.enabled || !this.ctx || !v) return;
+    const now = this.ctx.currentTime;
+    if (now - (this._chirpT || -1) < (mood === 'hello' ? 0.6 : 0.15)) return;
+    this._chirpT = now;
+    const b = v.base, w = v.wave, vol = 0.03 * (v.vol || 1);
+    if (mood === 'hello') { this.tone(b, 0.08, w, vol, b * 1.45); this.tone(b * 1.45, 0.11, w, vol, b * 1.85, 0.09); }
+    else if (mood === 'ouch') this.tone(b * 1.7, 0.14, w, vol * 1.2, b * 0.9);
+    else if (mood === 'hehe') [1.6, 1.95, 1.6, 2.05].forEach((k, i) => this.tone(b * k, 0.055, w, vol, null, i * 0.075));
+    else if (mood === 'giggle') [1.4, 1.75, 1.5, 1.85, 1.6].forEach((k, i) => this.tone(b * k, 0.05, w, vol * 0.9, null, i * 0.06));
+    else if (mood === 'scared') { this.tone(b * 2, 0.22, w, vol, b * 2.7); this.tone(b * 2.2, 0.18, 'sine', vol * 0.6, b * 1.4, 0.12); }
+    else if (mood === 'yawn') this.tone(b * 1.15, 0.5, 'sine', vol * 0.9, b * 0.65);
   },
   victory() { if (!this.sample('victory', 0.9)) this.win(); },
   win()    { [523, 659, 784, 1046].forEach((f, i) => this.tone(f, 0.25, 'triangle', 0.1, null, i * 0.12)); },

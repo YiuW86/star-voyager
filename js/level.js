@@ -323,6 +323,8 @@
   const lerp = (a, b, t) => a + (b - a) * t;
   const dist = (a, b) => Math.hypot(a.x - b.x, a.y - b.y);
   const FONT = '"Chakra Petch", "Segoe UI", Roboto, Arial, sans-serif';
+  const EMOJI_FONT = '"Noto Color Emoji", "Apple Color Emoji", "Segoe UI Emoji", sans-serif';
+  const pick = (a) => a[Math.floor(Math.random() * a.length)];
 
   // ---------------- Assets ----------------
   const Assets = {
@@ -675,7 +677,7 @@
 
       this.health = 100;
       this.caught = Object.fromEntries(TYPES.map((t) => [t, 0]));
-      this.monsters = []; this.particles = []; this.voxels = []; this.lasers = []; this.rocks = []; this.nets = []; this.flying = [];
+      this.monsters = []; this.particles = []; this.voxels = []; this.trails = []; this.lasers = []; this.rocks = []; this.nets = []; this.flying = [];
       this.spawnTimer = 0.8;
       this.time = 0; this.shots = 0; this.hits = 0; this.earned = 0;
       this.medkitUsed = false;
@@ -1218,6 +1220,7 @@
       if (opts && opts.decoy) { m.decoy = true; m.elite = false; m.hp = m.maxHp = 1; m.shiny = false; m.dur *= 0.8; }
       // level 3: about half of the aliens go for the bubble with the friendly alien
       if (!m.decoy && this.friend && this.friend.hp > 0 && Math.random() < 0.5) { m.toFriend = true; m.x0 = clamp(this.friend.x / W + rand(-0.12, 0.12), 0.1, 0.9); }
+      this.lifeInit(m);
       this.monsters.push(m);
       return m;
     },
@@ -1266,7 +1269,7 @@
       const zRate = s0.pulse ? 0.25 + 2.2 * Math.max(0, Math.sin(m.age * 3 + m.phase))
         : s0.swim === 'jelly' ? 0.35 + 1.4 * stroke : 1;
       this.updateStatus(m, dt);
-      if (!frozen) m.z += (dt / m.dur) * zRate * this.alienSlow(m) * (this.bgv && !m.mini ? this.bgv.speed : 1);
+      if (!frozen && !(m.peekT > 0)) m.z += (dt / m.dur) * zRate * this.alienSlow(m) * (this.bgv && !m.mini ? this.bgv.speed : 1) * (m.sleepy ? 0.85 : 1);
       if (m.tutHold != null) m.z = Math.min(m.z, m.tutHold);
       // moving film: the alien slides along with the scenery when the camera turns (closer = a bit more),
       // and drifts slowly back toward the middle so it does not leave the screen
@@ -1281,7 +1284,8 @@
       const wob = Math.sin(m.phase + m.age * wobFreq) * m.amp * 0.55 * (0.35 + 0.65 * m.z) * (s0.swim === 'walk' ? 0.35 : 1);
       if (!frozen && this.alienSlow(m) > 0 && !m.noEvade) this.updateEvasion(m, s0, dt);
       const px = clamp(lerp(m.x0, 0.5, m.z * 0.35) * W + wob + (m.ex || 0) + (m.panX || 0), 70, W - 70);
-      m.vx = dt > 0 ? (px - m.px) / dt : 0;
+      m.vx = dt > 0 ? (px - (m.bpx != null ? m.bpx : px)) / dt : 0;     // speed from the real path (not from little shivers and hops)
+      m.bpx = px;
       m.px = px;
       m.py = lerp(0.4, 0.6, e) * H + Math.sin(m.age * 2.1 + m.phase) * 10 * (0.5 + m.z);
       m.size = lerp(80, 360, e) * (s0.pulse ? 1 + 0.06 * Math.sin(m.age * 6 + m.phase) : 1) * (m.mini ? 1.15 : 1);
@@ -1322,6 +1326,8 @@
       } else if (Math.abs(m.vx) > 120) { m.frame = s.side[step % s.side.length]; m.flip = (m.vx < 0) !== !!s.faceLeft; if (s.swim) m.rot *= 0.4; }
       else { m.frame = s.front[step % s.front.length]; m.flip = false; }
 
+      this.lifeUpdate(m, dt, s0, frozen);
+
       // Some monsters throw rocks from mid-distance
       if (!frozen && ((s.thrower && !m.noThrow) || m.mini || m.tutThrow) && !m.decoy && !(m.crashT > 0) && m.z > 0.25 && m.z < 0.9 && this.alienSlow(m) === 1) {
         m.throwT -= dt;
@@ -1335,6 +1341,268 @@
         if (m.decoy && m.z >= 0.95) { m.gone = true; this.burst(m.px, m.py, '#ffffff', 8, true); return; }    // decoys just fly past
         if (m.toFriend && this.friend && this.friend.hp > 0 && m.z >= 0.62) { m.state = 'attacking'; m.atk = 'friend'; m.t = 0; return; }
         if (m.z >= 1) { m.state = 'attacking'; m.t = 0; }
+      }
+    },
+
+    // =====================================================================================
+    // Alive aliens: body language, feelings, voices, little idle moments and a trail per kind
+    // =====================================================================================
+    // which trail each kind leaves behind, and what its voice sounds like
+    TRAIL_OF: { nebula: 'sparkle', prism: 'shard', solara: 'sparkle', glide: 'streak', vexa: 'bubble', pulsar: 'ring', nimbus: 'drop',
+      echo: 'ring', splash: 'drop', razor: 'shard', orbita: 'sparkle', vortex: 'swirl', skybloom: 'petal', slimora: 'slime', vaporis: 'mist',
+      emberoo: 'spark', floravex: 'shard', orbello: 'bubble', orblet: 'bubble', ember: 'spark' },
+    TRAIL_COL: { nebula: '#ff9ad8', prism: '#9ff8ff', solara: '#ffd27a', glide: '#c8f6ff', vexa: '#c79bff', pulsar: '#ff7ad0', nimbus: '#8fd0ff',
+      echo: '#7ff6ff', splash: '#6ec8ff', razor: '#d29bff', orbita: '#9fc8ff', vortex: '#b07cff', skybloom: '#ffb3e0', slimora: '#8dff9a', vaporis: '#e8f4ff',
+      emberoo: '#ffab5a', floravex: '#7ff6d0', orbello: '#7ff6ff', orblet: '#ffa6e6', ember: '#ff9a4a' },
+    voiceOf(type) {
+      if (!this._voices) this._voices = {};
+      if (this._voices[type]) return this._voices[type];
+      const s = SPR[type] || {};
+      let h = 0; for (const ch of type) h = (h * 31 + ch.charCodeAt(0)) >>> 0;
+      const r = (h % 1000) / 1000;
+      const v = s.swim === 'walk' ? { base: 200 + r * 90, wave: 'triangle', vol: 1.2 }          // deep and rumbly
+        : s.swim === 'jelly' ? { base: 720 + r * 260, wave: 'sine', vol: 1 }                  // high and bubbly
+        : s.swim === 'glide' ? { base: 560 + r * 220, wave: 'triangle', vol: 0.9 }            // whistly
+        : this.TRAIL_OF[type] === 'shard' ? { base: 980 + r * 300, wave: 'sine', vol: 0.8 }   // glassy
+        : { base: 420 + r * 220, wave: 'triangle', vol: 1 };
+      return (this._voices[type] = v);
+    },
+    chirp(m, mood) { if (m && !m.decoy && window.Sfx && Sfx.chirp) Sfx.chirp(this.voiceOf(m.type), mood); },
+    emote(m, icon, dur = 1.5) {
+      if (!m || m.state !== 'alive') return;
+      const busy = this.monsters.filter((x) => x.em && x.em.t < x.em.dur).length;
+      if (busy >= 3 && !(m.em && m.em.t < m.em.dur)) return;          // never a cloud of icons
+      m.em = { icon, t: 0, dur };
+    },
+    lifeInit(m) {
+      if (m.decoy) return;
+      const tut = !!this.tut;
+      m.lifeIdle = rand(3, 7);
+      m.sleepy = !tut && !m.mini && Math.random() < 0.12;
+      if (m.sleepy) m.sleepT = rand(0.5, 2);
+      if (m.elite) m.angryT = rand(0.3, 1.2);
+      m.helloT = Math.random() < 0.3 ? rand(0.4, 1.4) : -1;
+      // some aliens peek in from the edge of the screen first
+      const s = SPR[m.type] || {};
+      if (!tut && !m.mini && !this.boss && s.swim !== 'walk' && Math.random() < 0.2) {
+        m.peekT = 1.7; m.peekSide = m.x0 < 0.5 ? -1 : 1; m.z = Math.max(m.z, 0.22);
+        m.helloT = 0.2;
+      }
+    },
+    lifeUpdate(m, dt, s0, frozen) {
+      if (m.decoy) return;
+      if (!s0.swim) { m.sx = 1; m.sy = 1; m.rot = 0; }
+      if (m.em) { m.em.t += dt; if (m.em.t >= m.em.dur) m.em = null; }
+      const t = this.time;
+      let lx = 0, ly = 0;
+      // --- peeking in from the edge ---
+      if (m.peekT > 0) {
+        m.peekT -= dt;
+        const el = 1.7 - m.peekT, xe = m.peekSide < 0 ? m.size * 0.12 : W - m.size * 0.12;
+        if (el < 0.12) this.emote(m, '👀', 1.1);
+        const k = el < 1.1 ? 0 : Math.min(1, (el - 1.1) / 0.6), ease = k * k * (3 - 2 * k);
+        const bob = el < 1.1 ? Math.sin(el * 7) * m.size * 0.08 : 0;
+        m.px = lerp(xe - m.peekSide * bob, m.px, ease);
+        m.rot += -m.peekSide * 0.25 * (1 - ease);
+      }
+      // --- body language: stretch when fast, squash when turning, wobble when hit ---
+      const sp = Math.abs(m.vx || 0);
+      if (!(m.peekT > 0)) {
+        const st = Math.min(0.12, sp / 4000);
+        m.sx *= 1 + st; m.sy *= 1 - st * 0.7;
+        const dir = sp > 60 ? Math.sign(m.vx) : 0;
+        if (dir && m.lastDir && dir !== m.lastDir) m.sqT = 0.22;
+        if (dir) m.lastDir = dir;
+      }
+      if (m.sqT > 0) { m.sqT -= dt; const k = Math.max(0, m.sqT / 0.22); m.sx *= 1 + 0.13 * k; m.sy *= 1 - 0.13 * k; }
+      if (m.wobT > 0) { m.wobT -= dt; const k = Math.max(0, m.wobT / 0.55), w = Math.sin((0.55 - m.wobT) * 42) * 0.17 * k; m.sx *= 1 + w; m.sy *= 1 - w; }
+      // --- looking at you: leans toward the aiming circle when it comes close ---
+      const p = this.players && this.players.length ? this.players.reduce((a, q) => (Math.hypot(q.smoothAim.x - m.px, q.smoothAim.y - m.py) < Math.hypot(a.smoothAim.x - m.px, a.smoothAim.y - m.py) ? q : a)) : null;
+      if (p) {
+        const dx = p.smoothAim.x - m.px, dist = Math.hypot(dx, p.smoothAim.y - m.py);
+        if (dist < 380) {
+          m.rot += clamp(dx / 900, -0.18, 0.18) * (1 - dist / 380);
+          if (!m.noticed && dist < 260 && m.age > 0.6) {
+            m.noticed = true;
+            if (Math.random() < 0.45) { this.emote(m, '❗', 1.1); if (Math.random() < 0.5) this.chirp(m, 'hello'); }
+          }
+        }
+      }
+      if (m.helloT > 0) { m.helloT -= dt; if (m.helloT <= 0) this.chirp(m, 'hello'); }
+      // --- feelings ---
+      if (m.dzT > 0) { m.dzT -= dt; m.rot += Math.sin(t * 11 + m.phase) * 0.08 * Math.min(1, m.dzT); }
+      if (m.teaseT > 0) { m.teaseT -= dt; const k = Math.min(1, m.teaseT / 0.3); m.rot += Math.sin(t * 32) * 0.25 * k; ly -= Math.abs(Math.sin(t * 16)) * 14 * k; }
+      if (m.fearT > 0) { m.fearT -= dt; const k = Math.min(1, m.fearT / 0.3); lx += Math.sin(t * 70) * 5 * k + (m.fearDx || 0) * k; m.sy *= 1 - 0.06 * k; }
+      if (m.sleepy) {
+        m.sleepT -= dt;
+        if (m.sleepT <= 0) { m.sleepT = rand(3, 5); this.emote(m, '💤', 1.8); if (Math.random() < 0.35) this.chirp(m, 'yawn'); }
+        m.rot += Math.sin(t * 1.3 + m.phase) * 0.06;
+      }
+      if (m.elite && m.angryT != null) { m.angryT -= dt; if (m.angryT <= 0) { m.angryT = rand(4, 7); if (Math.random() < 0.6) this.emote(m, '😠', 1.4); } }
+      // --- little idle moments when it is not in a hurry ---
+      if (!frozen && !(m.peekT > 0) && !(m.dzT > 0) && !m.mini) {
+        if (m.idle) {
+          m.idleK += dt;
+          const k = m.idleK / m.idleDur;
+          if (m.idle === 'spin') m.rot += Math.PI * 2 * (k * k * (3 - 2 * k));
+          else if (m.idle === 'wave') m.rot += Math.sin(m.idleK * 9) * 0.22 * (1 - k);
+          else if (m.idle === 'hop') ly -= Math.abs(Math.sin(k * Math.PI * 2)) * 55 * (0.5 + m.z);
+          else if (m.idle === 'bump') { lx += (m.bumpDx || 0) * Math.sin(Math.min(1, k) * Math.PI); m.rot += Math.sin(m.idleK * 14) * 0.12 * (1 - k); }
+          if (k >= 1) { m.idle = null; m.lifeIdle = rand(4, 9); }
+        } else if (m.z > 0.12 && m.z < 0.85) {
+          m.lifeIdle -= dt;
+          if (m.lifeIdle <= 0 && sp < 90) {
+            m.idle = pick(['spin', 'wave', 'hop', 'hop']); m.idleK = 0; m.idleDur = m.idle === 'spin' ? 0.8 : m.idle === 'wave' ? 1.1 : 0.9;
+            if (m.idle === 'wave' && Math.random() < 0.5) this.emote(m, '👋', 1.2);
+            if (m.idle === 'spin' && Math.random() < 0.3) this.chirp(m, 'giggle');
+          } else if (m.lifeIdle <= 0) m.lifeIdle = rand(1, 2);
+        }
+      }
+      // --- a trail of its own ---
+      this.emitTrail(m, dt);
+      m.px = (m.peekT > 0 ? m.px : clamp(m.px + lx, 40, W - 40)); m.py += ly;
+    },
+    // two aliens bumping into each other giggle and bounce apart
+    lifeBumps() {
+      const al = this.monsters.filter((m) => m.state === 'alive' && !m.decoy && !m.mini && !m.idle && !(m.peekT > 0) && m.z > 0.12 && m.z < 0.85);
+      for (let i = 0; i < al.length; i++) for (let j = i + 1; j < al.length; j++) {
+        const a = al[i], b = al[j];
+        if (Math.abs(a.z - b.z) > 0.18 || (a.bumpCd || 0) > this.time || (b.bumpCd || 0) > this.time) continue;
+        const d = Math.hypot(a.px - b.px, a.py - b.py);
+        if (d < (a.r + b.r) * 0.85) {
+          const dir = Math.sign(a.px - b.px) || 1;
+          for (const [m, s] of [[a, dir], [b, -dir]]) { m.idle = 'bump'; m.idleK = 0; m.idleDur = 0.7; m.bumpDx = s * 45 * (0.5 + m.z); m.bumpCd = this.time + 6; }
+          if (Math.random() < 0.6) this.emote(Math.random() < 0.5 ? a : b, '😆', 1.2);
+          this.chirp(a, 'giggle');
+          return;
+        }
+      }
+    },
+    lifeHit(m) { m.dzT = 1.5; m.wobT = 0.55; this.chirp(m, 'ouch'); },
+    lifeTease(at) {
+      if ((this._teaseCd || 0) > this.time) return;
+      let best = null, bd = 260;
+      for (const m of this.monsters) if (m.state === 'alive' && !m.decoy && !m.mini) { const d = Math.hypot(m.px - at.x, m.py - at.y); if (d < bd) { bd = d; best = m; } }
+      if (!best) return;
+      this._teaseCd = this.time + 1.6;
+      best.teaseT = 0.8;
+      if (Math.random() < 0.7) this.emote(best, '😜', 1.2);
+      this.chirp(best, 'hehe');
+    },
+    lifeFear(caught) {
+      let said = false;
+      for (const m of this.monsters) {
+        if (m === caught || m.state !== 'alive' || m.decoy || m.mini) continue;
+        const d = Math.hypot(m.px - caught.px, m.py - caught.py);
+        if (d > 480) continue;
+        m.fearT = 0.9; m.fearDx = Math.sign(m.px - caught.px || 1) * 30;
+        if (!said && Math.random() < 0.35) { said = true; this.emote(m, '😱', 1.2); this.chirp(m, 'scared'); }
+      }
+    },
+    // ---- trails ----
+    emitTrail(m, dt) {
+      if (this.fxReduced || m.state !== 'alive' || m.z < 0.05) return;
+      const kind = this.TRAIL_OF[m.type]; if (!kind) return;
+      if (!this.trails) this.trails = [];
+      if (this.trails.length > (this.lowFx ? 180 : 360)) return;
+      const rate = { ring: 1.3, mist: 3, streak: 9, swirl: 6, drop: 4, slime: 3 }[kind] || 7;
+      m.trailAcc = (m.trailAcc || 0) + dt * rate * (this.lowFx ? 0.55 : 1);
+      const sc = m.size / 250, col = this.TRAIL_COL[m.type] || '#ffffff';
+      while (m.trailAcc >= 1) {
+        m.trailAcc -= 1;
+        const q = { kind, col, t: 0, sc, x: m.px + rand(-0.25, 0.25) * m.size, y: m.py + rand(-0.15, 0.25) * m.size, vx: rand(-20, 20), vy: 0, life: rand(0.6, 1.1), rot: rand(0, 6) };
+        if (kind === 'drop' || kind === 'slime') { q.y = m.type === 'nimbus' ? m.py - m.size * 0.58 : m.py + m.size * 0.2; if (m.type === 'nimbus') q.x = m.px + rand(-0.18, 0.18) * m.size; q.vy = rand(60, 140); q.life = 0.7; }
+        else if (kind === 'spark') { q.vy = -rand(60, 160); q.life = rand(0.4, 0.8); }
+        else if (kind === 'bubble') { q.vy = -rand(40, 90); q.life = rand(0.8, 1.3); }
+        else if (kind === 'ring') { q.x = m.px; q.y = m.py; q.r0 = m.size * 0.3; q.life = 0.9; }
+        else if (kind === 'streak') { q.x = m.px - Math.sign(m.vx || 1) * m.size * 0.3; q.len = rand(30, 70) * sc; q.dir = -Math.sign(m.vx || 1); q.life = 0.35; }
+        else if (kind === 'mist') { q.life = 1.2; q.vy = -10; }
+        else if (kind === 'petal') { q.vy = rand(20, 60); q.life = 1.2; }
+        else if (kind === 'swirl') { q.cx = m.px; q.cy = m.py; q.ang = rand(0, 6.28); q.rad = m.size * rand(0.3, 0.45); q.life = 0.8; }
+        else if (kind === 'shard') { q.vy = rand(10, 50); q.life = 0.9; }
+        this.trails.push(q);
+      }
+    },
+    updateTrails(dt) {
+      if (!this.trails || !this.trails.length) return;
+      for (const q of this.trails) {
+        q.t += dt; q.rot += dt * 3;
+        if (q.kind === 'drop' || q.kind === 'slime') q.vy += 520 * dt;
+        if (q.kind === 'bubble') q.x += Math.sin(q.t * 6 + q.rot) * 30 * dt;
+        if (q.kind === 'petal') q.x += Math.sin(q.t * 4 + q.rot) * 50 * dt;
+        if (q.kind === 'heart') q.vy -= 30 * dt;
+        if (q.kind === 'swirl') { q.ang += dt * 5; q.rad *= Math.pow(0.4, dt); q.x = q.cx + Math.cos(q.ang) * q.rad; q.y = q.cy + Math.sin(q.ang) * q.rad * 0.6; }
+        else { q.x += q.vx * dt; q.y += q.vy * dt; }
+      }
+      this.trails = this.trails.filter((q) => q.t < q.life);
+    },
+    drawTrails() {
+      if (!this.trails || !this.trails.length) return;
+      const c = this.ctx;
+      c.save();
+      for (const q of this.trails) {
+        if (q.t < 0) continue;
+        const k = q.t / q.life, a = 1 - k, s = q.sc;
+        c.globalAlpha = a;
+        c.globalCompositeOperation = q.kind === 'drop' || q.kind === 'slime' || q.kind === 'petal' || q.kind === 'heart' ? 'source-over' : 'lighter';
+        c.fillStyle = q.col; c.strokeStyle = q.col;
+        if (q.kind === 'sparkle' || q.kind === 'spark') {
+          const r = (q.kind === 'spark' ? 5 : 8) * s * (1 - k * 0.5) * (0.6 + 0.4 * Math.sin(q.t * 20 + q.rot));
+          c.beginPath(); c.moveTo(q.x, q.y - r * 2); c.lineTo(q.x + r * 0.5, q.y - r * 0.5); c.lineTo(q.x + r * 2, q.y); c.lineTo(q.x + r * 0.5, q.y + r * 0.5);
+          c.lineTo(q.x, q.y + r * 2); c.lineTo(q.x - r * 0.5, q.y + r * 0.5); c.lineTo(q.x - r * 2, q.y); c.lineTo(q.x - r * 0.5, q.y - r * 0.5); c.closePath(); c.fill();
+        } else if (q.kind === 'shard') {
+          const r = 9 * s; c.save(); c.translate(q.x, q.y); c.rotate(q.rot); c.beginPath(); c.moveTo(0, -r * 1.6); c.lineTo(r * 0.7, 0); c.lineTo(0, r * 1.6); c.lineTo(-r * 0.7, 0); c.closePath(); c.fill(); c.restore();
+        } else if (q.kind === 'bubble') {
+          c.lineWidth = Math.max(1, 2.5 * s); c.beginPath(); c.arc(q.x, q.y, 9 * s * (1 + k * 0.4), 0, Math.PI * 2); c.stroke();
+        } else if (q.kind === 'ring') {
+          c.lineWidth = Math.max(1, 5 * s * a); c.beginPath(); c.arc(q.x, q.y, q.r0 * (1 + k * 1.2), 0, Math.PI * 2); c.stroke();
+        } else if (q.kind === 'drop' || q.kind === 'slime') {
+          const r = (q.kind === 'slime' ? 8 : 6) * s; c.beginPath(); c.moveTo(q.x, q.y - r * 2); c.quadraticCurveTo(q.x + r, q.y, q.x, q.y + r); c.quadraticCurveTo(q.x - r, q.y, q.x, q.y - r * 2); c.fill();
+        } else if (q.kind === 'streak') {
+          c.lineWidth = Math.max(1, 3 * s); c.lineCap = 'round'; c.beginPath(); c.moveTo(q.x, q.y); c.lineTo(q.x + q.dir * q.len * (1 + k), q.y); c.stroke();
+        } else if (q.kind === 'mist') {
+          c.globalAlpha = a * 0.35; c.beginPath(); c.arc(q.x, q.y, 22 * s * (1 + k), 0, Math.PI * 2); c.fill();
+        } else if (q.kind === 'petal') {
+          c.save(); c.translate(q.x, q.y); c.rotate(q.rot); c.beginPath(); c.ellipse(0, 0, 10 * s, 5 * s, 0, 0, Math.PI * 2); c.fill(); c.restore();
+        } else if (q.kind === 'swirl') {
+          c.beginPath(); c.arc(q.x, q.y, 5 * s, 0, Math.PI * 2); c.fill();
+        } else if (q.kind === 'heart') {
+          c.font = `${Math.round(46 * s)}px ${EMOJI_FONT}`; c.textAlign = 'center'; c.textBaseline = 'middle'; c.fillText('❤️', q.x, q.y);
+        }
+      }
+      c.restore();
+    },
+    // dizzy stars, the emote bubble and Nimbus' rain cloud
+    lifeDraw(m) {
+      if (m.decoy) return;
+      const c = this.ctx;
+      if (m.type === 'nimbus' && !this.fxReduced) {
+        const cx = m.px, cy = m.py - m.size * 0.62, w = m.size * 0.22;
+        c.save(); c.globalAlpha = 0.85 * Math.min(1, m.age * 2); c.fillStyle = '#e9f2ff';
+        c.beginPath(); c.arc(cx - w * 0.8, cy, w * 0.55, 0, Math.PI * 2); c.arc(cx, cy - w * 0.35, w * 0.75, 0, Math.PI * 2); c.arc(cx + w * 0.85, cy, w * 0.6, 0, Math.PI * 2);
+        c.rect(cx - w * 0.8, cy, w * 1.65, w * 0.5); c.fill(); c.restore();
+      }
+      if (m.dzT > 0) {
+        const k = Math.min(1, m.dzT / 0.4), cy = m.py - m.size * 0.42, rx = m.size * 0.28, ry = m.size * 0.07;
+        c.save(); c.globalAlpha = k;
+        for (let i = 0; i < 3; i++) {
+          const a = this.time * 5 + i * 2.094, x = m.px + Math.cos(a) * rx, y = cy + Math.sin(a) * ry, r = Math.max(6, m.size * 0.045);
+          c.beginPath();
+          for (let j = 0; j < 10; j++) { const rr = j % 2 ? r * 0.45 : r, aa = -Math.PI / 2 + j * Math.PI / 5; c.lineTo(x + Math.cos(aa) * rr, y + Math.sin(aa) * rr); }
+          c.closePath(); c.fillStyle = '#ffe27a'; c.fill(); c.lineWidth = 2; c.strokeStyle = '#fff'; c.stroke();
+        }
+        c.restore();
+      }
+      if (m.em && m.em.t < m.em.dur) {
+        const e = m.em, k = e.t / e.dur;
+        const pop = e.t < 0.15 ? e.t / 0.15 * 1.15 : e.t < 0.25 ? 1.15 - (e.t - 0.15) * 1.5 : 1;
+        const fade = k > 0.8 ? 1 - (k - 0.8) / 0.2 : 1;
+        const r = clamp(m.size * 0.13, 22, 40) * pop, x = m.px + m.size * 0.28, y = m.py - m.size * 0.5 - r + Math.sin(this.time * 4) * 3;
+        c.save(); c.globalAlpha = fade;
+        c.fillStyle = 'rgba(255,255,255,0.95)'; c.beginPath(); c.arc(x, y, r, 0, Math.PI * 2); c.fill();
+        c.beginPath(); c.moveTo(x - r * 0.5, y + r * 0.7); c.lineTo(x - r * 0.9, y + r * 1.35); c.lineTo(x - r * 0.05, y + r * 0.9); c.fill();
+        c.font = `${Math.round(r * 1.25)}px ${EMOJI_FONT}`; c.textAlign = 'center'; c.textBaseline = 'middle'; c.fillText(e.icon, x, y + r * 0.06);
+        c.restore();
       }
     },
 
@@ -1692,6 +1960,8 @@
       if (this.hyperT > 0) this.endHyper();
       if (this.friend && this.friend.hp > 0) {
         this.friend.popT = 0.001; Sfx.net();
+        if (!this.trails) this.trails = [];
+        for (let i = 0; i < 9; i++) this.trails.push({ kind: 'heart', col: '#ff6a9a', t: -i * 0.08, life: 1.6, sc: 1, rot: 0, x: this.friend.x + rand(-90, 90), y: this.friend.y - rand(40, 120), vx: rand(-30, 30), vy: -rand(60, 120) });
         this.floater(this.friend.x, this.friend.y - 150, window.t ? t('Thank you!') : 'Thank you!', '#7dffb0');
         this.addScore(500, this.friend.x, this.friend.y - 90, true); this.earned += 3;
       }
@@ -3674,6 +3944,7 @@
         if (!caught && this.wAb && this.wAb.id === 'ember' && !(target.burnT > 0)) target.burnT = [2, 1.5, 1][wl - 1];
       }
       this._shotNow = false;
+      if (!target) this.lifeTease(end);
       if (p.ammo === 0) this.setPrompt(this.reloadHint(p), 2, p);
       this.hud('ammo');
     },
@@ -3728,6 +3999,7 @@
       if (m.hp <= 0) { this.catchMonster(m, netted); return true; }
       m.hitFlash = 0.22;
       Sfx.clink();
+      this.lifeHit(m);
       window.Haptics && Haptics.buzz(18, 0.3, 50);
       this.burst(m.px, m.py, m.mini ? '#ff8a6a' : '#cfe8ff', 6, true);
       return false;
@@ -3849,6 +4121,7 @@
       if (this.caught[m.type] < goalOf(m.type)) this.caught[m.type]++;
       this.hud('caught', m.type);
       this.dissolveMonster(m, netted);
+      this.lifeFear(m);
       Sfx.dissolve();
       this.burst(m.px, m.py, SPR[m.type].color, 22, true);
       if (this.caught[m.type] === goalOf(m.type) && !this['done_' + m.type]) { this['done_' + m.type] = true; this.hud('toast', SPR[m.type].name + ' complete!'); }
@@ -3901,6 +4174,8 @@
 
     updateEffects(dt) {
       this.updateVoxels(dt);
+      this.updateTrails(dt);
+      if (this.state === 'play') this.lifeBumps();
       for (const p of this.particles) { p.life -= dt; p.x += p.vx * dt; p.y += p.vy * dt; p.vx *= 0.94; p.vy = p.vy * 0.94 + 300 * dt; }
       this.particles = this.particles.filter((p) => p.life > 0);
       for (const l of this.lasers) l.t -= dt;
@@ -4063,7 +4338,8 @@
       if (this.friend) this.drawFriend();
       if (this.guard) this.drawGuard();
 
-      // Monsters, far ones first
+      // Monsters, far ones first (their trails behind them)
+      this.drawTrails();
       if (this.holeT > 0) this.drawHole();
       const sorted = [...this.monsters].sort((a, b) => a.z - b.z);
       for (const m of sorted) {
@@ -4103,6 +4379,7 @@
           }
           if (m.elite) this.drawArmor(m);
           this.drawStatus(m);
+          this.lifeDraw(m);
           if (m.mini) this.drawMiniBar(m);
           if (m.toFriend && this.friend && this.friend.hp > 0) {
             // a red "!" above aliens that go for the bubble
