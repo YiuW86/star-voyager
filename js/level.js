@@ -3893,29 +3893,46 @@
       targets.push(...this.bossTargets());
 
       // Aim assist. Camera aiming is shaky, so there the circle is gently pulled toward the nearest target.
-      // Mouse, gamepad and tilt are precise: the circle stays exactly where you point (pulling it made it
-      // feel laggy and jumpy) and assist instead makes the targets easier to hit.
+      // Mouse is precise: the circle stays exactly where you point and assist only makes targets easier to hit.
+      // Gamepad / touch: a soft magnet. The pull is zero at the edge of its range and grows toward the middle
+      // of an alien (no jump when it grabs), steering away breaks it quickly, and the circle always glides
+      // to its new spot instead of teleporting (after a catch, or when the magnet lets go or switches).
+      // The Aim assist setting in Options (Off / Low / Normal / High) sets how strong all of this is.
       const pullAim = inp.isCam();
-      // Gamepad (phone or touch): a strong magnet. Near a target the circle locks onto it and stays
-      // on it while it moves, until you steer clearly away.
       const magnet = inp.mode === 'phone' && inp.device === 'pad';
-      let pos = { x: raw.x, y: raw.y };
-      if ((pullAim && this.assist > 0 || magnet) && !blocked) {
-        const assist = magnet ? Math.max(this.assist, 0.6) : this.assist;
+      const assist = this.assist;
+      // how fast and in which direction your own aim is moving (to notice steering away)
+      const prevRaw = p.prevRaw || { x: raw.x, y: raw.y };
+      const vel = { x: (raw.x - prevRaw.x) / Math.max(dt, 0.001), y: (raw.y - prevRaw.y) / Math.max(dt, 0.001) };
+      p.prevRaw = { x: raw.x, y: raw.y };
+      let off = { x: 0, y: 0 };
+      if ((pullAim || magnet) && assist > 0 && !blocked) {
         let best = null, bestD = Infinity, bestR = 0;
         for (const m of targets) {
           if (m.decoy) continue;
-          const reach = m.r * (magnet ? 2.6 + assist * 1.4 : 1.6 + assist * 1.6) * (m.ref === p.lockOn || m === p.lockOn ? 1.35 : 1);
+          const held = m.ref === p.lockOn || m === p.lockOn;
+          const reach = m.r * (magnet ? 1.4 + assist * 1.3 : 1.6 + assist * 1.6) * (held ? 1.12 : 1);
           const d = Math.hypot(m.px - raw.x, m.py - raw.y);
           if (d < reach && d < bestD) { best = m; bestD = d; bestR = reach; }
         }
         if (best) {
-          const pull = magnet ? Math.min(1, 0.55 + 0.45 * Math.pow(1 - bestD / bestR, 0.35))
-            : assist * Math.pow(1 - bestD / bestR, 0.6) * 0.9;
-          pos = { x: lerp(raw.x, best.px, pull), y: lerp(raw.y, best.py, pull) };
-        }
+          const k = 1 - bestD / bestR, soft = k * k * (3 - 2 * k);           // 0 at the edge, 1 in the middle
+          let pull = magnet ? Math.min(0.9, assist * 1.05) * soft : assist * Math.pow(k, 0.6) * 0.9;
+          if (magnet) {
+            // steering away from the alien: let go quickly
+            const dx = best.px - raw.x, dy = best.py - raw.y, sp = Math.hypot(vel.x, vel.y);
+            const away = sp > 120 && (vel.x * dx + vel.y * dy) < 0;
+            p.breakAway = Math.max(0, Math.min(1, (p.breakAway || 0) + (away ? dt * 6 : -dt * 3)));
+            pull *= 1 - 0.85 * p.breakAway;
+          }
+          off = { x: (best.px - raw.x) * pull, y: (best.py - raw.y) * pull };
+        } else p.breakAway = 0;
         p.lockOn = best ? (best.ref || best) : null;
-      }
+      } else p.lockOn = null;
+      // glide: only the assist part is smoothed, so your own movement stays instant
+      const so = p.assistOff || { x: 0, y: 0 }, ease = 1 - Math.exp(-dt / 0.05);
+      p.assistOff = { x: so.x + (off.x - so.x) * ease, y: so.y + (off.y - so.y) * ease };
+      const pos = { x: raw.x + p.assistOff.x, y: raw.y + p.assistOff.y };
       p.reticle = pos;
 
       // What is under the circle? (rocks count as targets too)
@@ -3924,7 +3941,7 @@
         for (const m of targets) {
           if (m.decoy && inp.usesDwell()) continue;
           const d = Math.hypot(m.px - pos.x, m.py - pos.y);
-          if (d < m.r * (1 + (pullAim ? 0.3 : magnet ? 1.1 : 0.7) * Math.max(this.assist, magnet ? 0.6 : 0)) * (1 + (this.homing || 0) + (this.steadyHit || 0)) && d < td) { target = m.ref || m; td = d; }
+          if (d < m.r * (1 + (pullAim ? 0.3 : magnet ? 0.8 : 0.7) * this.assist) * (1 + (this.homing || 0) + (this.steadyHit || 0)) && d < td) { target = m.ref || m; td = d; }
         }
       }
       if (target !== p.dwellTarget) {
