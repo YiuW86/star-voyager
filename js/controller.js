@@ -1,3 +1,10 @@
+// Holding a finger still on the pad must never count as a long-press / right-click: no phone menu,
+// no text selection, no dragging, no magnifier. (Typing in a text box still works.)
+['contextmenu', 'selectstart', 'dragstart'].forEach((ev) => document.addEventListener(ev, (e) => {
+  if (e.target && /^(INPUT|TEXTAREA)$/.test(e.target.tagName)) return;
+  e.preventDefault();
+}, { capture: true }));
+
 // Phone controller with three ways to play:
 //  - cam:  camera body tracking (sends body points, no video)
 //  - pad:  touch gamepad (joystick + buttons)

@@ -5,7 +5,7 @@
 /* Always play the newest version: ask the website which version is live (bypassing any saved copy);
    if this page is older, load the page again once with the new version number. */
 (function () {
-  var BUILD = '3.48';
+  var BUILD = '3.48.1';
   try {
     fetch('version.json?t=' + Date.now(), { cache: 'no-store' }).then(function (r) { return r.ok ? r.json() : null; }).then(function (j) {
       if (!j || !j.v || j.v === BUILD) return;
@@ -31,6 +31,9 @@
     * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
     html, body { margin: 0; height: 100%; background: radial-gradient(ellipse at top, #1b2f8a, var(--space) 60%); color: var(--text); font-family: "Chakra Petch", Roboto, Arial, sans-serif; overscroll-behavior: none; }
     body { user-select: none; -webkit-user-select: none; }
+    /* holding a finger still must never open the phone's long-press menu (that acts like a right-click) */
+    * { -webkit-touch-callout: none; -webkit-user-drag: none; }
+    input, textarea { -webkit-touch-callout: default; user-select: text; -webkit-user-select: text; }
     .screen { display: none; min-height: 100%; }
     .screen.active { display: flex; }
     .col { flex-direction: column; gap: 16px; max-width: 560px; margin: 0 auto; padding: calc(env(safe-area-inset-top, 0px) + 16px) 18px calc(env(safe-area-inset-bottom, 0px) + 20px); }
@@ -298,8 +301,8 @@
 </section>
 
 <script src="https://unpkg.com/peerjs@1.5.4/dist/peerjs.min.js"></script>
-<script src="js/config.js?v=3.48"></script>
-<script src="js/i18n.js?v=3.48"></script>
+<script src="js/config.js?v=3.48.1"></script>
+<script src="js/i18n.js?v=3.48.1"></script>
 <!-- Google Cast (only used when a Cast App ID is set in js/config.js) -->
 <script>
   window.__onGCastApiAvailable = (ok) => { window.__castOk = ok; document.dispatchEvent(new Event('cast-ready')); };
