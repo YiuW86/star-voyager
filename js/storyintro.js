@@ -63,6 +63,8 @@
       if (!this.on) return;
       this.on = false;
       cancelAnimationFrame(this.raf);
+      // give the phone its memory back before the film starts
+      try { const cv = this.ctx.canvas; cv.width = 1; cv.height = 1; } catch (e) {}
       const d = this.done; this.done = null;
       if (d) d();
     },

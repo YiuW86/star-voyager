@@ -163,7 +163,7 @@
     menu() { Level.pause(); },
     'start-game'() { if (!save.storySeen) playStory(() => { save.storySeen = true; persist(); playIntro(); }); else playIntro(); },
     'use-controller'() { location.href = 'controller.html'; },
-    'intro-skip'() { endIntro(); },
+    'intro-skip'() { if (introSkippable()) endIntro(); },
     'void-skip'() { endVoidIntro(); },
     'void-outro-skip'() { endVoidOutro(); },
     'dex-close'() { Dex.hide(); setTimeout(focusFirst, 30); },
@@ -2895,7 +2895,7 @@
     if (inGame && (e.key === 'e' || e.key === 'E')) { Level.activateSuper(1); return; }
     if (inGame && ['1', '2', '3', '4'].includes(e.key)) { Level.keyEquipIndex(Number(e.key) - 1); return; }
     if (inGame && (e.key === 'g' || e.key === 'G')) { Level.toggleBelt(); return; }
-    if (current === 'intro' && (e.key === 'Enter' || e.key === ' ')) { e.preventDefault(); endIntro(); return; }
+    if (current === 'intro' && (e.key === 'Enter' || e.key === ' ')) { e.preventDefault(); if (introSkippable()) endIntro(); return; }
     if (current === 'voidintro' && (e.key === 'Enter' || e.key === ' ')) { e.preventDefault(); endVoidIntro(); return; }
     if (current === 'equip' && !equipFilmDone && ['Enter', ' ', 'Escape', 'Backspace', 'GoBack'].includes(e.key)) { e.preventDefault(); finishEquipFilm(); return; }
     if (current === 'cinema' && filmOn && ['Enter', ' ', 'Escape', 'Backspace', 'GoBack'].includes(e.key)) { e.preventDefault(); closeFilm(); return; }
@@ -2911,7 +2911,7 @@
       if (current === 'equip' && $('#ov-equip-tip').classList.contains('show')) { e.preventDefault(); actions['equip-tip-ok'](); return; }
       if (current === 'equip') { e.preventDefault(); actions['equip-back'](); return; }
       if (current === 'options') { e.preventDefault(); closeOptions(); return; }
-      if (current === 'intro') { e.preventDefault(); endIntro(); return; }
+      if (current === 'intro') { e.preventDefault(); if (introSkippable()) endIntro(); return; }
       if (current === 'voidintro') { e.preventDefault(); endVoidIntro(); return; }
       if (current === 'home' && $('#ov-base').classList.contains('show')) { e.preventDefault(); actions['base-close'](); return; }
       const back = { cinema: 'planets', options: 'start', levels: 'planets', planets: 'start', shop: 'planets', connect: 'levels', quit: 'start', dex: 'planets', home: 'planets', ranch: 'home', workshop: workshopFrom, goals: 'planets', badges: 'goals', mods: modsFrom, account: accountFrom, touchedit: 'options' }[current];
@@ -3169,41 +3169,69 @@
   // ---------------- Intro video ----------------
   // After Start, the intro video plays full screen; when it ends (or Skip is pressed) a bright
   // warp transition leads to the world screen.
-  let introDone = true;
+  let introDone = true, introT0 = 0, introWatch = 0, introRetry = 0;
+  const INTRO_SRC = 'assets/intro.mp4';
+  // The film gets a fresh source every time it starts and lets go of it when it ends: phones have only a few
+  // video decoders, and a film that was paused half-way could otherwise stay frozen on its first frame.
+  function startIntroVideo() {
+    const v = $('#intro-video');
+    try { v.pause(); } catch (e) {}
+    v.src = INTRO_SRC;
+    try { v.load(); } catch (e) {}
+    v.volume = 1;
+    v.muted = save.options.sound !== 'on';
+    const p = v.play();
+    // Browsers only allow video *with sound* after a real click or key press on the TV/laptop itself.
+    // Pressing Start with the phone controller doesn't count, so then the intro plays without sound.
+    if (p && p.catch) p.catch(() => {
+      if (introDone) return;
+      v.muted = true;
+      const p2 = v.play();
+      if (p2 && p2.catch) p2.catch(() => { if (!introDone && current === 'intro') endIntro(); });
+    });
+  }
   function playIntro() {
     const v = $('#intro-video');
     markFilm('intro');
-    introDone = false;
+    introDone = false; introT0 = performance.now(); introRetry = 0;
     go('intro');
-    try {
-      v.currentTime = 0;
-      v.muted = save.options.sound !== 'on';
-      const p = v.play();
-      // Browsers only allow video *with sound* after a real click or key press on the TV/laptop itself.
-      // Pressing Start with the phone controller doesn't count, so then the intro plays without sound
-      // instead of being skipped.
-      if (p && p.catch) p.catch(() => {
-        if (introDone) return;
-        v.muted = true;
-        const p2 = v.play();
-        if (p2 && p2.catch) p2.catch(() => endIntro());    // could not play at all: go straight on
-      });
-    } catch (e) { endIntro(); }
+    try { startIntroVideo(); } catch (e) { endIntro(); return; }
+    // watchdog: if the film does not move, start it again once; if it still does not move, go on
+    clearInterval(introWatch);
+    let lastT = -1, still = 0;
+    introWatch = setInterval(() => {
+      if (introDone || current !== 'intro') { clearInterval(introWatch); return; }
+      if (v.currentTime !== lastT) { lastT = v.currentTime; still = 0; return; }
+      still += 0.5;
+      if (still >= 3 && introRetry === 0) { introRetry = 1; still = 0; try { startIntroVideo(); } catch (e) {} }
+      else if (still >= 4 && introRetry === 1) { clearInterval(introWatch); endIntro(); }
+    }, 500);
   }
+  // a tap or key in the first second (still the press that started the film) does not skip it
+  const introSkippable = () => performance.now() - introT0 > 1000;
   function endIntro() {
     if (introDone) return;
     introDone = true;
+    clearInterval(introWatch);
     const v = $('#intro-video');
     // the video (and its sound) fades out into the dark, then the planets appear out of the stars
-    const start = performance.now(), vol = v.volume;
-    const fadeSound = () => { const k = Math.min(1, (performance.now() - start) / 600); try { v.volume = vol * (1 - k); } catch (e) {} if (k < 1) requestAnimationFrame(fadeSound); };
+    const start = performance.now(), vol = 1;
+    const fadeSound = () => { const k = Math.min(1, (performance.now() - start) / 600); try { v.volume = vol * (1 - k); } catch (e) {} if (k < 1 && introDone) requestAnimationFrame(fadeSound); };
     fadeSound();
-    fadeTo('planets', { tint: '#02040f', out: 650, hold: 200 }).then(() => { try { v.pause(); v.volume = vol; } catch (e) {} });
+    fadeTo('planets', { tint: '#02040f', out: 650, hold: 200 }).then(() => {
+      if (!introDone) return;
+      try { v.pause(); v.removeAttribute('src'); v.load(); v.volume = 1; } catch (e) {}
+    });
   }
   // touching the screen anywhere during the intro skips it
-  $('#screen-intro').addEventListener('pointerdown', (e) => { if (!e.target.closest('.intro-skip')) endIntro(); });
-  $('#intro-video').addEventListener('ended', endIntro);
-  $('#intro-video').addEventListener('error', endIntro);
+  $('#screen-intro').addEventListener('pointerdown', (e) => { if (!e.target.closest('.intro-skip') && introSkippable()) endIntro(); });
+  $('#intro-video').addEventListener('ended', () => { if (current === 'intro') endIntro(); });
+  $('#intro-video').addEventListener('error', () => {
+    const v = $('#intro-video');
+    if (introDone || current !== 'intro' || !v.getAttribute('src')) return;
+    if (introRetry === 0) { introRetry = 1; setTimeout(() => { if (!introDone) try { startIntroVideo(); } catch (e) { endIntro(); } }, 300); }
+    else endIntro();
+  });
 
   // ---------------- The mystery planet ???? ----------------
   // Choosing ???? fades to black and opens its world straight away.

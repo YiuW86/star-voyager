@@ -5,7 +5,7 @@
 /* Always play the newest version: ask the website which version is live (bypassing any saved copy);
    if this page is older, load the page again once with the new version number. */
 (function () {
-  var BUILD = '3.47';
+  var BUILD = '3.48';
   try {
     fetch('version.json?t=' + Date.now(), { cache: 'no-store' }).then(function (r) { return r.ok ? r.json() : null; }).then(function (j) {
       if (!j || !j.v || j.v === BUILD) return;
@@ -298,8 +298,8 @@
 </section>
 
 <script src="https://unpkg.com/peerjs@1.5.4/dist/peerjs.min.js"></script>
-<script src="js/config.js?v=3.47"></script>
-<script src="js/i18n.js?v=3.47"></script>
+<script src="js/config.js?v=3.48"></script>
+<script src="js/i18n.js?v=3.48"></script>
 <!-- Google Cast (only used when a Cast App ID is set in js/config.js) -->
 <script>
   window.__onGCastApiAvailable = (ok) => { window.__castOk = ok; document.dispatchEvent(new Event('cast-ready')); };
