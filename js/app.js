@@ -89,6 +89,7 @@
     if (current === 'cinema' && name !== 'cinema') closeFilm(true);
     $$('.screen').forEach((s) => s.classList.toggle('active', s.id === 'screen-' + name));
     current = name;
+    try { $('#ov-info').classList.remove('show'); updateInfoBtn(); } catch (e) { /* not ready yet */ }
     if (name === 'shop') renderShop();
     if (name === 'options') renderOptions();
     if (name === 'levels') renderLevels();
@@ -160,7 +161,7 @@
     'options-back'() { closeOptions(); },
     'skip-cal'() { Level.skipCalibration(); },
     menu() { Level.pause(); },
-    'start-game'() { playIntro(); },
+    'start-game'() { if (!save.storySeen) playStory(() => { save.storySeen = true; persist(); playIntro(); }); else playIntro(); },
     'use-controller'() { location.href = 'controller.html'; },
     'intro-skip'() { endIntro(); },
     'void-skip'() { endVoidIntro(); },
@@ -2093,6 +2094,7 @@
   // ================= Cinema =================
   const CINEMA = [
     { id: 'promo', kind: 'film', name: 'Star Voyager trailer', src: 'assets/promo.mp4', thumb: 'assets/cine/promo.jpg', open: () => true },
+    { id: 'story', kind: 'story', name: 'The story', thumb: 'assets/cine/story.jpg', open: () => true },
     { id: 'intro', kind: 'film', name: 'The journey begins', src: 'assets/intro.mp4', thumb: 'assets/cine/intro.jpg', open: () => true },
     { id: 'kn', kind: 'talk', name: 'King Nebula', thumb: 'assets/cine/kn.jpg', open: () => !!(save.story || {}).kn, hint: 'Free King Nebula in Crystal Shores' },
     { id: 'el', kind: 'talk', name: 'Ember Lord', thumb: 'assets/cine/el.jpg', open: () => !!(save.story || {}).el, hint: 'Free the Ember Lord in Sunfire Dunes' },
@@ -2115,13 +2117,14 @@
       const b = document.createElement('button');
       b.className = 'cine-tile' + (open ? '' : ' locked');
       b.innerHTML = `<span class="cine-pic" style="background-image:url('${c.thumb}')"></span>`
-        + `<span class="cine-kind">${c.kind === 'film' ? '▶ ' + t('Film') : '💬 ' + t('Conversation')}</span>`
+        + `<span class="cine-kind">${c.kind === 'film' ? '▶ ' + t('Film') : c.kind === 'story' ? '📖 ' + t('Story') : '💬 ' + t('Conversation')}</span>`
         + `<b>${open ? t(c.name) : '???'}</b>${open ? '' : `<small>${t(c.hint)}</small>`}`;
       b.setAttribute('aria-label', open ? t(c.name) : t('Locked') + ': ' + t(c.hint));
       b.addEventListener('click', () => {
         if (!open) { Sfx.clink(); showToastMenu(t(c.hint)); return; }
         Sfx.select();
-        if (c.kind === 'talk' && window.Story) Story.play(c.id, () => setTimeout(focusFirst, 30), { replay: true });
+        if (c.kind === 'story') playStory(() => fadeTo('cinema', { tint: '#02040f', out: 400, hold: 120 }));
+        else if (c.kind === 'talk' && window.Story) Story.play(c.id, () => setTimeout(focusFirst, 30), { replay: true });
         else playFilm(c.src);
       });
       grid.appendChild(b);
@@ -2852,6 +2855,19 @@
     if ((e.key === 'Escape' || e.key === 'Backspace' || e.key === 'GoBack') && ['#ov-snack', '#ov-decor', '#ov-buddy', '#ov-badge'].some((o) => $(o) && $(o).classList.contains('show'))) {
       e.preventDefault(); ['#ov-snack', '#ov-decor', '#ov-buddy', '#ov-badge'].forEach((o) => $(o).classList.remove('show')); setTimeout(focusFirst, 30); return;
     }
+    // the info card: any back / confirm key closes it; I (or Y on a gamepad) opens it
+    if ($('#ov-info').classList.contains('show')) {
+      if (['Escape', 'Backspace', 'GoBack', 'Enter', ' ', 'i', 'I'].includes(e.key)) { e.preventDefault(); closeInfo(); }
+      else if (/^Arrow/.test(e.key)) e.preventDefault();
+      return;
+    }
+    if ((e.key === 'i' || e.key === 'I') && !(window.Story && Story.active) && !(e.target && /^(INPUT|TEXTAREA)$/.test(e.target.tagName)) && INFO[current]) { e.preventDefault(); showInfo(); return; }
+    // the story pages: Enter / Space / → next page, Escape skips
+    if (current === 'story') {
+      if (['Enter', ' ', 'ArrowRight'].includes(e.key)) { e.preventDefault(); StoryIntro.next(); }
+      else if (['Escape', 'Backspace', 'GoBack'].includes(e.key)) { e.preventDefault(); StoryIntro.finish(); }
+      return;
+    }
     // Orbit's training overlay: Escape / Back = Skip (before) or Back (after)
     const tov = $('#tut-overlay');
     if (tov && tov.classList.contains('show')) {
@@ -3355,6 +3371,91 @@
       requestAnimationFrame(mp.loop);
     },
   };
+
+  // ---------------- The story before the intro film ----------------
+  // Start: the first time you see the five story pages, then the film. Cinema can replay them ("The story").
+  let storyBack = null;
+  function playStory(after) {
+    storyBack = after;
+    fadeTo('story', { tint: '#02040f', out: 400, hold: 120 });
+    setTimeout(() => StoryIntro.play(() => { const a = storyBack; storyBack = null; if (a) a(); }), 420);
+  }
+  actions['story-next'] = () => StoryIntro.next();
+  actions['story-skip'] = () => StoryIntro.finish();
+  $('#screen-story').addEventListener('pointerdown', (e) => { if (!e.target.closest('button')) StoryIntro.next(); });
+
+  // ---------------- The "i" button: what is this screen for? ----------------
+  const INFO = {
+    planets: { title: 'Planet screen', what: 'Your starting point. Pick a planet to fly to and catch aliens.',
+      can: ['Swipe or use the arrows to turn the planets', 'Tap a planet to see its worlds', 'Use the buttons on the left and right for your base, gear, shop and more'],
+      tips: ['A dot on a button means something new is waiting there', 'Continue takes you straight to your next level'] },
+    levels: { title: 'Worlds and levels', what: 'Each world has 10 levels. The last one is a boss.',
+      can: ['Choose a level that is open', 'Change your gear with Equipment before you start'],
+      tips: ['Win a level to open the next one', 'Play a level again to collect more crystals'] },
+    home: { title: 'Spacedome', what: 'Your own space base. Its rooms help you while you play.',
+      can: ['Tap a room to see what it does', 'Upgrade rooms with crystals and materials', 'Visit your aliens on the Ranch'],
+      tips: ['The sanctuary makes crystals even while you are not playing'] },
+    ranch: { title: 'Ranch', what: 'The aliens you caught live here, calm and happy.',
+      can: ['Drag an alien to move it', 'Give snacks, throw the ball and decorate', 'Pick a buddy to come along on your missions'],
+      tips: ['Every alien has a favourite snack', 'Better friends give you presents'] },
+    workshop: { title: 'Workshop', what: 'Build and improve your gear here.',
+      can: ['Unlock new gadgets', 'Upgrade them to make them stronger'],
+      tips: ['Materials drop from aliens in the levels'] },
+    mods: { title: 'Abilities', what: 'Special powers for your blaster and your drone.',
+      can: ['Unlock weapon mods and drone abilities', 'Choose which ones to use'],
+      tips: ['Try different mods against different aliens'] },
+    shop: { title: 'Shop', what: 'Spend your crystals and stars on cool things.',
+      can: ['Buy gear in the crystal shop', 'Buy special items in the star shop'],
+      tips: ['Stars come from finishing levels well'] },
+    dex: { title: 'Alien guide', what: 'Every alien you caught is saved here.',
+      can: ['Tap an alien to read about it', 'See where to catch it and jump straight to that level', 'Look at the bosses you freed'],
+      tips: ['Grey cards are aliens you have not caught yet'] },
+    goals: { title: 'Goals', what: 'Missions to complete for rewards.',
+      can: ['See your goals and how far you are', 'Collect rewards when a goal is done', 'Open your badges'],
+      tips: ['New goals appear when you finish old ones'] },
+    badges: { title: 'Badges', what: 'Medals for everything you have done.',
+      can: ['Tap a medal to see what it is for and how close you are'],
+      tips: ['The ring around a medal shows your progress'] },
+    equip: { title: 'Equipment', what: 'Choose what you take on your mission.',
+      can: ['Pick superpowers for your left and right hand', 'Choose weapon mods, helper bots and a drone ability', 'Change the look of your blaster'],
+      tips: ['Unlock new things in the Workshop and the shop'] },
+    cinema: { title: 'Cinema', what: 'Watch the films and conversations again.',
+      can: ['Tap a film or conversation to play it'],
+      tips: ['Free bosses to open new conversations'] },
+    options: { title: 'Options', what: 'Change how the game works for you.',
+      can: ['Change the language and sound', 'Play the training again', 'Change controls and aim assist'],
+      tips: ['A grown-up can link an account to keep your progress safe'] },
+    account: { title: 'Account', what: 'Keep your progress safe.',
+      can: ['Save your progress in the cloud', 'Move your progress to another device with a save code'],
+      tips: ['Ask a grown-up to help you here'] },
+  };
+  function updateInfoBtn() {
+    const b = $('#info-btn');
+    const on = !!INFO[current];
+    b.classList.toggle('show', on);
+    b.classList.toggle('pulse', on && !(save.infoSeen || {})[current]);
+    document.body.dataset.screen = current;
+  }
+  function showInfo() {
+    const d = INFO[current];
+    if (!d) return;
+    if (!save.infoSeen) save.infoSeen = {};
+    if (!save.infoSeen[current]) { save.infoSeen[current] = true; persist(); }
+    const li = (a) => a.map((s) => `<li>${t(s)}</li>`).join('');
+    $('#info-pop').innerHTML = `<div class="ip-head"><span class="ip-i">i</span><h2>${t(d.title)}</h2></div>`
+      + `<h3>${t('What is this?')}</h3><p>${t(d.what)}</p>`
+      + `<h3>${t('What can I do here?')}</h3><ul>${li(d.can)}</ul>`
+      + `<h3>${t('Tips')}</h3><ul class="ip-tips">${li(d.tips)}</ul>`
+      + `<button class="btn pink" data-action="info-close"><span>${t('Got it!')}</span></button>`;
+    $('#ov-info').classList.add('show');
+    updateInfoBtn();
+    setTimeout(() => { const b = $('#info-pop .btn'); if (b) b.focus(); }, 40);
+  }
+  const infoOpen = () => $('#ov-info').classList.contains('show');
+  function closeInfo() { $('#ov-info').classList.remove('show'); setTimeout(focusFirst, 30); }
+  actions['info'] = () => (infoOpen() ? closeInfo() : showInfo());
+  actions['info-close'] = () => closeInfo();
+  $('#ov-info').addEventListener('pointerdown', (e) => { if (e.target.id === 'ov-info') closeInfo(); });
 
   // ---------------- Boot ----------------
   Sfx.enabled = save.options.sound === 'on';

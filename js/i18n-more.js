@@ -3084,4 +3084,559 @@
   "+10% de pontos"
  ]
 });
+  I18N.add({
+ "Far away, at the edge of the galaxy, lies the Star Cluster: planets full of friendly, colourful aliens.": [
+  "Ver weg, aan de rand van het melkwegstelsel, ligt de Sterrenhoop: planeten vol vriendelijke, kleurrijke aliens.",
+  "Weit weg, am Rand der Galaxie, liegt der Sternhaufen: Planeten voller freundlicher, bunter Aliens.",
+  "Très loin, au bord de la galaxie, se trouve l'Amas d'étoiles : des planètes pleines d'aliens gentils et colorés.",
+  "Muy lejos, en el borde de la galaxia, está el Cúmulo Estelar: planetas llenos de aliens simpáticos y coloridos.",
+  "Muito longe, na orla da galáxia, fica o Aglomerado Estelar: planetas cheios de aliens simpáticos e coloridos."
+ ],
+ "But one day a strange humming signal spread from star to star. It filled the aliens' heads with static… and they turned wild and angry.": [
+  "Maar op een dag verspreidde een vreemd zoemend signaal zich van ster tot ster. Het vulde de hoofden van de aliens met ruis… en ze werden wild en boos.",
+  "Doch eines Tages breitete sich ein seltsames summendes Signal von Stern zu Stern aus. Es füllte die Köpfe der Aliens mit Rauschen… und sie wurden wild und wütend.",
+  "Mais un jour, un étrange signal bourdonnant s'est propagé d'étoile en étoile. Il a rempli la tête des aliens de parasites… et ils sont devenus sauvages et en colère.",
+  "Pero un día, una extraña señal zumbante se extendió de estrella en estrella. Llenó la cabeza de los aliens de interferencias… y se volvieron salvajes y furiosos.",
+  "Mas um dia, um estranho sinal zumbido espalhou-se de estrela em estrela. Encheu a cabeça dos aliens de estática… e eles ficaram selvagens e zangados."
+ ],
+ "Space Command sent its bravest astronaut: you! And Orbit, your little robot helper, came along.": [
+  "Ruimtecommando stuurde zijn dapperste astronaut: jou! En Orbit, je kleine robothulpje, ging mee.",
+  "Das Weltraumkommando schickte seinen mutigsten Astronauten: dich! Und Orbit, dein kleiner Roboterhelfer, kam mit.",
+  "Le Commandement spatial a envoyé son astronaute le plus courageux : toi ! Et Orbit, ton petit robot assistant, t'a accompagné.",
+  "El Mando Espacial envió a su astronauta más valiente: ¡tú! Y Orbit, tu pequeño robot ayudante, te acompañó.",
+  "O Comando Espacial enviou o seu astronauta mais corajoso: tu! E o Orbit, o teu pequeno robô ajudante, foi contigo."
+ ],
+ "Your blaster doesn't hurt. Its digital beam catches an alien, cleans the static from its head, and keeps it safe in your Alien Guide.": [
+  "Je blaster doet geen pijn. De digitale straal vangt een alien, haalt de ruis uit zijn hoofd en bewaart hem veilig in je Aliengids.",
+  "Dein Blaster tut nicht weh. Sein digitaler Strahl fängt ein Alien, entfernt das Rauschen aus seinem Kopf und bewahrt es sicher in deinem Alien-Lexikon auf.",
+  "Ton blaster ne fait pas mal. Son rayon numérique attrape un alien, nettoie les parasites de sa tête et le garde en sécurité dans ton Guide des aliens.",
+  "Tu bláster no hace daño. Su rayo digital atrapa a un alien, limpia las interferencias de su cabeza y lo guarda a salvo en tu Guía de aliens.",
+  "O teu blaster não magoa. O seu raio digital apanha um alien, limpa a estática da cabeça dele e guarda-o em segurança no teu Guia de aliens."
+ ],
+ "Calm aliens move to your ranch. Free every planet… and find out who sent the signal.": [
+  "Rustige aliens verhuizen naar je ranch. Bevrijd elke planeet… en ontdek wie het signaal stuurde.",
+  "Ruhige Aliens ziehen auf deine Ranch. Befreie jeden Planeten… und finde heraus, wer das Signal gesendet hat.",
+  "Les aliens calmés s'installent dans ton ranch. Libère chaque planète… et découvre qui a envoyé le signal.",
+  "Los aliens tranquilos se mudan a tu rancho. Libera cada planeta… y descubre quién envió la señal.",
+  "Os aliens calmos mudam-se para o teu rancho. Liberta cada planeta… e descobre quem enviou o sinal."
+ ],
+ "Let's go!": [
+  "Op pad!",
+  "Los geht's!",
+  "C'est parti !",
+  "¡Vamos!",
+  "Vamos!"
+ ],
+ "The story": [
+  "Het verhaal",
+  "Die Geschichte",
+  "L'histoire",
+  "La historia",
+  "A história"
+ ],
+ "Story": [
+  "Verhaal",
+  "Geschichte",
+  "Histoire",
+  "Historia",
+  "História"
+ ],
+ "What is this?": [
+  "Wat is dit?",
+  "Was ist das?",
+  "C'est quoi ?",
+  "¿Qué es esto?",
+  "O que é isto?"
+ ],
+ "What can I do here?": [
+  "Wat kan ik hier doen?",
+  "Was kann ich hier tun?",
+  "Que puis-je faire ici ?",
+  "¿Qué puedo hacer aquí?",
+  "O que posso fazer aqui?"
+ ],
+ "Tips": [
+  "Tips",
+  "Tipps",
+  "Astuces",
+  "Consejos",
+  "Dicas"
+ ],
+ "Got it!": [
+  "Begrepen!",
+  "Verstanden!",
+  "Compris !",
+  "¡Entendido!",
+  "Percebi!"
+ ],
+ "Info": [
+  "Info",
+  "Info",
+  "Infos",
+  "Info",
+  "Info"
+ ],
+ "Planet screen": [
+  "Planeetscherm",
+  "Planetenbildschirm",
+  "Écran des planètes",
+  "Pantalla de planetas",
+  "Ecrã dos planetas"
+ ],
+ "Your starting point. Pick a planet to fly to and catch aliens.": [
+  "Je startpunt. Kies een planeet om naartoe te vliegen en aliens te vangen.",
+  "Dein Startpunkt. Wähle einen Planeten, um hinzufliegen und Aliens zu fangen.",
+  "Ton point de départ. Choisis une planète où voler pour attraper des aliens.",
+  "Tu punto de partida. Elige un planeta al que volar para atrapar aliens.",
+  "O teu ponto de partida. Escolhe um planeta para voar e apanhar aliens."
+ ],
+ "Swipe or use the arrows to turn the planets": [
+  "Veeg of gebruik de pijltjes om de planeten te draaien",
+  "Wische oder nutze die Pfeile, um die Planeten zu drehen",
+  "Glisse ou utilise les flèches pour faire tourner les planètes",
+  "Desliza o usa las flechas para girar los planetas",
+  "Desliza ou usa as setas para rodar os planetas"
+ ],
+ "Tap a planet to see its worlds": [
+  "Tik op een planeet om zijn werelden te zien",
+  "Tippe auf einen Planeten, um seine Welten zu sehen",
+  "Touche une planète pour voir ses mondes",
+  "Toca un planeta para ver sus mundos",
+  "Toca num planeta para ver os seus mundos"
+ ],
+ "Use the buttons on the left and right for your base, gear, shop and more": [
+  "Gebruik de knoppen links en rechts voor je basis, uitrusting, winkel en meer",
+  "Nutze die Knöpfe links und rechts für Basis, Ausrüstung, Laden und mehr",
+  "Utilise les boutons à gauche et à droite pour ta base, ton équipement, la boutique et plus",
+  "Usa los botones de la izquierda y la derecha para tu base, equipo, tienda y más",
+  "Usa os botões à esquerda e à direita para a tua base, equipamento, loja e mais"
+ ],
+ "A dot on a button means something new is waiting there": [
+  "Een stip op een knop betekent dat er iets nieuws op je wacht",
+  "Ein Punkt auf einem Knopf bedeutet, dass dort etwas Neues wartet",
+  "Un point sur un bouton veut dire que quelque chose de nouveau t'attend",
+  "Un punto en un botón significa que hay algo nuevo esperándote",
+  "Um ponto num botão quer dizer que há algo novo à tua espera"
+ ],
+ "Continue takes you straight to your next level": [
+  "Verder brengt je meteen naar je volgende level",
+  "Weiter bringt dich direkt zu deinem nächsten Level",
+  "Continuer t'emmène directement à ton prochain niveau",
+  "Continuar te lleva directamente a tu siguiente nivel",
+  "Continuar leva-te diretamente ao teu próximo nível"
+ ],
+ "Worlds and levels": [
+  "Werelden en levels",
+  "Welten und Level",
+  "Mondes et niveaux",
+  "Mundos y niveles",
+  "Mundos e níveis"
+ ],
+ "Each world has 10 levels. The last one is a boss.": [
+  "Elke wereld heeft 10 levels. De laatste is een baas.",
+  "Jede Welt hat 10 Level. Das letzte ist ein Boss.",
+  "Chaque monde a 10 niveaux. Le dernier est un boss.",
+  "Cada mundo tiene 10 niveles. El último es un jefe.",
+  "Cada mundo tem 10 níveis. O último é um chefe."
+ ],
+ "Choose a level that is open": [
+  "Kies een level dat open is",
+  "Wähle ein offenes Level",
+  "Choisis un niveau ouvert",
+  "Elige un nivel que esté abierto",
+  "Escolhe um nível que esteja aberto"
+ ],
+ "Change your gear with Equipment before you start": [
+  "Verander je uitrusting met Uitrusting voordat je begint",
+  "Ändere deine Ausrüstung unter Ausrüstung, bevor du startest",
+  "Change ton équipement avec Équipement avant de commencer",
+  "Cambia tu equipo en Equipo antes de empezar",
+  "Muda o teu equipamento em Equipamento antes de começar"
+ ],
+ "Win a level to open the next one": [
+  "Win een level om het volgende te openen",
+  "Gewinne ein Level, um das nächste zu öffnen",
+  "Gagne un niveau pour ouvrir le suivant",
+  "Gana un nivel para abrir el siguiente",
+  "Ganha um nível para abrir o seguinte"
+ ],
+ "Play a level again to collect more crystals": [
+  "Speel een level opnieuw om meer kristallen te verzamelen",
+  "Spiele ein Level erneut, um mehr Kristalle zu sammeln",
+  "Rejoue un niveau pour récolter plus de cristaux",
+  "Juega un nivel otra vez para conseguir más cristales",
+  "Joga um nível outra vez para apanhar mais cristais"
+ ],
+ "Your own space base. Its rooms help you while you play.": [
+  "Je eigen ruimtebasis. De kamers helpen je tijdens het spelen.",
+  "Deine eigene Weltraumbasis. Ihre Räume helfen dir beim Spielen.",
+  "Ta propre base spatiale. Ses salles t'aident pendant que tu joues.",
+  "Tu propia base espacial. Sus salas te ayudan mientras juegas.",
+  "A tua própria base espacial. As salas ajudam-te enquanto jogas."
+ ],
+ "Tap a room to see what it does": [
+  "Tik op een kamer om te zien wat hij doet",
+  "Tippe auf einen Raum, um zu sehen, was er macht",
+  "Touche une salle pour voir à quoi elle sert",
+  "Toca una sala para ver qué hace",
+  "Toca numa sala para ver o que faz"
+ ],
+ "Upgrade rooms with crystals and materials": [
+  "Verbeter kamers met kristallen en materialen",
+  "Verbessere Räume mit Kristallen und Materialien",
+  "Améliore les salles avec des cristaux et des matériaux",
+  "Mejora las salas con cristales y materiales",
+  "Melhora as salas com cristais e materiais"
+ ],
+ "Visit your aliens on the Ranch": [
+  "Bezoek je aliens op de Ranch",
+  "Besuche deine Aliens auf der Ranch",
+  "Rends visite à tes aliens au Ranch",
+  "Visita a tus aliens en el Rancho",
+  "Visita os teus aliens no Rancho"
+ ],
+ "The sanctuary makes crystals even while you are not playing": [
+  "Het toevluchtsoord maakt kristallen, zelfs als je niet speelt",
+  "Das Schutzgebiet macht Kristalle, auch wenn du nicht spielst",
+  "Le sanctuaire fabrique des cristaux même quand tu ne joues pas",
+  "El santuario fabrica cristales incluso cuando no juegas",
+  "O santuário faz cristais mesmo quando não estás a jogar"
+ ],
+ "The aliens you caught live here, calm and happy.": [
+  "De aliens die je ving wonen hier, rustig en blij.",
+  "Die Aliens, die du gefangen hast, leben hier ruhig und glücklich.",
+  "Les aliens que tu as attrapés vivent ici, calmes et heureux.",
+  "Los aliens que atrapaste viven aquí, tranquilos y felices.",
+  "Os aliens que apanhaste vivem aqui, calmos e felizes."
+ ],
+ "Drag an alien to move it": [
+  "Sleep een alien om hem te verplaatsen",
+  "Zieh ein Alien, um es zu verschieben",
+  "Fais glisser un alien pour le déplacer",
+  "Arrastra un alien para moverlo",
+  "Arrasta um alien para o mover"
+ ],
+ "Give snacks, throw the ball and decorate": [
+  "Geef snacks, gooi de bal en versier",
+  "Gib Snacks, wirf den Ball und dekoriere",
+  "Donne des goûters, lance la balle et décore",
+  "Da golosinas, lanza la pelota y decora",
+  "Dá lanches, atira a bola e decora"
+ ],
+ "Pick a buddy to come along on your missions": [
+  "Kies een maatje dat meegaat op je missies",
+  "Wähle einen Kumpel, der dich auf Missionen begleitet",
+  "Choisis un copain qui t'accompagne en mission",
+  "Elige un compañero que te acompañe en tus misiones",
+  "Escolhe um amigo para te acompanhar nas missões"
+ ],
+ "Every alien has a favourite snack": [
+  "Elke alien heeft een lievelingssnack",
+  "Jedes Alien hat einen Lieblingssnack",
+  "Chaque alien a un goûter préféré",
+  "Cada alien tiene una golosina favorita",
+  "Cada alien tem um lanche favorito"
+ ],
+ "Better friends give you presents": [
+  "Betere vrienden geven je cadeautjes",
+  "Bessere Freunde machen dir Geschenke",
+  "Les meilleurs amis te font des cadeaux",
+  "Los mejores amigos te dan regalos",
+  "Os melhores amigos dão-te presentes"
+ ],
+ "Build and improve your gear here.": [
+  "Bouw en verbeter hier je uitrusting.",
+  "Baue und verbessere hier deine Ausrüstung.",
+  "Construis et améliore ton équipement ici.",
+  "Construye y mejora tu equipo aquí.",
+  "Constrói e melhora o teu equipamento aqui."
+ ],
+ "Unlock new gadgets": [
+  "Ontgrendel nieuwe gadgets",
+  "Schalte neue Gadgets frei",
+  "Débloque de nouveaux gadgets",
+  "Desbloquea nuevos aparatos",
+  "Desbloqueia novos gadgets"
+ ],
+ "Upgrade them to make them stronger": [
+  "Verbeter ze om ze sterker te maken",
+  "Verbessere sie, damit sie stärker werden",
+  "Améliore-les pour les rendre plus forts",
+  "Mejóralos para hacerlos más fuertes",
+  "Melhora-os para ficarem mais fortes"
+ ],
+ "Materials drop from aliens in the levels": [
+  "Materialen vallen van aliens in de levels",
+  "Materialien lassen Aliens in den Leveln fallen",
+  "Les aliens lâchent des matériaux dans les niveaux",
+  "Los aliens sueltan materiales en los niveles",
+  "Os aliens largam materiais nos níveis"
+ ],
+ "Special powers for your blaster and your drone.": [
+  "Speciale krachten voor je blaster en je drone.",
+  "Spezialkräfte für deinen Blaster und deine Drohne.",
+  "Des pouvoirs spéciaux pour ton blaster et ton drone.",
+  "Poderes especiales para tu bláster y tu dron.",
+  "Poderes especiais para o teu blaster e o teu drone."
+ ],
+ "Unlock weapon mods and drone abilities": [
+  "Ontgrendel wapenmods en drone-vaardigheden",
+  "Schalte Waffenmods und Drohnenfähigkeiten frei",
+  "Débloque des mods d'arme et des capacités de drone",
+  "Desbloquea mods de arma y habilidades del dron",
+  "Desbloqueia mods de arma e habilidades do drone"
+ ],
+ "Choose which ones to use": [
+  "Kies welke je gebruikt",
+  "Wähle aus, welche du benutzt",
+  "Choisis ceux que tu utilises",
+  "Elige cuáles usar",
+  "Escolhe quais usar"
+ ],
+ "Try different mods against different aliens": [
+  "Probeer verschillende mods tegen verschillende aliens",
+  "Probiere verschiedene Mods gegen verschiedene Aliens",
+  "Essaie différents mods contre différents aliens",
+  "Prueba distintos mods contra distintos aliens",
+  "Experimenta mods diferentes contra aliens diferentes"
+ ],
+ "Spend your crystals and stars on cool things.": [
+  "Geef je kristallen en sterren uit aan coole dingen.",
+  "Gib deine Kristalle und Sterne für coole Sachen aus.",
+  "Dépense tes cristaux et tes étoiles pour des trucs géniaux.",
+  "Gasta tus cristales y estrellas en cosas geniales.",
+  "Gasta os teus cristais e estrelas em coisas fixes."
+ ],
+ "Buy gear in the crystal shop": [
+  "Koop uitrusting in de kristalwinkel",
+  "Kaufe Ausrüstung im Kristallladen",
+  "Achète de l'équipement dans la boutique de cristaux",
+  "Compra equipo en la tienda de cristales",
+  "Compra equipamento na loja de cristais"
+ ],
+ "Buy special items in the star shop": [
+  "Koop speciale spullen in de sterrenwinkel",
+  "Kaufe besondere Sachen im Sternenladen",
+  "Achète des objets spéciaux dans la boutique d'étoiles",
+  "Compra objetos especiales en la tienda de estrellas",
+  "Compra objetos especiais na loja de estrelas"
+ ],
+ "Stars come from finishing levels well": [
+  "Sterren krijg je door levels goed af te maken",
+  "Sterne bekommst du, wenn du Level gut abschließt",
+  "Tu gagnes des étoiles en finissant bien les niveaux",
+  "Las estrellas se ganan terminando bien los niveles",
+  "As estrelas ganham-se ao acabar bem os níveis"
+ ],
+ "Every alien you caught is saved here.": [
+  "Elke alien die je ving wordt hier bewaard.",
+  "Jedes Alien, das du gefangen hast, wird hier gespeichert.",
+  "Chaque alien que tu as attrapé est gardé ici.",
+  "Cada alien que atrapaste se guarda aquí.",
+  "Cada alien que apanhaste fica guardado aqui."
+ ],
+ "Tap an alien to read about it": [
+  "Tik op een alien om erover te lezen",
+  "Tippe auf ein Alien, um darüber zu lesen",
+  "Touche un alien pour lire sa fiche",
+  "Toca un alien para leer sobre él",
+  "Toca num alien para ler sobre ele"
+ ],
+ "See where to catch it and jump straight to that level": [
+  "Zie waar je hem kunt vangen en ga meteen naar dat level",
+  "Sieh, wo du es fangen kannst, und spring direkt zu diesem Level",
+  "Vois où l'attraper et va directement à ce niveau",
+  "Mira dónde atraparlo y salta directo a ese nivel",
+  "Vê onde o apanhar e salta diretamente para esse nível"
+ ],
+ "Look at the bosses you freed": [
+  "Bekijk de bazen die je bevrijdde",
+  "Sieh dir die Bosse an, die du befreit hast",
+  "Regarde les boss que tu as libérés",
+  "Mira los jefes que liberaste",
+  "Vê os chefes que libertaste"
+ ],
+ "Grey cards are aliens you have not caught yet": [
+  "Grijze kaarten zijn aliens die je nog niet hebt gevangen",
+  "Graue Karten sind Aliens, die du noch nicht gefangen hast",
+  "Les cartes grises sont des aliens que tu n'as pas encore attrapés",
+  "Las cartas grises son aliens que aún no has atrapado",
+  "As cartas cinzentas são aliens que ainda não apanhaste"
+ ],
+ "Missions to complete for rewards.": [
+  "Missies om te voltooien voor beloningen.",
+  "Missionen, die du für Belohnungen erfüllst.",
+  "Des missions à accomplir pour gagner des récompenses.",
+  "Misiones que completar para ganar premios.",
+  "Missões para completar e ganhar prémios."
+ ],
+ "See your goals and how far you are": [
+  "Zie je doelen en hoe ver je bent",
+  "Sieh deine Ziele und wie weit du bist",
+  "Vois tes objectifs et où tu en es",
+  "Mira tus objetivos y cuánto te falta",
+  "Vê os teus objetivos e quanto te falta"
+ ],
+ "Collect rewards when a goal is done": [
+  "Haal beloningen op als een doel klaar is",
+  "Hol dir Belohnungen, wenn ein Ziel geschafft ist",
+  "Récupère tes récompenses quand un objectif est atteint",
+  "Recoge premios cuando completes un objetivo",
+  "Recolhe prémios quando um objetivo está feito"
+ ],
+ "Open your badges": [
+  "Open je badges",
+  "Öffne deine Abzeichen",
+  "Ouvre tes badges",
+  "Abre tus insignias",
+  "Abre os teus crachás"
+ ],
+ "New goals appear when you finish old ones": [
+  "Nieuwe doelen verschijnen als je oude afmaakt",
+  "Neue Ziele erscheinen, wenn du alte erledigst",
+  "De nouveaux objectifs apparaissent quand tu finis les anciens",
+  "Aparecen objetivos nuevos cuando terminas los viejos",
+  "Aparecem novos objetivos quando acabas os antigos"
+ ],
+ "Medals for everything you have done.": [
+  "Medailles voor alles wat je hebt gedaan.",
+  "Medaillen für alles, was du geschafft hast.",
+  "Des médailles pour tout ce que tu as fait.",
+  "Medallas por todo lo que has hecho.",
+  "Medalhas por tudo o que fizeste."
+ ],
+ "Tap a medal to see what it is for and how close you are": [
+  "Tik op een medaille om te zien waarvoor hij is en hoe dichtbij je bent",
+  "Tippe auf eine Medaille, um zu sehen, wofür sie ist und wie nah du dran bist",
+  "Touche une médaille pour voir à quoi elle sert et où tu en es",
+  "Toca una medalla para ver para qué es y cuánto te falta",
+  "Toca numa medalha para ver para que é e quanto te falta"
+ ],
+ "The ring around a medal shows your progress": [
+  "De ring rond een medaille toont je voortgang",
+  "Der Ring um eine Medaille zeigt deinen Fortschritt",
+  "L'anneau autour d'une médaille montre ta progression",
+  "El anillo alrededor de una medalla muestra tu progreso",
+  "O anel à volta de uma medalha mostra o teu progresso"
+ ],
+ "Choose what you take on your mission.": [
+  "Kies wat je meeneemt op je missie.",
+  "Wähle, was du auf deine Mission mitnimmst.",
+  "Choisis ce que tu emportes en mission.",
+  "Elige lo que llevas a tu misión.",
+  "Escolhe o que levas para a missão."
+ ],
+ "Pick superpowers for your left and right hand": [
+  "Kies superkrachten voor je linker- en rechterhand",
+  "Wähle Superkräfte für deine linke und rechte Hand",
+  "Choisis des superpouvoirs pour ta main gauche et ta main droite",
+  "Elige superpoderes para tu mano izquierda y derecha",
+  "Escolhe superpoderes para a mão esquerda e direita"
+ ],
+ "Choose weapon mods, helper bots and a drone ability": [
+  "Kies wapenmods, hulpbots en een drone-vaardigheid",
+  "Wähle Waffenmods, Helferbots und eine Drohnenfähigkeit",
+  "Choisis des mods d'arme, des robots assistants et une capacité de drone",
+  "Elige mods de arma, bots ayudantes y una habilidad del dron",
+  "Escolhe mods de arma, bots ajudantes e uma habilidade do drone"
+ ],
+ "Change the look of your blaster": [
+  "Verander het uiterlijk van je blaster",
+  "Ändere das Aussehen deines Blasters",
+  "Change l'apparence de ton blaster",
+  "Cambia el aspecto de tu bláster",
+  "Muda o aspeto do teu blaster"
+ ],
+ "Unlock new things in the Workshop and the shop": [
+  "Ontgrendel nieuwe dingen in de Werkplaats en de winkel",
+  "Schalte neue Dinge in der Werkstatt und im Laden frei",
+  "Débloque de nouvelles choses à l'Atelier et à la boutique",
+  "Desbloquea cosas nuevas en el Taller y la tienda",
+  "Desbloqueia coisas novas na Oficina e na loja"
+ ],
+ "Watch the films and conversations again.": [
+  "Bekijk de films en gesprekken opnieuw.",
+  "Sieh dir die Filme und Gespräche noch einmal an.",
+  "Revois les films et les conversations.",
+  "Vuelve a ver las películas y conversaciones.",
+  "Revê os filmes e as conversas."
+ ],
+ "Tap a film or conversation to play it": [
+  "Tik op een film of gesprek om het af te spelen",
+  "Tippe auf einen Film oder ein Gespräch, um es abzuspielen",
+  "Touche un film ou une conversation pour le lancer",
+  "Toca una película o conversación para verla",
+  "Toca num filme ou conversa para o ver"
+ ],
+ "Free bosses to open new conversations": [
+  "Bevrijd bazen om nieuwe gesprekken te openen",
+  "Befreie Bosse, um neue Gespräche freizuschalten",
+  "Libère des boss pour ouvrir de nouvelles conversations",
+  "Libera jefes para abrir nuevas conversaciones",
+  "Liberta chefes para abrir novas conversas"
+ ],
+ "Change how the game works for you.": [
+  "Pas aan hoe het spel voor jou werkt.",
+  "Stell ein, wie das Spiel für dich funktioniert.",
+  "Règle le jeu comme tu le préfères.",
+  "Cambia cómo funciona el juego para ti.",
+  "Muda a forma como o jogo funciona para ti."
+ ],
+ "Change the language and sound": [
+  "Verander de taal en het geluid",
+  "Ändere Sprache und Ton",
+  "Change la langue et le son",
+  "Cambia el idioma y el sonido",
+  "Muda o idioma e o som"
+ ],
+ "Play the training again": [
+  "Speel de training opnieuw",
+  "Spiele das Training noch einmal",
+  "Refais l'entraînement",
+  "Juega el entrenamiento otra vez",
+  "Joga o treino outra vez"
+ ],
+ "Change controls and aim assist": [
+  "Verander de besturing en richthulp",
+  "Ändere Steuerung und Zielhilfe",
+  "Change les commandes et l'aide à la visée",
+  "Cambia los controles y la ayuda de puntería",
+  "Muda os controlos e a ajuda de pontaria"
+ ],
+ "A grown-up can link an account to keep your progress safe": [
+  "Een volwassene kan een account koppelen om je voortgang veilig te bewaren",
+  "Ein Erwachsener kann ein Konto verknüpfen, damit dein Fortschritt sicher ist",
+  "Un adulte peut relier un compte pour garder ta progression en sécurité",
+  "Un adulto puede vincular una cuenta para guardar tu progreso",
+  "Um adulto pode ligar uma conta para guardar o teu progresso"
+ ],
+ "Keep your progress safe.": [
+  "Bewaar je voortgang veilig.",
+  "Bewahre deinen Fortschritt sicher auf.",
+  "Garde ta progression en sécurité.",
+  "Guarda tu progreso a salvo.",
+  "Guarda o teu progresso em segurança."
+ ],
+ "Save your progress in the cloud": [
+  "Bewaar je voortgang in de cloud",
+  "Speichere deinen Fortschritt in der Cloud",
+  "Sauvegarde ta progression dans le cloud",
+  "Guarda tu progreso en la nube",
+  "Guarda o teu progresso na nuvem"
+ ],
+ "Move your progress to another device with a save code": [
+  "Zet je voortgang over naar een ander apparaat met een bewaarcode",
+  "Übertrage deinen Fortschritt mit einem Speichercode auf ein anderes Gerät",
+  "Transfère ta progression sur un autre appareil avec un code de sauvegarde",
+  "Pasa tu progreso a otro dispositivo con un código de guardado",
+  "Passa o teu progresso para outro dispositivo com um código"
+ ],
+ "Ask a grown-up to help you here": [
+  "Vraag een volwassene om je hier te helpen",
+  "Bitte einen Erwachsenen, dir hier zu helfen",
+  "Demande à un adulte de t'aider ici",
+  "Pide a un adulto que te ayude aquí",
+  "Pede a um adulto para te ajudar aqui"
+ ]
+});
 })();

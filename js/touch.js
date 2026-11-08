@@ -93,6 +93,7 @@
         this.navDir = dir;
         if (pressed(BTN.A)) { const el = document.activeElement; if (el && el !== document.body && typeof el.click === 'function') el.click(); else this.key('Enter'); }
         if (pressed(BTN.B)) this.key('Escape');
+        if (pressed(BTN.Y)) this.key('i');
         if (pressed(BTN.START)) this.key('Escape');
         if (any) this.inUse = true;
       }

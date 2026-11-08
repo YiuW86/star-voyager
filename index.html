@@ -5,7 +5,7 @@
 /* Always play the newest version: ask the website which version is live (bypassing any saved copy);
    if this page is older, load the page again once with the new version number. */
 (function () {
-  var BUILD = '3.46.1';
+  var BUILD = '3.47';
   try {
     fetch('version.json?t=' + Date.now(), { cache: 'no-store' }).then(function (r) { return r.ok ? r.json() : null; }).then(function (j) {
       if (!j || !j.v || j.v === BUILD) return;
@@ -25,7 +25,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Chakra+Petch:wght@400;500;600;700&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="css/style.css?v=3.46.1">
+  <link rel="stylesheet" href="css/style.css?v=3.47">
 </head>
 <body>
 <svg width="0" height="0" style="position:absolute" aria-hidden="true"><defs>
@@ -59,6 +59,17 @@
         <div class="code small-code" data-room-code>······</div>
       </div>
     </div>
+  </section>
+
+  <!-- The story before the intro film: five short animated pages -->
+  <section id="screen-story" class="screen story">
+    <canvas id="story-canvas" width="1920" height="1080"></canvas>
+    <div class="story-box">
+      <p id="story-text"></p>
+      <div class="story-foot"><div class="story-dots" id="story-dots"></div>
+        <button class="btn pink" id="story-next" data-action="story-next"><span>Next</span></button></div>
+    </div>
+    <button class="btn small story-skip" data-action="story-skip"><span>Skip</span></button>
   </section>
 
   <!-- Intro video after pressing Start -->
@@ -127,15 +138,15 @@
     <button class="btn small hub-back" data-go="start"><span>Back</span></button>
     <button class="hub-gear" data-action="planet-options" aria-label="Options"><svg viewBox="0 0 64 64"><path d="M32 6 L37 6 L39 14 L45 17 L52 12 L56 16 L51 23 L54 29 L62 31 V37 L54 39 L51 45 L56 52 L52 56 L45 51 L39 54 L37 62 H27 L25 54 L19 51 L12 56 L8 52 L13 45 L10 39 L2 37 V31 L10 29 L13 23 L8 16 L12 12 L19 17 L25 14 L27 6 Z" fill="currentColor" opacity="0.3" stroke="currentColor" stroke-width="3.5" stroke-linejoin="round"/><circle cx="32" cy="34" r="9" fill="none" stroke="currentColor" stroke-width="4"/></svg></button>
     <div class="hub-dock left">
-      <button class="hub-btn" data-go="home"><i class="hub-ico"><svg viewBox="0 0 64 64"><path d="M8 40 C8 22 20 12 32 12 C44 12 56 22 56 40 Z" fill="currentColor" opacity="0.25"/><path d="M8 40 C8 22 20 12 32 12 C44 12 56 22 56 40 M4 40 H60 M20 40 V50 H44 V40 M32 12 V40 M14 26 H50" fill="none" stroke="currentColor" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/></svg></i><span>Spacedome</span></button>
-      <button class="hub-btn" data-action="open-equip"><i class="hub-ico"><svg viewBox="0 0 64 64"><circle cx="32" cy="26" r="17" fill="currentColor" opacity="0.25"/><circle cx="32" cy="26" r="17" fill="none" stroke="currentColor" stroke-width="4"/><path d="M21 25 Q32 17 43 25 Q32 33 21 25 Z" fill="currentColor"/><path d="M14 58 C14 46 22 42 32 42 C42 42 50 46 50 58" fill="none" stroke="currentColor" stroke-width="4" stroke-linecap="round"/></svg><i class="goal-dot" id="equip-dot"></i></i><span>Equipment</span></button>
-      <button class="hub-btn" data-go="shop"><i class="hub-ico"><svg viewBox="0 0 64 64"><path d="M12 22 H52 L48 54 H16 Z" fill="currentColor" opacity="0.25"/><path d="M12 22 H52 L48 54 H16 Z M23 22 V16 C23 10 27 7 32 7 C37 7 41 10 41 16 V22" fill="none" stroke="currentColor" stroke-width="4" stroke-linejoin="round" stroke-linecap="round"/><path d="M32 30 L35 37 L42 37 L36 41 L38 48 L32 44 L26 48 L28 41 L22 37 L29 37 Z" fill="currentColor"/></svg></i><span>Shop</span></button>
-      <button class="hub-btn" data-action="training"><i class="hub-ico"><svg viewBox="0 0 64 64"><circle cx="32" cy="32" r="24" fill="currentColor" opacity="0.25" stroke="currentColor" stroke-width="4"/><circle cx="32" cy="32" r="14" fill="none" stroke="currentColor" stroke-width="4"/><circle cx="32" cy="32" r="5" fill="currentColor"/><path d="M32 2 V14 M32 50 V62 M2 32 H14 M50 32 H62" stroke="currentColor" stroke-width="4" stroke-linecap="round"/></svg></i><span>Training</span></button>
+      <button class="hub-btn" data-go="home"><i class="hub-ico"><svg viewBox="0 0 24 24"><path d="M4 19a8 8 0 0 1 16 0z"/><rect class="d" x="2" y="19" width="20" height="2" rx="1"/><circle class="d" cx="12" cy="5" r="1.5"/></svg></i><span>Spacedome</span></button>
+      <button class="hub-btn" data-action="open-equip"><i class="hub-ico"><svg viewBox="0 0 24 24"><path d="M2 9h13l3-2h4v6h-4l-1 2H9l-1 5H4l1-5H2z"/><rect class="d" x="16" y="8.5" width="4" height="3" rx="1"/></svg><i class="goal-dot" id="equip-dot"></i></i><span>Equipment</span></button>
+      <button class="hub-btn" data-go="shop"><i class="hub-ico"><svg viewBox="0 0 24 24"><path d="M5 8h14l-1.4 13H6.4z"/><path class="d" d="m12 11 1.2 2.4 2.6.4-1.9 1.8.5 2.6-2.4-1.3-2.4 1.3.5-2.6-1.9-1.8 2.6-.4z"/><path d="M9 8V6a3 3 0 0 1 6 0v2" fill="none" stroke="#fff" stroke-width="2"/></svg></i><span>Shop</span></button>
+      <button class="hub-btn" data-action="training"><i class="hub-ico"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><circle class="k" cx="12" cy="12" r="6"/><circle class="d" cx="12" cy="12" r="3"/></svg></i><span>Training</span></button>
     </div>
     <div class="hub-dock right">
-      <button class="hub-btn" data-go="dex"><i class="hub-ico"><svg viewBox="0 0 64 64"><path d="M10 12 H28 C31 12 32 14 32 17 V54 C32 51 30 50 27 50 H10 Z M54 12 H36 C33 12 32 14 32 17 V54 C32 51 34 50 37 50 H54 Z" fill="currentColor" opacity="0.25" stroke="currentColor" stroke-width="4" stroke-linejoin="round"/><circle cx="21" cy="28" r="5" fill="currentColor"/><path d="M38 24 H48 M38 32 H48 M38 40 H45" stroke="currentColor" stroke-width="3.5" stroke-linecap="round"/></svg></i><span>Alien guide</span></button>
-      <button class="hub-btn" data-go="cinema"><i class="hub-ico"><svg viewBox="0 0 64 64"><rect x="8" y="16" width="48" height="34" rx="5" fill="currentColor" opacity="0.25" stroke="currentColor" stroke-width="4"/><path d="M27 25 L41 33 L27 41 Z" fill="currentColor"/><path d="M8 24 H56 M8 42 H56" stroke="currentColor" stroke-width="2" opacity="0.6"/></svg></i><span>Cinema</span></button>
-      <button class="hub-btn" data-go="goals"><i class="hub-ico"><svg viewBox="0 0 64 64"><path d="M20 10 H44 V24 C44 32 39 37 32 37 C25 37 20 32 20 24 Z" fill="currentColor" opacity="0.25" stroke="currentColor" stroke-width="4" stroke-linejoin="round"/><path d="M20 15 H11 C11 24 15 28 20 28 M44 15 H53 C53 24 49 28 44 28 M32 37 V46 M22 54 H42 M26 54 L28 46 H36 L38 54" fill="none" stroke="currentColor" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/></svg><i class="goal-dot" id="goal-dot"></i></i><span>Goals</span></button>
+      <button class="hub-btn" data-go="dex"><i class="hub-ico"><svg viewBox="0 0 24 24"><rect x="4" y="2" width="16" height="20" rx="3"/><ellipse class="d" cx="12" cy="10" rx="5" ry="4"/><circle class="k" cx="10.3" cy="10" r="1"/><circle class="k" cx="13.7" cy="10" r="1"/><rect class="k" x="7" y="16" width="10" height="2" rx="1"/></svg></i><span>Alien guide</span></button>
+      <button class="hub-btn" data-go="cinema"><i class="hub-ico"><svg viewBox="0 0 24 24"><rect x="2" y="4" width="20" height="16" rx="3"/><path class="d" d="m10 8.5 6 3.5-6 3.5z"/></svg></i><span>Cinema</span></button>
+      <button class="hub-btn" data-go="goals"><i class="hub-ico"><svg viewBox="0 0 24 24"><path d="M7 3h10v6a5 5 0 0 1-10 0z"/><path class="d" d="M7 5H4a3.5 3.5 0 0 0 3.5 5M17 5h3a3.5 3.5 0 0 1-3.5 5" fill="none" stroke="#62f0ff" stroke-width="2"/><rect x="11" y="13" width="2" height="4"/><rect class="d" x="8" y="18" width="8" height="3" rx="1"/></svg><i class="goal-dot" id="goal-dot"></i></i><span>Goals</span></button>
     </div>
     <div class="planets-bar">
       <button class="btn pink continue-btn" data-action="continue" id="continue-btn"><span>Continue<small id="continue-where"></small></span></button>
@@ -563,21 +574,27 @@
       <button class="btn" data-go="start"><span>Back to title</span></button>
     </div>
   </section>
+  <!-- "i" button: what this screen is for (shown on the main screens) -->
+  <button class="info-btn" id="info-btn" data-action="info" aria-label="Info"><span>i</span></button>
+  <div class="overlay info-ov" id="ov-info">
+    <div class="panel info-pop"><div class="inner" id="info-pop"></div></div>
+  </div>
 </div>
 
 <script src="https://unpkg.com/peerjs@1.5.4/dist/peerjs.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
-<script src="js/config.js?v=3.46.1"></script>
-<script src="js/i18n.js?v=3.46.1"></script>
-<script src="js/i18n-more.js?v=3.46.1"></script>
-<script src="js/audio.js?v=3.46.1"></script>
-<script src="js/net.js?v=3.46.1"></script>
-<script src="js/level.js?v=3.46.1"></script>
-<script src="js/dex.js?v=3.46.1"></script>
-<script src="js/cloud.js?v=3.46.1"></script>
-<script src="js/touch.js?v=3.46.1"></script>
-<script src="js/story.js?v=3.46.1"></script>
-<script src="js/app.js?v=3.46.1"></script>
-<script src="js/cast-receiver.js?v=3.46.1"></script>
+<script src="js/config.js?v=3.47"></script>
+<script src="js/i18n.js?v=3.47"></script>
+<script src="js/i18n-more.js?v=3.47"></script>
+<script src="js/audio.js?v=3.47"></script>
+<script src="js/net.js?v=3.47"></script>
+<script src="js/level.js?v=3.47"></script>
+<script src="js/dex.js?v=3.47"></script>
+<script src="js/cloud.js?v=3.47"></script>
+<script src="js/touch.js?v=3.47"></script>
+<script src="js/story.js?v=3.47"></script>
+<script src="js/storyintro.js?v=3.47"></script>
+<script src="js/app.js?v=3.47"></script>
+<script src="js/cast-receiver.js?v=3.47"></script>
 </body>
 </html>
