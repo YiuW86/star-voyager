@@ -90,6 +90,7 @@
     $$('.screen').forEach((s) => s.classList.toggle('active', s.id === 'screen-' + name));
     current = name;
     try { $('#ov-info').classList.remove('show'); updateInfoBtn(); } catch (e) { /* not ready yet */ }
+    try { if (name === 'mural') Mural.render(); if (name === 'home') muralBtn(); } catch (e) { /* not ready yet */ }
     if (name === 'shop') renderShop();
     if (name === 'options') renderOptions();
     if (name === 'levels') renderLevels();
@@ -2862,6 +2863,17 @@
       return;
     }
     if ((e.key === 'i' || e.key === 'I') && !(window.Story && Story.active) && !(e.target && /^(INPUT|TEXTAREA)$/.test(e.target.tagName)) && INFO[current]) { e.preventDefault(); showInfo(); return; }
+    // the mural: a found piece pops up after the Void; on the mural screen arrows go through the pieces
+    if ($('#ov-mural-found').classList.contains('show')) {
+      if (['Escape', 'Backspace', 'GoBack', 'Enter', ' '].includes(e.key)) { e.preventDefault(); Mural.closeReveal(); }
+      else e.preventDefault();
+      return;
+    }
+    if (current === 'mural' && /^Arrow(Left|Right|Up|Down)$/.test(e.key)) {
+      e.preventDefault();
+      Mural.select(Mural.sel + (e.key === 'ArrowLeft' || e.key === 'ArrowUp' ? -1 : 1));
+      return;
+    }
     // the story pages: Enter / Space / → next page, Escape skips
     if (current === 'story') {
       if (['Enter', ' ', 'ArrowRight'].includes(e.key)) { e.preventDefault(); StoryIntro.next(); }
@@ -2915,6 +2927,7 @@
       if (current === 'voidintro') { e.preventDefault(); endVoidIntro(); return; }
       if (current === 'home' && $('#ov-base').classList.contains('show')) { e.preventDefault(); actions['base-close'](); return; }
       const back = { cinema: 'planets', options: 'start', levels: 'planets', planets: 'start', shop: 'planets', connect: 'levels', quit: 'start', dex: 'planets', home: 'planets', ranch: 'home', workshop: workshopFrom, goals: 'planets', badges: 'goals', mods: modsFrom, account: accountFrom, touchedit: 'options' }[current];
+      if (current === 'mural') { e.preventDefault(); actions['mural-back'](); return; }
       if (back) { e.preventDefault(); go(back); }
       return;
     }
@@ -3318,7 +3331,12 @@
     tauntOn = false;
     outroOn = false;
     box.classList.remove('in');
-    setTimeout(() => { box.classList.remove('show', 'taunt'); $('#void-taunt').classList.remove('show'); Level.endCine(); }, 600);
+    setTimeout(() => {
+      box.classList.remove('show', 'taunt'); $('#void-taunt').classList.remove('show');
+      // a piece of the ancient mural is waiting where the Void stood
+      const piece = Mural.award();
+      if (piece != null) Mural.reveal(piece, () => Level.endCine()); else Level.endCine();
+    }, 600);
   }
   $('#void-outro').addEventListener('pointerdown', (e) => { if (tauntOn && !e.target.closest('.void-skip')) endVoidOutro(); });
   $('#void-outro-video').addEventListener('ended', endVoidOutro);
@@ -3400,6 +3418,115 @@
     },
   };
 
+  // ---------------- The ancient mural: the Void's true story ----------------
+  // Every time you defeat the Void (in any of its forms, also when you play it again) you find one of 8 rocky pieces
+  // of a mural the Ancients carved long ago. Together they tell who the Void really is: Vael, who swallowed the Dark.
+  const MURAL_W = 1672, MURAL_H = 941;
+  const MURAL_POLYS = ['0,0 505,0 470,110 430,200 405,255 445,300 470,350 480,410 445,455 215,445 0,455',
+    '505,0 845,0 870,150 830,260 795,350 790,410 800,450 615,445 445,455 480,410 470,350 445,300 405,255 430,200 470,110',
+    '845,0 1230,0 1225,90 1180,200 1225,270 1245,350 1235,450 1020,440 800,450 790,410 795,350 830,260 870,150',
+    '1230,0 1672,0 1672,450 1450,455 1235,450 1245,350 1225,270 1180,200 1225,90',
+    '0,455 215,445 445,455 460,540 475,580 430,640 410,700 400,760 410,830 405,941 0,941',
+    '445,455 615,445 800,450 850,520 820,600 780,680 790,760 830,830 840,941 405,941 410,830 400,760 410,700 430,640 475,580 460,540',
+    '800,450 1020,440 1235,450 1225,560 1200,640 1180,700 1200,800 1210,941 840,941 830,830 790,760 780,680 820,600 850,520',
+    '1235,450 1450,455 1672,450 1672,941 1210,941 1200,800 1180,700 1200,640 1225,560'];
+  const MURAL = [
+    { title: 'The first light', text: 'In the beginning there was only the Dark. Then the first light burst out, and the Dark lost its rule. From that light came Vael, who watched over the stars and the Ancients.' },
+    { title: 'The Dark waits', text: 'But the Dark never left. Hidden at the edge of everything, it wanted only one thing: to put out every light, until all was dark again.' },
+    { title: 'The Ancients fall', text: 'The Dark swallowed stars and planets. The Ancients fought with crystal staffs and fled in their ships, but nothing could stop it.' },
+    { title: "Vael's choice", text: 'Then Vael stood alone before the Dark, opened its arms and pulled the Dark into its own heart.' },
+    { title: 'Victory with a price', text: 'The stars shone again and the Ancients cheered. But the Dark now lived inside Vael, and violet cracks spread over its golden light.' },
+    { title: 'Afraid of a hero', text: "Vael's eyes turned violet. Afraid of their hero, the Ancients asked Vael to go away." },
+    { title: 'The long sleep', text: 'Vael flew to the edge of the galaxy and fell into a deep sleep, keeping the Dark locked inside. Alone. One tear of light fell.' },
+    { title: 'The warning', text: 'The Ancients built silent guardians around the sleeper and carved one warning: never make a sound here. Never wake the one who saved us.' },
+  ];
+  const Mural = {
+    sel: 0, from: 'home',
+    found() { return unlockAll() ? MURAL.map((_, i) => i) : (save.mural || []).slice(); },
+    has(i) { return this.found().includes(i); },
+    // the next missing piece (in story order); null when the mural is complete
+    award() {
+      if (!save.mural) save.mural = [];
+      const i = MURAL.findIndex((_, k) => !save.mural.includes(k));
+      if (i < 0) return null;
+      save.mural.push(i); persist();
+      return i;
+    },
+    bbox(i) {
+      const pts = MURAL_POLYS[i].split(' ').map((s) => s.split(',').map(Number));
+      const xs = pts.map((p) => p[0]), ys = pts.map((p) => p[1]);
+      return { x: Math.min(...xs), y: Math.min(...ys), w: Math.max(...xs) - Math.min(...xs), h: Math.max(...ys) - Math.min(...ys) };
+    },
+    svg(opts) {
+      const id = opts.id, found = opts.found;
+      const vb = opts.only != null ? this.bbox(opts.only) : { x: 0, y: 0, w: MURAL_W, h: MURAL_H };
+      const pad = opts.only != null ? 14 : 0;
+      let defs = '<defs><linearGradient id="' + id + 'rock" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#3a3346"/><stop offset="1" stop-color="#1b1724"/></linearGradient>';
+      let body = '';
+      MURAL_POLYS.forEach((poly, i) => {
+        if (opts.only != null && i !== opts.only) return;
+        defs += '<clipPath id="' + id + 'c' + i + '"><polygon points="' + poly + '"/></clipPath>';
+        const c = MURAL[i] && opts.center ? opts.center(i) : null;
+        if (found.includes(i)) body += '<image class="mp-img" data-i="' + i + '" href="assets/mural.webp" width="' + MURAL_W + '" height="' + MURAL_H + '" clip-path="url(#' + id + 'c' + i + ')"/>';
+        else {
+          const b = this.bbox(i);
+          body += '<polygon class="mp-rock" data-i="' + i + '" points="' + poly + '" fill="url(#' + id + 'rock)"/>'
+            + '<text class="mp-q" x="' + (b.x + b.w / 2) + '" y="' + (b.y + b.h / 2) + '">?</text>';
+        }
+        body += '<polygon class="mp-edge' + (opts.sel === i ? ' sel' : '') + '" data-i="' + i + '" points="' + poly + '"/>';
+      });
+      return '<svg class="mural-svg" viewBox="' + (vb.x - pad) + ' ' + (vb.y - pad) + ' ' + (vb.w + pad * 2) + ' ' + (vb.h + pad * 2) + '" preserveAspectRatio="xMidYMid meet">' + defs + '</defs>' + body + '</svg>';
+    },
+    render() {
+      const found = this.found();
+      $('#mural-count').textContent = found.length + ' / ' + MURAL.length;
+      $('#mural-wall').innerHTML = this.svg({ id: 'mw', found, sel: this.sel });
+      $$('#mural-wall [data-i]').forEach((el) => el.addEventListener('click', () => { this.select(+el.dataset.i); Sfx.select(); }));
+      this.caption();
+    },
+    select(i) {
+      this.sel = (i + MURAL.length) % MURAL.length;
+      $$('#mural-wall .mp-edge').forEach((el) => el.classList.toggle('sel', +el.dataset.i === this.sel));
+      this.caption();
+    },
+    caption() {
+      const i = this.sel, ok = this.has(i), m = MURAL[i];
+      $('#mural-cap').innerHTML = '<b>' + (i + 1) + ' · ' + (ok ? t(m.title) : '???') + '</b><p>' + (ok ? t(m.text) : t('Defeat the Void to find this piece.')) + '</p>';
+      $('#mural-cap').classList.toggle('locked', !ok);
+    },
+    open(from) { this.from = from || current; const f = this.found(); this.sel = f.length ? f[f.length - 1] : 0; go('mural'); },
+    // the moment you find a piece: it glows, then its part of the story
+    reveal(i, done) {
+      const ov = $('#ov-mural-found'), n = this.found().length;
+      $('#mf-piece').innerHTML = this.svg({ id: 'mf', found: [i], only: i });
+      $('#mf-count').textContent = t('Piece {n} of {m}', { n, m: MURAL.length });
+      $('#mf-title').textContent = t(MURAL[i].title);
+      $('#mf-text').textContent = t(MURAL[i].text);
+      $('#mf-orbit').textContent = n === 1 ? t("Orbit: Astronaut, this mural is really old! Who is that golden being?")
+        : n === MURAL.length ? t('Orbit: A sound… never make a sound… Astronaut, our beacon! Did WE wake Vael?')
+        : t('Orbit: Find all the pieces to learn the whole story.');
+      this.done = done;
+      ov.classList.add('show');
+      requestAnimationFrame(() => ov.classList.add('in'));
+      Sfx.win && Sfx.win();
+      setTimeout(() => { const b = ov.querySelector('button'); if (b) b.focus(); }, 60);
+    },
+    closeReveal() {
+      const ov = $('#ov-mural-found');
+      if (!ov.classList.contains('show')) return false;
+      ov.classList.remove('in');
+      setTimeout(() => ov.classList.remove('show'), 350);
+      const d = this.done; this.done = null;
+      if (d) d();
+      return true;
+    },
+  };
+  actions['mural-close'] = () => Mural.closeReveal();
+  actions['mural-open'] = (el) => Mural.open(el && el.dataset.from);
+  actions['mural-back'] = () => go(Mural.from === 'mural' ? 'home' : Mural.from || 'home');
+  window.SVMural = Mural;   // handy for testing
+  function muralBtn() { const b = $('#home-mural'); if (b) b.style.display = Mural.found().length ? '' : 'none'; }
+
   // ---------------- The story before the intro film ----------------
   // Start: the first time you see the five story pages, then the film. Cinema can replay them ("The story").
   let storyBack = null;
@@ -3447,6 +3574,9 @@
     equip: { title: 'Equipment', what: 'Choose what you take on your mission.',
       can: ['Pick superpowers for your left and right hand', 'Choose weapon mods, helper bots and a drone ability', 'Change the look of your blaster'],
       tips: ['Unlock new things in the Workshop and the shop'] },
+    mural: { title: 'The ancient mural', what: 'A very old stone mural made by the Ancients. It tells the true story of the Void.',
+      can: ['Tap a piece to read its part of the story', 'Use the arrows to go from piece to piece'],
+      tips: ['Every time you defeat the Void, you find a new piece'] },
     cinema: { title: 'Cinema', what: 'Watch the films and conversations again.',
       can: ['Tap a film or conversation to play it'],
       tips: ['Free bosses to open new conversations'] },

@@ -3639,4 +3639,202 @@
   "Pede a um adulto para te ajudar aqui"
  ]
 });
+  I18N.add({
+ "Ancient mural": [
+  "Oude muurschildering",
+  "Uraltes Wandbild",
+  "Fresque ancienne",
+  "Mural antiguo",
+  "Mural antigo"
+ ],
+ "The ancient mural": [
+  "De oude muurschildering",
+  "Das uralte Wandbild",
+  "La fresque ancienne",
+  "El mural antiguo",
+  "O mural antigo"
+ ],
+ "Ancient mural piece found!": [
+  "Stuk van de oude muurschildering gevonden!",
+  "Ein Stück des uralten Wandbilds gefunden!",
+  "Morceau de la fresque ancienne trouvé !",
+  "¡Has encontrado un trozo del mural antiguo!",
+  "Encontraste um pedaço do mural antigo!"
+ ],
+ "Piece {n} of {m}": [
+  "Stuk {n} van {m}",
+  "Stück {n} von {m}",
+  "Morceau {n} sur {m}",
+  "Trozo {n} de {m}",
+  "Pedaço {n} de {m}"
+ ],
+ "Defeat the Void to find this piece.": [
+  "Versla de Void om dit stuk te vinden.",
+  "Besiege den Void, um dieses Stück zu finden.",
+  "Bats le Void pour trouver ce morceau.",
+  "Derrota al Void para encontrar este trozo.",
+  "Derrota o Void para encontrar este pedaço."
+ ],
+ "Orbit: Astronaut, this mural is really old! Who is that golden being?": [
+  "Orbit: Astronaut, deze muurschildering is heel oud! Wie is dat gouden wezen?",
+  "Orbit: Astronaut, dieses Wandbild ist uralt! Wer ist dieses goldene Wesen?",
+  "Orbit : Astronaute, cette fresque est très ancienne ! Qui est cet être doré ?",
+  "Orbit: ¡Astronauta, este mural es antiquísimo! ¿Quién es ese ser dorado?",
+  "Orbit: Astronauta, este mural é muito antigo! Quem é aquele ser dourado?"
+ ],
+ "Orbit: A sound… never make a sound… Astronaut, our beacon! Did WE wake Vael?": [
+  "Orbit: Een geluid… maak nooit een geluid… Astronaut, ons baken! Hebben WIJ Vael wakker gemaakt?",
+  "Orbit: Ein Geräusch… niemals ein Geräusch… Astronaut, unser Leuchtfeuer! Haben WIR Vael geweckt?",
+  "Orbit : Un bruit… ne jamais faire de bruit… Astronaute, notre balise ! C'est NOUS qui avons réveillé Vael ?",
+  "Orbit: Un sonido… nunca hacer un sonido… Astronauta, ¡nuestra baliza! ¿Despertamos NOSOTROS a Vael?",
+  "Orbit: Um som… nunca fazer um som… Astronauta, o nosso farol! Fomos NÓS que acordámos o Vael?"
+ ],
+ "Orbit: Find all the pieces to learn the whole story.": [
+  "Orbit: Vind alle stukken om het hele verhaal te kennen.",
+  "Orbit: Finde alle Stücke, um die ganze Geschichte zu erfahren.",
+  "Orbit : Trouve tous les morceaux pour connaître toute l'histoire.",
+  "Orbit: Encuentra todos los trozos para conocer toda la historia.",
+  "Orbit: Encontra todos os pedaços para conhecer a história toda."
+ ],
+ "The first light": [
+  "Het eerste licht",
+  "Das erste Licht",
+  "La première lumière",
+  "La primera luz",
+  "A primeira luz"
+ ],
+ "In the beginning there was only the Dark. Then the first light burst out, and the Dark lost its rule. From that light came Vael, who watched over the stars and the Ancients.": [
+  "In het begin was er alleen het Duister. Toen barstte het eerste licht los en verloor het Duister zijn macht. Uit dat licht kwam Vael, die over de sterren en de Ouden waakte.",
+  "Am Anfang gab es nur die Dunkelheit. Dann brach das erste Licht hervor, und die Dunkelheit verlor ihre Macht. Aus diesem Licht entstand Vael, der über die Sterne und die Alten wachte.",
+  "Au commencement, il n'y avait que les Ténèbres. Puis la première lumière a jailli, et les Ténèbres ont perdu leur pouvoir. De cette lumière est né Vael, qui veillait sur les étoiles et les Anciens.",
+  "Al principio solo existía la Oscuridad. Entonces estalló la primera luz y la Oscuridad perdió su poder. De esa luz nació Vael, que cuidaba de las estrellas y de los Antiguos.",
+  "No início havia apenas a Escuridão. Depois a primeira luz explodiu e a Escuridão perdeu o seu poder. Dessa luz nasceu Vael, que protegia as estrelas e os Antigos."
+ ],
+ "The Dark waits": [
+  "Het Duister wacht",
+  "Die Dunkelheit wartet",
+  "Les Ténèbres attendent",
+  "La Oscuridad espera",
+  "A Escuridão espera"
+ ],
+ "But the Dark never left. Hidden at the edge of everything, it wanted only one thing: to put out every light, until all was dark again.": [
+  "Maar het Duister ging nooit weg. Verborgen aan de rand van alles wilde het maar één ding: elk licht doven, tot alles weer donker was.",
+  "Doch die Dunkelheit verschwand nie. Versteckt am Rand von allem wollte sie nur eins: jedes Licht auslöschen, bis alles wieder dunkel war.",
+  "Mais les Ténèbres ne sont jamais parties. Cachées au bord de tout, elles ne voulaient qu'une chose : éteindre chaque lumière, jusqu'à ce que tout redevienne noir.",
+  "Pero la Oscuridad nunca se fue. Escondida en el borde de todo, solo quería una cosa: apagar cada luz hasta que todo volviera a ser oscuro.",
+  "Mas a Escuridão nunca partiu. Escondida no limite de tudo, só queria uma coisa: apagar todas as luzes, até tudo voltar a ser escuro."
+ ],
+ "The Ancients fall": [
+  "De Ouden verliezen",
+  "Die Alten unterliegen",
+  "La chute des Anciens",
+  "La caída de los Antiguos",
+  "A queda dos Antigos"
+ ],
+ "The Dark swallowed stars and planets. The Ancients fought with crystal staffs and fled in their ships, but nothing could stop it.": [
+  "Het Duister slokte sterren en planeten op. De Ouden vochten met kristallen staven en vluchtten in hun schepen, maar niets kon het stoppen.",
+  "Die Dunkelheit verschlang Sterne und Planeten. Die Alten kämpften mit Kristallstäben und flohen in ihren Schiffen, doch nichts konnte sie aufhalten.",
+  "Les Ténèbres ont avalé étoiles et planètes. Les Anciens ont combattu avec leurs bâtons de cristal et fui dans leurs vaisseaux, mais rien ne pouvait les arrêter.",
+  "La Oscuridad se tragó estrellas y planetas. Los Antiguos lucharon con bastones de cristal y huyeron en sus naves, pero nada podía detenerla.",
+  "A Escuridão engoliu estrelas e planetas. Os Antigos lutaram com bastões de cristal e fugiram nas suas naves, mas nada a conseguia parar."
+ ],
+ "Vael's choice": [
+  "De keuze van Vael",
+  "Vaels Entscheidung",
+  "Le choix de Vael",
+  "La decisión de Vael",
+  "A escolha de Vael"
+ ],
+ "Then Vael stood alone before the Dark, opened its arms and pulled the Dark into its own heart.": [
+  "Toen ging Vael alleen voor het Duister staan, spreidde zijn armen en trok het Duister in zijn eigen hart.",
+  "Da stellte sich Vael allein vor die Dunkelheit, breitete die Arme aus und zog die Dunkelheit in sein eigenes Herz.",
+  "Alors Vael s'est dressé seul face aux Ténèbres, a ouvert les bras et les a attirées dans son propre cœur.",
+  "Entonces Vael se plantó solo ante la Oscuridad, abrió los brazos y la atrajo hacia su propio corazón.",
+  "Então Vael ficou sozinho diante da Escuridão, abriu os braços e puxou-a para dentro do seu próprio coração."
+ ],
+ "Victory with a price": [
+  "Een overwinning met een prijs",
+  "Ein Sieg mit Preis",
+  "Une victoire qui coûte cher",
+  "Una victoria con un precio",
+  "Uma vitória com um preço"
+ ],
+ "The stars shone again and the Ancients cheered. But the Dark now lived inside Vael, and violet cracks spread over its golden light.": [
+  "De sterren straalden weer en de Ouden juichten. Maar het Duister woonde nu in Vael, en paarse barsten verspreidden zich over zijn gouden licht.",
+  "Die Sterne leuchteten wieder und die Alten jubelten. Doch nun lebte die Dunkelheit in Vael, und violette Risse breiteten sich über sein goldenes Licht aus.",
+  "Les étoiles ont brillé à nouveau et les Anciens ont fêté la victoire. Mais les Ténèbres vivaient désormais en Vael, et des fissures violettes couvraient sa lumière dorée.",
+  "Las estrellas volvieron a brillar y los Antiguos lo celebraron. Pero ahora la Oscuridad vivía dentro de Vael, y grietas violetas cubrían su luz dorada.",
+  "As estrelas voltaram a brilhar e os Antigos festejaram. Mas a Escuridão vivia agora dentro de Vael, e rachas violeta espalhavam-se pela sua luz dourada."
+ ],
+ "Afraid of a hero": [
+  "Bang voor een held",
+  "Angst vor einem Helden",
+  "Peur d'un héros",
+  "Miedo a un héroe",
+  "Medo de um herói"
+ ],
+ "Vael's eyes turned violet. Afraid of their hero, the Ancients asked Vael to go away.": [
+  "De ogen van Vael werden paars. Bang voor hun held vroegen de Ouden Vael om weg te gaan.",
+  "Vaels Augen wurden violett. Aus Angst vor ihrem Helden baten die Alten Vael, fortzugehen.",
+  "Les yeux de Vael sont devenus violets. Effrayés par leur héros, les Anciens lui ont demandé de partir.",
+  "Los ojos de Vael se volvieron violetas. Asustados de su héroe, los Antiguos le pidieron que se marchara.",
+  "Os olhos de Vael ficaram violeta. Com medo do seu herói, os Antigos pediram a Vael que se fosse embora."
+ ],
+ "The long sleep": [
+  "De lange slaap",
+  "Der lange Schlaf",
+  "Le long sommeil",
+  "El largo sueño",
+  "O longo sono"
+ ],
+ "Vael flew to the edge of the galaxy and fell into a deep sleep, keeping the Dark locked inside. Alone. One tear of light fell.": [
+  "Vael vloog naar de rand van het melkwegstelsel en viel in een diepe slaap, met het Duister opgesloten in zich. Alleen. Er viel één traan van licht.",
+  "Vael flog an den Rand der Galaxie und fiel in einen tiefen Schlaf, die Dunkelheit in sich eingeschlossen. Allein. Eine Träne aus Licht fiel.",
+  "Vael s'est envolé au bord de la galaxie et s'est endormi profondément, les Ténèbres enfermées en lui. Seul. Une larme de lumière est tombée.",
+  "Vael voló al borde de la galaxia y cayó en un sueño profundo, con la Oscuridad encerrada dentro. Solo. Cayó una lágrima de luz.",
+  "Vael voou até ao limite da galáxia e caiu num sono profundo, com a Escuridão presa dentro de si. Sozinho. Caiu uma lágrima de luz."
+ ],
+ "The warning": [
+  "De waarschuwing",
+  "Die Warnung",
+  "L'avertissement",
+  "La advertencia",
+  "O aviso"
+ ],
+ "The Ancients built silent guardians around the sleeper and carved one warning: never make a sound here. Never wake the one who saved us.": [
+  "De Ouden bouwden stille wachters rond de slaper en kerfden één waarschuwing: maak hier nooit geluid. Maak nooit wakker wie ons redde.",
+  "Die Alten bauten stille Wächter um den Schläfer und meißelten eine Warnung: Mach hier niemals ein Geräusch. Wecke niemals den, der uns gerettet hat.",
+  "Les Anciens ont bâti des gardiens silencieux autour du dormeur et gravé un avertissement : ne faites jamais de bruit ici. Ne réveillez jamais celui qui nous a sauvés.",
+  "Los Antiguos construyeron guardianes silenciosos alrededor del durmiente y grabaron una advertencia: nunca hagas ruido aquí. Nunca despiertes a quien nos salvó.",
+  "Os Antigos construíram guardiões silenciosos à volta do adormecido e gravaram um aviso: nunca faças barulho aqui. Nunca acordes quem nos salvou."
+ ],
+ "A very old stone mural made by the Ancients. It tells the true story of the Void.": [
+  "Een heel oude stenen muurschildering van de Ouden. Hij vertelt het ware verhaal van de Void.",
+  "Ein sehr altes Steinbild der Alten. Es erzählt die wahre Geschichte des Void.",
+  "Une très vieille fresque de pierre faite par les Anciens. Elle raconte la vraie histoire du Void.",
+  "Un mural de piedra muy antiguo hecho por los Antiguos. Cuenta la verdadera historia del Void.",
+  "Um mural de pedra muito antigo feito pelos Antigos. Conta a verdadeira história do Void."
+ ],
+ "Tap a piece to read its part of the story": [
+  "Tik op een stuk om dat deel van het verhaal te lezen",
+  "Tippe auf ein Stück, um seinen Teil der Geschichte zu lesen",
+  "Touche un morceau pour lire sa partie de l'histoire",
+  "Toca un trozo para leer su parte de la historia",
+  "Toca num pedaço para ler a sua parte da história"
+ ],
+ "Use the arrows to go from piece to piece": [
+  "Gebruik de pijltjes om van stuk naar stuk te gaan",
+  "Nutze die Pfeile, um von Stück zu Stück zu gehen",
+  "Utilise les flèches pour passer d'un morceau à l'autre",
+  "Usa las flechas para ir de trozo en trozo",
+  "Usa as setas para passar de pedaço em pedaço"
+ ],
+ "Every time you defeat the Void, you find a new piece": [
+  "Elke keer dat je de Void verslaat, vind je een nieuw stuk",
+  "Jedes Mal, wenn du den Void besiegst, findest du ein neues Stück",
+  "Chaque fois que tu bats le Void, tu trouves un nouveau morceau",
+  "Cada vez que derrotas al Void, encuentras un trozo nuevo",
+  "Sempre que derrotas o Void, encontras um pedaço novo"
+ ]
+});
 })();

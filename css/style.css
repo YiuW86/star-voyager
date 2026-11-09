@@ -1935,3 +1935,41 @@ body[data-screen="goals"] .info-btn, body[data-screen="badges"] .info-btn { righ
 body[data-screen="planets"] .info-btn { top: 46px; right: 164px; }
 .hub-ico { padding: 27px; }
 .hub-ico::after { inset: 5px; }
+
+/* v3.49 the ancient mural */
+.screen.mural { background: radial-gradient(ellipse at 50% 40%, #2b2140 0%, #120c1c 70%, #07050c 100%); }
+.mural-top { position: absolute; left: 40px; right: 130px; top: 30px; display: flex; align-items: center; gap: 30px; z-index: 2; }
+.mural-top .title { margin: 0; font-size: 60px; }
+.mural-count { margin-left: auto; padding: 8px 22px; border-radius: 30px; font: 700 34px Orbitron, Arial, sans-serif; color: var(--gold);
+  background: rgba(20, 12, 40, 0.8); border: 2px solid rgba(255, 210, 122, 0.6); }
+.mural-wall { position: absolute; left: 50%; top: 128px; transform: translateX(-50%); width: 1360px; height: 766px;
+  filter: drop-shadow(0 0 30px rgba(164, 107, 255, 0.35)); }
+.mural-svg { width: 100%; height: 100%; display: block; overflow: visible; }
+.mural-svg .mp-img, .mural-svg .mp-rock { cursor: pointer; }
+.mural-svg .mp-rock { stroke: none; }
+.mural-svg .mp-q { fill: rgba(199, 155, 255, 0.35); font: 700 120px Georgia, serif; text-anchor: middle; dominant-baseline: central; pointer-events: none; }
+.mural-svg .mp-edge { fill: none; stroke: #0b0710; stroke-width: 7; stroke-linejoin: round; pointer-events: none; }
+.mural-svg .mp-edge.sel { stroke: #ffd27a; stroke-width: 9; filter: drop-shadow(0 0 10px #ffd27a); }
+.mural-cap { position: absolute; left: 50%; bottom: 26px; transform: translateX(-50%); width: 1500px; max-width: calc(100% - 80px); box-sizing: border-box;
+  padding: 16px 30px; border-radius: 22px; background: rgba(20, 12, 40, 0.88); border: 2px solid rgba(255, 210, 122, 0.55); min-height: 150px; }
+.mural-cap b { display: block; font-size: 32px; color: var(--gold); margin-bottom: 4px; }
+.mural-cap p { margin: 0; font-size: 30px; line-height: 1.35; color: #f2eaff; }
+.mural-cap.locked b, .mural-cap.locked p { color: #9b8fb4; }
+.home-top .mural-btn { margin-left: 10px; }
+.mural-link { margin-top: 14px; }
+/* a piece found after the Void */
+.mural-found { position: absolute; inset: 0; z-index: 40; display: none; align-items: center; justify-content: center;
+  background: radial-gradient(ellipse at center, rgba(40, 24, 70, 0.92), rgba(4, 2, 10, 0.97)); opacity: 0; transition: opacity 0.35s; }
+.mural-found.show { display: flex; }
+.mural-found.in { opacity: 1; }
+.mf-box { width: 1300px; max-width: 92%; text-align: center; }
+.mf-head { font-size: 40px; font-weight: 700; color: var(--gold); letter-spacing: 1px; text-shadow: 0 0 18px rgba(255, 210, 122, 0.6); }
+.mf-piece { height: 470px; margin: 16px auto 6px; }
+.mf-piece .mural-svg { filter: drop-shadow(0 0 26px rgba(255, 210, 122, 0.55)); }
+.mural-found.in .mf-piece { animation: mfIn 1.1s cubic-bezier(.2, 1.4, .4, 1) both; }
+@keyframes mfIn { from { transform: scale(0.3) rotate(-8deg); opacity: 0; } to { transform: none; opacity: 1; } }
+.mf-count { font: 700 28px Orbitron, Arial, sans-serif; color: #c79bff; }
+.mf-box h2 { margin: 6px 0; font-size: 46px; color: #fff; }
+.mf-box p { margin: 0 auto 10px; font-size: 32px; line-height: 1.35; color: #eee4ff; max-width: 1200px; }
+.mf-box .mf-orbit { font-size: 28px; color: #9ff8ff; font-style: italic; }
+.mf-box .btn { margin-top: 14px; }

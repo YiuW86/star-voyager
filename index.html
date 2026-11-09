@@ -5,7 +5,7 @@
 /* Always play the newest version: ask the website which version is live (bypassing any saved copy);
    if this page is older, load the page again once with the new version number. */
 (function () {
-  var BUILD = '3.48.2';
+  var BUILD = '3.49';
   try {
     fetch('version.json?t=' + Date.now(), { cache: 'no-store' }).then(function (r) { return r.ok ? r.json() : null; }).then(function (j) {
       if (!j || !j.v || j.v === BUILD) return;
@@ -25,7 +25,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Chakra+Petch:wght@400;500;600;700&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="css/style.css?v=3.48.2">
+  <link rel="stylesheet" href="css/style.css?v=3.49">
 </head>
 <body>
 <svg width="0" height="0" style="position:absolute" aria-hidden="true"><defs>
@@ -70,6 +70,17 @@
         <button class="btn pink" id="story-next" data-action="story-next"><span>Next</span></button></div>
     </div>
     <button class="btn small story-skip" data-action="story-skip"><span>Skip</span></button>
+  </section>
+
+  <!-- The ancient mural: the Void's true story, one rocky piece per Void defeated -->
+  <section id="screen-mural" class="screen mural">
+    <div class="mural-top">
+      <button class="btn small" data-action="mural-back"><span>Back</span></button>
+      <h1 class="title">The ancient mural</h1>
+      <span class="mural-count" id="mural-count"></span>
+    </div>
+    <div class="mural-wall" id="mural-wall"></div>
+    <div class="mural-cap" id="mural-cap"></div>
   </section>
 
   <!-- Intro video after pressing Start -->
@@ -193,6 +204,7 @@
     <div class="home-top">
       <button class="btn small" data-go="planets"><span>Back</span></button>
       <div class="base-level" id="base-level"></div>
+      <button class="btn small mural-btn" id="home-mural" data-action="mural-open" data-from="home"><span>Ancient mural</span></button>
       <div class="inventory home-inv" id="home-inv"></div>
     </div>
     <div id="buildings"></div>
@@ -574,6 +586,18 @@
       <button class="btn" data-go="start"><span>Back to title</span></button>
     </div>
   </section>
+  <!-- A mural piece found after defeating the Void -->
+  <div class="mural-found" id="ov-mural-found">
+    <div class="mf-box">
+      <div class="mf-head">✦ <span>Ancient mural piece found!</span> ✦</div>
+      <div class="mf-piece" id="mf-piece"></div>
+      <div class="mf-count" id="mf-count"></div>
+      <h2 id="mf-title"></h2>
+      <p id="mf-text"></p>
+      <p class="mf-orbit" id="mf-orbit"></p>
+      <button class="btn pink" data-action="mural-close"><span>Continue</span></button>
+    </div>
+  </div>
   <!-- "i" button: what this screen is for (shown on the main screens) -->
   <button class="info-btn" id="info-btn" data-action="info" aria-label="Info"><span>i</span></button>
   <div class="overlay info-ov" id="ov-info">
@@ -583,18 +607,18 @@
 
 <script src="https://unpkg.com/peerjs@1.5.4/dist/peerjs.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
-<script src="js/config.js?v=3.48.2"></script>
-<script src="js/i18n.js?v=3.48.2"></script>
-<script src="js/i18n-more.js?v=3.48.2"></script>
-<script src="js/audio.js?v=3.48.2"></script>
-<script src="js/net.js?v=3.48.2"></script>
-<script src="js/level.js?v=3.48.2"></script>
-<script src="js/dex.js?v=3.48.2"></script>
-<script src="js/cloud.js?v=3.48.2"></script>
-<script src="js/touch.js?v=3.48.2"></script>
-<script src="js/story.js?v=3.48.2"></script>
-<script src="js/storyintro.js?v=3.48.2"></script>
-<script src="js/app.js?v=3.48.2"></script>
-<script src="js/cast-receiver.js?v=3.48.2"></script>
+<script src="js/config.js?v=3.49"></script>
+<script src="js/i18n.js?v=3.49"></script>
+<script src="js/i18n-more.js?v=3.49"></script>
+<script src="js/audio.js?v=3.49"></script>
+<script src="js/net.js?v=3.49"></script>
+<script src="js/level.js?v=3.49"></script>
+<script src="js/dex.js?v=3.49"></script>
+<script src="js/cloud.js?v=3.49"></script>
+<script src="js/touch.js?v=3.49"></script>
+<script src="js/story.js?v=3.49"></script>
+<script src="js/storyintro.js?v=3.49"></script>
+<script src="js/app.js?v=3.49"></script>
+<script src="js/cast-receiver.js?v=3.49"></script>
 </body>
 </html>

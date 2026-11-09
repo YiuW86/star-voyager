@@ -460,7 +460,8 @@
             <h2>${known ? b.name : '???'}</h2>
             <p class="dex-title">${known ? b.title : 'Something is watching you...'}</p>
             ${known ? `<p>${b.about}</p><dl><dt>Planet</dt><dd>${tt(w.planet)}</dd><dt>Found in</dt><dd>${tt('{world}, level {n}', { world: tt(w.world), n: w.stage })}</dd><dt>Attacks</dt><dd>${b.attack}</dd><dt>Danger</dt><dd><span class="danger">${stars}</span></dd></dl>
-              <p class="dex-tip"><b>Boss tip:</b> ${b.tip}</p>` : '<p>Free the rulers of Novara to find out more.</p>'}
+              <p class="dex-tip"><b>Boss tip:</b> ${b.tip}</p>
+              <button class="btn small mural-link" data-action="mural-open" data-from="dex"><span>${tt('Ancient mural')}</span></button>` : '<p>Free the rulers of Novara to find out more.</p>'}
             ${whereHtml}
           </div></div>`;
       } else {
